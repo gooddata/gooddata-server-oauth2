@@ -1,0 +1,50 @@
+!**/src/main/**
+!**/src/test/**
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+out
+.idea*
+*.iws
+*.iml
+*.ipr
+*.swp
+*.java-version
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+
+### VS Code ###
+.vscode/
+
+### Gradle ###
+.gradle
+build
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+### Python ###
+venv
+__pycache__/
+
+### Ignore macOs junk
+.DS_Store
+
+### docker-compose overrides
+.env
+
+### direnv
+.envrc
