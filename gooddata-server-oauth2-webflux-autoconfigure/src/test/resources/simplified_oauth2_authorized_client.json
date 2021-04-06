@@ -1,0 +1,25 @@
+{
+  "registrationId": "localhost",
+  "principalName": "auth0|5f6dee2c5924f0006f077df0",
+  "accessToken": {
+    "tokenType": {
+      "value": "Bearer"
+    },
+    "tokenValue": "kvArAU1BWUmSiNvW5u3qP1y1Nvf4X-Qn",
+    "issuedAt": 1604348687.127795000,
+    "expiresAt": 1604435087.127795000,
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "address",
+      "phone",
+      "offline_access"
+    ]
+  },
+  "refreshToken": {
+    "tokenValue": "taiiBdgE3VqlhuINWnqM2zwCBzFIbbSx3kaQeg1Wwfa5D",
+    "issuedAt": 1604348687.127795000,
+    "expiresAt": null
+  }
+}

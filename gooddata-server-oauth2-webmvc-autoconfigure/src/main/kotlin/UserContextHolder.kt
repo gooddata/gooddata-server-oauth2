@@ -12,18 +12,22 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * The settings file is used to specify which projects to include in your build.
- *
- * Detailed information about configuring a multi-project build in Gradle can be found
- * in the user manual at https://docs.gradle.org/6.8.2/userguide/multi_project_builds.html
  */
+package com.gooddata.oauth2.server.servlet
 
-rootProject.name = "gooddata-server-oauth2"
+/**
+ * Interface defining contract for storing and clearing current authenticated user context. Client is responsible for
+ * the creation of any data structure it feels appropriate and choose proper context storage.
+ */
+interface UserContextHolder {
 
-include("gooddata-server-oauth2-common")
-include("gooddata-server-oauth2-test")
-include("gooddata-server-oauth2-webflux-autoconfigure")
-include("gooddata-server-oauth2-webflux-starter")
-include("gooddata-server-oauth2-webmvc-autoconfigure")
-include("gooddata-server-oauth2-webmvc-starter")
+    /**
+     * Sets and stores provided information as a new authenticated user context.
+     */
+    fun setContext(organizationId: String, userId: String, userName: String?)
+
+    /**
+     * Clears currently authenticated user context.
+     */
+    fun clearContext()
+}

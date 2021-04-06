@@ -13,17 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * The settings file is used to specify which projects to include in your build.
- *
- * Detailed information about configuring a multi-project build in Gradle can be found
- * in the user manual at https://docs.gradle.org/6.8.2/userguide/multi_project_builds.html
+ * For more details take a look at the 'Building Java & JVM projects' chapter in the Gradle
+ * User Manual available at https://docs.gradle.org/6.8.2/userguide/building_java_projects.html
  */
 
-rootProject.name = "gooddata-server-oauth2"
+plugins {
+    kotlin("plugin.spring")
+    id("org.springframework.boot")
+}
 
-include("gooddata-server-oauth2-common")
-include("gooddata-server-oauth2-test")
-include("gooddata-server-oauth2-webflux-autoconfigure")
-include("gooddata-server-oauth2-webflux-starter")
-include("gooddata-server-oauth2-webmvc-autoconfigure")
-include("gooddata-server-oauth2-webmvc-starter")
+tasks {
+    bootJar { enabled = false }
+    jar { enabled = true }
+}
+
+dependencies {
+    api(project(":gooddata-server-oauth2-webflux-autoconfigure"))
+}

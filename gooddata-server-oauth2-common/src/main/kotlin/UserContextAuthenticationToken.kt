@@ -12,18 +12,21 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * The settings file is used to specify which projects to include in your build.
- *
- * Detailed information about configuring a multi-project build in Gradle can be found
- * in the user manual at https://docs.gradle.org/6.8.2/userguide/multi_project_builds.html
  */
+package com.gooddata.oauth2.server.common
 
-rootProject.name = "gooddata-server-oauth2"
+import org.springframework.security.authentication.AbstractAuthenticationToken
 
-include("gooddata-server-oauth2-common")
-include("gooddata-server-oauth2-test")
-include("gooddata-server-oauth2-webflux-autoconfigure")
-include("gooddata-server-oauth2-webflux-starter")
-include("gooddata-server-oauth2-webmvc-autoconfigure")
-include("gooddata-server-oauth2-webmvc-starter")
+class UserContextAuthenticationToken(
+    val organization: Organization,
+    val user: User,
+) : AbstractAuthenticationToken(emptyList()) {
+
+    init {
+        isAuthenticated = true
+    }
+
+    override fun getCredentials(): String = user.id
+
+    override fun getPrincipal(): String = user.id
+}
