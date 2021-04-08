@@ -1,0 +1,16 @@
+{
+  "authorizationUri": "authorizationUri",
+  "authorizationGrantType": {
+    "value": "authorization_code"
+  },
+  "responseType": {
+    "value": "code"
+  },
+  "clientId": "clientId",
+  "redirectUri": null,
+  "scopes": [],
+  "state": null,
+  "additionalParameters": {},
+  "authorizationRequestUri": "authorizationUri?response_type=code&client_id=clientId",
+  "attributes": {}
+}

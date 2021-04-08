@@ -1,0 +1,8 @@
+{
+  "principal": {
+    "idToken": {
+      "tokenValue": "tokenValue"
+    }
+  },
+  "authorizedClientRegistrationId": "registrationId"
+}
