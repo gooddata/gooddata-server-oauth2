@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server.reactive
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
 import org.springframework.security.core.AuthenticationException
 import org.springframework.security.web.server.DefaultServerRedirectStrategy
@@ -39,7 +40,7 @@ class HostBasedServerAuthenticationEntryPoint(
     private val xmlHttpRequestServerRedirectStrategy = XMLHttpRequestServerRedirectStrategy()
 
     override fun commence(exchange: ServerWebExchange, e: AuthenticationException?): Mono<Void> =
-        mono {
+        mono(Dispatchers.Unconfined) {
             if (exchange.request.headers["X-Requested-With"]?.first() == "XMLHttpRequest") {
                 val uri = URI.create(AppLoginWebFilter.APP_LOGIN_PATH)
                 xmlHttpRequestServerRedirectStrategy.sendRedirect(exchange, uri).awaitOrNull()

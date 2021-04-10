@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server.reactive
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
 import org.springframework.http.HttpStatus
 import org.springframework.security.web.server.DefaultServerRedirectStrategy
@@ -29,7 +30,7 @@ import java.net.URI
 class XMLHttpRequestServerRedirectStrategy : DefaultServerRedirectStrategy() {
 
     override fun sendRedirect(exchange: ServerWebExchange, location: URI): Mono<Void> =
-        mono {
+        mono(Dispatchers.Unconfined) {
             super.sendRedirect(exchange, location).awaitOrNull()
 
             val response = exchange.response
@@ -37,7 +38,7 @@ class XMLHttpRequestServerRedirectStrategy : DefaultServerRedirectStrategy() {
             response.headers.location = null
             response.statusCode = HttpStatus.UNAUTHORIZED
             response.writeWith(
-                mono {
+                mono(Dispatchers.Unconfined) {
                     response.bufferFactory().wrap(uri.toASCIIString().toByteArray())
                 }
             ).awaitOrNull()

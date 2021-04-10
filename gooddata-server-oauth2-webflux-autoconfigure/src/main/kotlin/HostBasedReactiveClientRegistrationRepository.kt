@@ -18,6 +18,7 @@ package com.gooddata.oauth2.server.reactive
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
 import com.gooddata.oauth2.server.common.HostBasedClientRegistrationRepositoryProperties
 import com.gooddata.oauth2.server.common.buildClientRegistration
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository
@@ -32,7 +33,7 @@ class HostBasedReactiveClientRegistrationRepository(
     private val properties: HostBasedClientRegistrationRepositoryProperties,
 ) : ReactiveClientRegistrationRepository {
 
-    override fun findByRegistrationId(registrationId: String): Mono<ClientRegistration> = mono {
+    override fun findByRegistrationId(registrationId: String): Mono<ClientRegistration> = mono(Dispatchers.Unconfined) {
         buildClientRegistration(
             // we store hostname in registrationId
             registrationId,

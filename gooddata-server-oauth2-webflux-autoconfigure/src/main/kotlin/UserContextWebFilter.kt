@@ -21,6 +21,7 @@ import com.gooddata.oauth2.server.common.User
 import com.gooddata.oauth2.server.common.UserContextAuthenticationToken
 import com.gooddata.oauth2.server.common.getUserContextForAuthenticationToken
 import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.reactor.ReactorContext
 import kotlinx.coroutines.reactor.mono
@@ -65,7 +66,7 @@ class UserContextWebFilter(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> =
-        mono(CoroutineName("userContextWebFilter")) {
+        mono(Dispatchers.Unconfined + CoroutineName("userContextWebFilter")) {
             val authOption = Option(Level.WARN, { "ReactorContext is not a part of coroutineContext" }) {
                 coroutineContext[ReactorContext]?.context
             }.map(Level.DEBUG, { "Security context is not set, probably accessing unauthenticated resource" }) {

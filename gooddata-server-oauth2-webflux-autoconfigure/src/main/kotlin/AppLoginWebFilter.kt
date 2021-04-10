@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server.reactive
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
 import org.springframework.http.HttpMethod
 import org.springframework.security.web.server.DefaultServerRedirectStrategy
@@ -60,7 +61,7 @@ class AppLoginWebFilter(properties: AppLoginProperties) : WebFilter {
     )
     private val redirectStrategy = DefaultServerRedirectStrategy()
 
-    override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> = mono {
+    override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> = mono(Dispatchers.Unconfined) {
         val redirectTo = matcher.matches(exchange)
             .awaitOrNull()
             ?.takeIf { it.isMatch }

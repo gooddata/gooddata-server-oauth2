@@ -24,6 +24,7 @@ import com.gooddata.oauth2.server.common.User
 import com.ninjasquad.springmockk.MockkBean
 import io.mockk.coEvery
 import io.mockk.every
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.reactor.ReactorContext
 import kotlinx.coroutines.reactor.asCoroutineContext
@@ -460,7 +461,7 @@ class UserContextWebFluxTest(
         @GetMapping("/")
         suspend fun getDummy(): ResponseEntity<Mono<String>> {
             return ResponseEntity.ok(
-                mono {
+                mono(Dispatchers.Unconfined) {
                     val userContext = coroutineContext[ReactorContext]?.context?.get(UserContext::class.java)!!
                     "${userContext.userName} <${userContext.userId}@${userContext.organizationId}>"
                 }
