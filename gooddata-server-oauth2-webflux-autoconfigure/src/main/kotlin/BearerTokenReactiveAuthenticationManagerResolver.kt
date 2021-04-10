@@ -17,6 +17,7 @@ package com.gooddata.oauth2.server.reactive
 
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
 import com.gooddata.oauth2.server.common.userContextAuthenticationToken
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
 import org.springframework.security.authentication.ReactiveAuthenticationManager
 import org.springframework.security.authentication.ReactiveAuthenticationManagerResolver
@@ -33,9 +34,9 @@ class BearerTokenReactiveAuthenticationManagerResolver(
 
     @Suppress("TooGenericExceptionCaught")
     override fun resolve(exchange: ServerWebExchange): Mono<ReactiveAuthenticationManager> =
-        mono {
+        mono(Dispatchers.Unconfined) {
             ReactiveAuthenticationManager { authentication ->
-                mono {
+                mono(Dispatchers.Unconfined) {
                     (authentication as? BearerTokenAuthenticationToken)?.let {
                         userContextAuthenticationToken(client, exchange.request.uri.host, it)
                     }

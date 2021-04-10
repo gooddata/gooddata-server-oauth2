@@ -16,6 +16,7 @@
 package com.gooddata.oauth2.server.reactive
 
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
 import org.springframework.security.core.Authentication
 import org.springframework.security.web.server.WebFilterExchange
@@ -32,7 +33,7 @@ class LogoutAllServerLogoutHandler(
 ) : ServerLogoutHandler {
 
     override fun logout(exchange: WebFilterExchange, authentication: Authentication): Mono<Void> =
-        mono {
+        mono(Dispatchers.Unconfined) {
             userContextHolder.getContext()
                 ?.let {
                     client.logoutAll(it.userId, it.organizationId)
