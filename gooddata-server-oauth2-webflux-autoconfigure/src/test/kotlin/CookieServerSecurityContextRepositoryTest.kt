@@ -165,7 +165,7 @@ internal class CookieServerSecurityContextRepositoryTest {
             ClientRegistrations
                 .fromIssuerLocation("https://dev-6-eq6djb.eu.auth0.com/")
                 .registrationId("localhost")
-                .clientId("clientId")
+                .clientId("zB85JfotOTabIdSAqsIWPj6ZV4tCXaHD")
                 .build()
         )
 
