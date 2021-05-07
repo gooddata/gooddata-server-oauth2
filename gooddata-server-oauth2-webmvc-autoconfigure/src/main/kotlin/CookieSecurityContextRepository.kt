@@ -65,7 +65,7 @@ class CookieSecurityContextRepository(
                 // decode JWT token from JSON
                 .decode((decoded.principal as OidcUser).idToken.tokenValue)
         } catch (e: JwtException) {
-            logger.info(e) { "Stored JWT token cannot be decoded" }
+            logger.info { "Stored JWT token cannot be decoded: ${e.message}" }
             return SecurityContextHolder.createEmptyContext()
         }
         val oidc = OidcIdToken(jwt.tokenValue, jwt.issuedAt, jwt.expiresAt, jwt.claims)
