@@ -15,15 +15,22 @@
  */
 package com.gooddata.oauth2.server.reactive
 
+import com.gooddata.oauth2.server.common.AuthenticationStoreClient
+import com.gooddata.oauth2.server.common.CookieSecurityProperties
 import com.gooddata.oauth2.server.common.CookieSerializer
 import com.gooddata.oauth2.server.common.CookieServiceProperties
+import com.gooddata.oauth2.server.common.Organization
 import com.gooddata.oauth2.server.common.jackson.mapper
+import com.google.crypto.tink.CleartextKeysetHandle
+import com.google.crypto.tink.JsonKeysetReader
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import io.netty.handler.codec.http.cookie.CookieHeaderNames
 import net.javacrumbs.jsonunit.core.util.ResourceUtils.resource
+import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpCookie
@@ -35,7 +42,9 @@ import strikt.api.expectThat
 import strikt.assertions.isEqualTo
 import strikt.assertions.isFalse
 import strikt.assertions.isTrue
+import java.net.URI
 import java.time.Duration
+import java.time.Instant
 import java.util.Optional
 
 internal class ReactiveCookieServiceTest {
@@ -46,18 +55,50 @@ internal class ReactiveCookieServiceTest {
 
     private val exchange: ServerWebExchange = mockk()
 
-    private val properties = CookieServiceProperties(duration, CookieHeaderNames.SameSite.Lax, "")
+    private val properties = CookieServiceProperties(
+        Duration.ofDays(1),
+        CookieHeaderNames.SameSite.Lax,
+        Duration.ofDays(1)
+    )
 
-    private val cookieSerializer = CookieSerializer(properties)
+    @Language("JSON")
+    private val keyset = """
+        {
+            "primaryKeyId": 482808123,
+            "key": [
+                {
+                    "keyData": {
+                        "typeUrl": "type.googleapis.com/google.crypto.tink.AesGcmKey",
+                        "keyMaterialType": "SYMMETRIC",
+                        "value": "GiBpR+IuA4xWtq5ZijTXae/Y9plMy0TMMc97wqdOrK7ndA=="
+                    },
+                    "outputPrefixType": "TINK",
+                    "keyId": 482808123,
+                    "status": "ENABLED"
+                }
+            ]
+        }
+    """
+
+    private val client: AuthenticationStoreClient = mockk {
+        coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
+        coEvery { getCookieSecurityProperties("org") } returns CookieSecurityProperties(
+            keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
+            lastRotation = Instant.now(),
+            rotationInterval = Duration.ofDays(1),
+        )
+    }
+
+    private val cookieSerializer = CookieSerializer(properties, client)
 
     private val cookieService = ReactiveCookieService(properties, cookieSerializer)
 
-    private val encodedValue = cookieSerializer.encodeCookie(value)
+    private val encodedValue = cookieSerializer.encodeCookie("localhost", value)
 
     @BeforeEach
     internal fun setUp() {
         every { exchange.request.path.contextPath().value() } returns ""
-        every { exchange.request.uri.scheme } returns "http"
+        every { exchange.request.uri } returns URI.create("http://localhost")
     }
 
     @Test
@@ -75,7 +116,7 @@ internal class ReactiveCookieServiceTest {
             get(ResponseCookie::getName).isEqualTo(name)
             get(ResponseCookie::getValue).isEqualTo(encodedValue)
             get(ResponseCookie::getValue).assert("is properly encoded") {
-                cookieSerializer.decodeCookie(it).contentEquals(value)
+                cookieSerializer.decodeCookie("localhost", it).contentEquals(value)
             }
             get(ResponseCookie::getPath).isEqualTo("/")
             get(ResponseCookie::isHttpOnly).isTrue()
@@ -163,7 +204,7 @@ internal class ReactiveCookieServiceTest {
     fun `decodes and parses cookie from exchange`() {
         val body = resource("mock_authorization_request.json").readText()
         every { exchange.request.cookies } returns CollectionUtils.toMultiValueMap(
-            mapOf(name to listOf(HttpCookie(name, cookieSerializer.encodeCookie(body))))
+            mapOf(name to listOf(HttpCookie(name, cookieSerializer.encodeCookie("localhost", body))))
         )
 
         val value = cookieService.decodeCookie(

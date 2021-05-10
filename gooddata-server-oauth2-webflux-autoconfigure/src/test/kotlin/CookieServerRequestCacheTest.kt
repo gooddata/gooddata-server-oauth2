@@ -15,14 +15,22 @@
  */
 package com.gooddata.oauth2.server.reactive
 
+import com.gooddata.oauth2.server.common.AuthenticationStoreClient
+import com.gooddata.oauth2.server.common.CookieSecurityProperties
 import com.gooddata.oauth2.server.common.CookieSerializer
 import com.gooddata.oauth2.server.common.CookieServiceProperties
+import com.gooddata.oauth2.server.common.Organization
 import com.gooddata.oauth2.server.common.SPRING_REDIRECT_URI
+import com.google.crypto.tink.CleartextKeysetHandle
+import com.google.crypto.tink.JsonKeysetReader
+import io.mockk.coEvery
 import io.mockk.every
+import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.spyk
 import io.mockk.verify
 import io.netty.handler.codec.http.cookie.CookieHeaderNames
+import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpCookie
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
@@ -32,12 +40,45 @@ import strikt.assertions.isEqualTo
 import strikt.assertions.isTrue
 import java.net.URI
 import java.time.Duration
+import java.time.Instant
 
 internal class CookieServerRequestCacheTest {
 
-    private val properties = CookieServiceProperties(Duration.ofDays(1), CookieHeaderNames.SameSite.Lax, "")
+    private val properties = CookieServiceProperties(
+        Duration.ofDays(1),
+        CookieHeaderNames.SameSite.Lax,
+        Duration.ofDays(1)
+    )
 
-    private val cookieSerializer = CookieSerializer(properties)
+    @Language("JSON")
+    private val keyset = """
+        {
+            "primaryKeyId": 482808123,
+            "key": [
+                {
+                    "keyData": {
+                        "typeUrl": "type.googleapis.com/google.crypto.tink.AesGcmKey",
+                        "keyMaterialType": "SYMMETRIC",
+                        "value": "GiBpR+IuA4xWtq5ZijTXae/Y9plMy0TMMc97wqdOrK7ndA=="
+                    },
+                    "outputPrefixType": "TINK",
+                    "keyId": 482808123,
+                    "status": "ENABLED"
+                }
+            ]
+        }
+    """
+
+    private val client: AuthenticationStoreClient = mockk {
+        coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
+        coEvery { getCookieSecurityProperties("org") } returns CookieSecurityProperties(
+            keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
+            lastRotation = Instant.now(),
+            rotationInterval = Duration.ofDays(1),
+        )
+    }
+
+    private val cookieSerializer = CookieSerializer(properties, client)
 
     private val cookieService = spyk(ReactiveCookieService(properties, cookieSerializer))
 
@@ -47,7 +88,7 @@ internal class CookieServerRequestCacheTest {
     fun `should save redirect URI`() {
         val slot = slot<String>()
         val exchange = MockServerWebExchange.from(
-            MockServerHttpRequest.get("/requestURI").queryParam("query", "true")
+            MockServerHttpRequest.get("http://localhost/requestURI").queryParam("query", "true")
         )
         every { cookieService.createCookie(any(), any(), capture(slot)) } returns Unit
 
@@ -62,7 +103,7 @@ internal class CookieServerRequestCacheTest {
 
     @Test
     fun `should remove redirect URI from cookies`() {
-        val request = MockServerHttpRequest.get("/requestURI").queryParam("query", "true").build()
+        val request = MockServerHttpRequest.get("http://localhost/requestURI").queryParam("query", "true").build()
         val exchange = MockServerWebExchange.from(request)
         every { cookieService.invalidateCookie(any(), any()) } returns Unit
 
@@ -79,7 +120,7 @@ internal class CookieServerRequestCacheTest {
     @Test
     fun `should not load redirect URI when nothing is stored in cookies`() {
         val exchange = MockServerWebExchange.from(
-            MockServerHttpRequest.get("/requestURI").queryParam("query", "true")
+            MockServerHttpRequest.get("http://localhost/requestURI").queryParam("query", "true")
         )
 
         val uri = cache.getRedirectUri(exchange)
@@ -92,7 +133,7 @@ internal class CookieServerRequestCacheTest {
     @Test
     fun `should not load redirect URI when nonsense is stored in cookies`() {
         val exchange = MockServerWebExchange.from(
-            MockServerHttpRequest.get("/").cookie(HttpCookie(SPRING_REDIRECT_URI, "something"))
+            MockServerHttpRequest.get("http://localhost/").cookie(HttpCookie(SPRING_REDIRECT_URI, "something"))
         )
 
         val uri = cache.getRedirectUri(exchange)
@@ -106,8 +147,8 @@ internal class CookieServerRequestCacheTest {
     fun `should load redirect URI from cookie`() {
         val redirect = "/requestURI?query=true"
         val exchange = MockServerWebExchange.from(
-            MockServerHttpRequest.get("/").cookie(
-                HttpCookie(SPRING_REDIRECT_URI, cookieSerializer.encodeCookie(redirect))
+            MockServerHttpRequest.get("http://localhost/").cookie(
+                HttpCookie(SPRING_REDIRECT_URI, cookieSerializer.encodeCookie("localhost", redirect))
             )
         )
 

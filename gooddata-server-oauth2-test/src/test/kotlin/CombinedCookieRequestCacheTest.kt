@@ -15,14 +15,22 @@
  */
 package com.gooddata.oauth2.server.test
 
+import com.gooddata.oauth2.server.common.AuthenticationStoreClient
+import com.gooddata.oauth2.server.common.CookieSecurityProperties
 import com.gooddata.oauth2.server.common.CookieSerializer
 import com.gooddata.oauth2.server.common.CookieServiceProperties
+import com.gooddata.oauth2.server.common.Organization
 import com.gooddata.oauth2.server.common.SPRING_REDIRECT_URI
 import com.gooddata.oauth2.server.reactive.CookieServerRequestCache
 import com.gooddata.oauth2.server.reactive.ReactiveCookieService
 import com.gooddata.oauth2.server.servlet.CookieRequestCache
 import com.gooddata.oauth2.server.servlet.CookieService
+import com.google.crypto.tink.CleartextKeysetHandle
+import com.google.crypto.tink.JsonKeysetReader
+import io.mockk.coEvery
+import io.mockk.mockk
 import io.netty.handler.codec.http.cookie.CookieHeaderNames
+import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpCookie
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
@@ -35,12 +43,45 @@ import strikt.assertions.isNotNull
 import strikt.assertions.isTrue
 import java.net.URI
 import java.time.Duration
+import java.time.Instant
 import javax.servlet.http.Cookie
 
 internal class CombinedCookieRequestCacheTest {
-    private val properties = CookieServiceProperties(Duration.ofDays(1), CookieHeaderNames.SameSite.Lax, "")
+    @Language("JSON")
+    private val keyset = """
+        {
+            "primaryKeyId": 482808123,
+            "key": [
+                {
+                    "keyData": {
+                        "typeUrl": "type.googleapis.com/google.crypto.tink.AesGcmKey",
+                        "keyMaterialType": "SYMMETRIC",
+                        "value": "GiBpR+IuA4xWtq5ZijTXae/Y9plMy0TMMc97wqdOrK7ndA=="
+                    },
+                    "outputPrefixType": "TINK",
+                    "keyId": 482808123,
+                    "status": "ENABLED"
+                }
+            ]
+        }
+    """
 
-    private val cookieSerializer = CookieSerializer(properties)
+    private val client: AuthenticationStoreClient = mockk {
+        coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
+        coEvery { getCookieSecurityProperties("org") } returns CookieSecurityProperties(
+            keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
+            lastRotation = Instant.now(),
+            rotationInterval = Duration.ofDays(1),
+        )
+    }
+
+    private val properties = CookieServiceProperties(
+        Duration.ofDays(1),
+        CookieHeaderNames.SameSite.Lax,
+        Duration.ofDays(1)
+    )
+
+    private val cookieSerializer = CookieSerializer(properties, client)
 
     private val reactiveCookieService = ReactiveCookieService(properties, cookieSerializer)
 
@@ -54,6 +95,7 @@ internal class CombinedCookieRequestCacheTest {
     fun `cookie saved by servlet can be read by reactive`() {
         val uri = "/requestURI?query=true"
         val servletRequest = MockHttpServletRequest("GET", uri).apply {
+            serverName = "localhost"
             pathInfo = "/requestURI"
             queryString = "query=true"
         }
@@ -61,11 +103,15 @@ internal class CombinedCookieRequestCacheTest {
 
         cache.saveRequest(servletRequest, servletResponse)
         expectThat(servletResponse) {
-            get { getCookie(SPRING_REDIRECT_URI)?.value?.let { cookieSerializer.decodeCookie(it) } }.isEqualTo(uri)
+            get {
+                getCookie(SPRING_REDIRECT_URI)?.value?.let {
+                    cookieSerializer.decodeCookie("localhost", it)
+                }
+            }.isEqualTo(uri)
         }
 
         val exchange = MockServerWebExchange.from(
-            MockServerHttpRequest.get("/requestURI")
+            MockServerHttpRequest.get("http://localhost/requestURI")
                 .cookie(HttpCookie(SPRING_REDIRECT_URI, servletResponse.getCookie(SPRING_REDIRECT_URI)?.value))
         )
 
@@ -81,7 +127,7 @@ internal class CombinedCookieRequestCacheTest {
     fun `cookie saved by reactive can be read by servlet`() {
         val uri = "/requestURI?query=true"
         val exchange = MockServerWebExchange.from(
-            MockServerHttpRequest.get("/requestURI").queryParam("query", "true")
+            MockServerHttpRequest.get("http://localhost/requestURI").queryParam("query", "true")
         )
 
         val response = serverCache.saveRequest(exchange)
@@ -90,7 +136,7 @@ internal class CombinedCookieRequestCacheTest {
             get { isEmpty }.isTrue()
         }
         expectThat(exchange.response) {
-            get { cookies.getFirst(SPRING_REDIRECT_URI)?.value?.let { cookieSerializer.decodeCookie(it) } }
+            get { cookies.getFirst(SPRING_REDIRECT_URI)?.value?.let { cookieSerializer.decodeCookie("localhost", it) } }
                 .isEqualTo(uri)
         }
 

@@ -48,7 +48,7 @@ class CookieService(
         val cookie = createResponseCookie(
             request,
             name,
-            cookieSerializer.encodeCookie(value),
+            cookieSerializer.encodeCookie(request.serverName, value),
             properties.duration
         )
         response.addCookie(cookie)
@@ -81,7 +81,7 @@ class CookieService(
      * This method takes request from this request, loads first cookie of given name and performs base64 decode.
      */
     internal fun decodeCookie(request: HttpServletRequest, name: String): String? = try {
-        WebUtils.getCookie(request, name)?.value?.let { cookieSerializer.decodeCookie(it) }
+        WebUtils.getCookie(request, name)?.value?.let { cookieSerializer.decodeCookie(request.serverName, it) }
     } catch (e: IllegalArgumentException) {
         logger.warn(e) { "Cookie cannot be decoded" }
         null

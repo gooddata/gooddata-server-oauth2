@@ -16,14 +16,12 @@
 package com.gooddata.oauth2.server.common
 
 import com.google.crypto.tink.Aead
-import com.google.crypto.tink.CleartextKeysetHandle
-import com.google.crypto.tink.JsonKeysetReader
 import com.google.crypto.tink.aead.AeadConfig
-import org.intellij.lang.annotations.Language
-import java.io.File
-import java.lang.IllegalArgumentException
+import kotlinx.coroutines.runBlocking
 import java.security.GeneralSecurityException
+import java.time.Instant
 import java.util.Base64
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Class for converting internal string serialization of cookie to external string serialization and back.
@@ -32,53 +30,61 @@ import java.util.Base64
  * * encodes with base64, so it is safe to store value in header
  */
 class CookieSerializer(
-    private val cookieServiceProperties: CookieServiceProperties
+    private val cookieServiceProperties: CookieServiceProperties,
+    private val client: AuthenticationStoreClient,
 ) {
-    private lateinit var aead: Aead
-    @Language("JSON")
-    private val defaultKeyset = """
-        {
-            "primaryKeyId": 482808123,
-            "key": [
-                {
-                    "keyData": {
-                        "typeUrl": "type.googleapis.com/google.crypto.tink.AesGcmKey",
-                        "keyMaterialType": "SYMMETRIC",
-                        "value": "GiBpR+IuA4xWtq5ZijTXae/Y9plMy0TMMc97wqdOrK7ndA=="
-                    },
-                    "outputPrefixType": "TINK",
-                    "keyId": 482808123,
-                    "status": "ENABLED"
-                }
-            ]
-        }
-    """
+    data class AeadCache(
+        val aead: Aead,
+        val validTo: Instant,
+    )
+
+    val aeadCache = ConcurrentHashMap<String, AeadCache>()
 
     init {
         AeadConfig.register()
-        synchronizeKeyset()
     }
 
     /**
-     * Synchronize in-memory keyset with keyset storage.
-     * Currently used only during instance creation.
-     * In future it could be called from some timer or file monitor.
+     * Get [Aead] from cache (if still valid) or from [AuthenticationStoreClient].
      */
-    private fun synchronizeKeyset() {
-        // TODO - probably mount k8s as file and read it from file
-        val keysetReader = if (cookieServiceProperties.keysetFile.isEmpty()) {
-            JsonKeysetReader.withBytes(defaultKeyset.toByteArray())
+    private fun getAead(hostname: String): Aead {
+        val aead = aeadCache[hostname]
+
+        return if (aead == null || aead.validTo.isBefore(Instant.now())) {
+            synchronized(aeadCache) {
+                val synchronizedAead = aeadCache[hostname]
+                if (synchronizedAead == null || synchronizedAead.validTo.isBefore(Instant.now())) {
+                    val newProperties = runBlocking {
+                        val organization = client.getOrganizationByHostname(hostname)
+                        client.getCookieSecurityProperties(organization.id)
+                    }
+                    val propertiesValidity = newProperties.lastRotation.plus(newProperties.rotationInterval)
+                    val cacheValidity = Instant.now().plus(cookieServiceProperties.keySetCacheDuration)
+                    val validity = if (propertiesValidity.isBefore(cacheValidity)) {
+                        propertiesValidity
+                    } else {
+                        cacheValidity
+                    }
+                    val newAead = AeadCache(
+                        newProperties.keySet.getPrimitive(Aead::class.java),
+                        validity
+                    )
+                    aeadCache[hostname] = newAead
+                    newAead.aead
+                } else {
+                    synchronizedAead.aead
+                }
+            }
         } else {
-            JsonKeysetReader.withFile(File(cookieServiceProperties.keysetFile))
+            aead.aead
         }
-        val keysetHandle = CleartextKeysetHandle.read(keysetReader)
-        aead = keysetHandle.getPrimitive(Aead::class.java)
     }
 
     /**
      * Convert cookie from internal string serialization to external string serialization.
      */
-    fun encodeCookie(internalCookie: String): String {
+    fun encodeCookie(hostname: String, internalCookie: String): String {
+        val aead = getAead(hostname)
         val encryptedCookie = aead.encrypt(internalCookie.toByteArray(), null)
         return String(Base64.getEncoder().encode(encryptedCookie))
     }
@@ -89,8 +95,9 @@ class CookieSerializer(
      *
      * @throws IllegalArgumentException when decryption fails
      */
-    fun decodeCookie(externalCookie: String): String {
+    fun decodeCookie(hostname: String, externalCookie: String): String {
         val encryptedCookie = Base64.getDecoder().decode(externalCookie.toByteArray())
+        val aead = getAead(hostname)
         val internalCookie = try {
             aead.decrypt(encryptedCookie, null)
         } catch (_: GeneralSecurityException) {

@@ -48,7 +48,7 @@ class ReactiveCookieService(
         val cookie = createResponseCookie(
             exchange.request,
             name,
-            cookieSerializer.encodeCookie(value),
+            cookieSerializer.encodeCookie(exchange.request.uri.host, value),
             properties.duration
         )
         exchange.response.addCookie(cookie)
@@ -86,7 +86,7 @@ class ReactiveCookieService(
         name: String
     ): Mono<String> {
         return Mono.justOrEmpty(request.cookies.getFirst(name))
-            .map { cookieSerializer.decodeCookie(it.value) }
+            .map { cookieSerializer.decodeCookie(request.uri.host, it.value) }
             .onErrorResume(IllegalArgumentException::class.java) {
                 logger.warn(it) { "Cookie cannot be decoded" }
                 Mono.empty()

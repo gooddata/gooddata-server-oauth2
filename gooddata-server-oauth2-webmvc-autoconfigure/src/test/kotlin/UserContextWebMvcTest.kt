@@ -16,16 +16,20 @@
 package com.gooddata.oauth2.server.servlet
 
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
+import com.gooddata.oauth2.server.common.CookieSecurityProperties
 import com.gooddata.oauth2.server.common.CookieSerializer
 import com.gooddata.oauth2.server.common.Organization
 import com.gooddata.oauth2.server.common.SPRING_SEC_OAUTH2_AUTHZ_CLIENT
 import com.gooddata.oauth2.server.common.SPRING_SEC_SECURITY_CONTEXT
 import com.gooddata.oauth2.server.common.User
+import com.google.crypto.tink.CleartextKeysetHandle
+import com.google.crypto.tink.JsonKeysetReader
 import com.ninjasquad.springmockk.MockkBean
 import io.mockk.coEvery
 import io.mockk.every
 import net.javacrumbs.jsonunit.core.util.ResourceUtils
 import org.hamcrest.Matchers
+import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
@@ -49,6 +53,7 @@ import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ResponseStatusException
 import strikt.api.expectThrows
 import strikt.assertions.isEqualTo
+import java.time.Duration
 import java.time.Instant
 import javax.servlet.http.Cookie
 
@@ -60,6 +65,25 @@ class UserContextWebMvcTest(
     @Autowired private val authenticationStoreClient: AuthenticationStoreClient,
     @Autowired private val cookieSerializer: CookieSerializer,
 ) {
+    @Language("JSON")
+    private val keyset = """
+        {
+            "primaryKeyId": 482808123,
+            "key": [
+                {
+                    "keyData": {
+                        "typeUrl": "type.googleapis.com/google.crypto.tink.AesGcmKey",
+                        "keyMaterialType": "SYMMETRIC",
+                        "value": "GiBpR+IuA4xWtq5ZijTXae/Y9plMy0TMMc97wqdOrK7ndA=="
+                    },
+                    "outputPrefixType": "TINK",
+                    "keyId": 482808123,
+                    "status": "ENABLED"
+                }
+            ]
+        }
+    """
+
     @Test
     fun `filter works with cookies`() {
         everyValidSecurityContext()
@@ -69,13 +93,19 @@ class UserContextWebMvcTest(
         coEvery { authenticationStoreClient.getUserByAuthenticationId("organizationId", "sub") } returns User(
             "userId",
         )
+        coEvery { authenticationStoreClient.getCookieSecurityProperties("organizationId") } returns
+            CookieSecurityProperties(
+                keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
+                lastRotation = Instant.now(),
+                rotationInterval = Duration.ofDays(1),
+            )
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
         mockMvc.get("http://localhost/") {
             cookie(
-                Cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(authenticationToken)),
-                Cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(authorizedClient)),
+                Cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken)),
+                Cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient)),
             )
         }.andExpect {
             status { isOk() }
@@ -126,8 +156,14 @@ class UserContextWebMvcTest(
         expectThrows<RuntimeException> {
             mockMvc.get("http://localhost/") {
                 cookie(
-                    Cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(authenticationToken)),
-                    Cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(authorizedClient)),
+                    Cookie(
+                        SPRING_SEC_SECURITY_CONTEXT,
+                        cookieSerializer.encodeCookie("localhost", authenticationToken)
+                    ),
+                    Cookie(
+                        SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
+                        cookieSerializer.encodeCookie("localhost", authorizedClient)
+                    ),
                 )
             }
         }
@@ -145,8 +181,8 @@ class UserContextWebMvcTest(
 
         mockMvc.get("http://localhost/") {
             cookie(
-                Cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(authenticationToken)),
-                Cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(authorizedClient)),
+                Cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken)),
+                Cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient)),
             )
         }.andExpect {
             status {
@@ -174,8 +210,8 @@ class UserContextWebMvcTest(
 
         mockMvc.get("http://localhost/") {
             cookie(
-                Cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(authenticationToken)),
-                Cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(authorizedClient)),
+                Cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken)),
+                Cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient)),
             )
         }.andExpect {
             status {
@@ -204,8 +240,8 @@ class UserContextWebMvcTest(
 
         mockMvc.get("http://localhost/") {
             cookie(
-                Cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(authenticationToken)),
-                Cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(authorizedClient)),
+                Cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken)),
+                Cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient)),
             )
         }.andExpect {
             status { isFound() }
@@ -367,8 +403,8 @@ class UserContextWebMvcTest(
 
         mockMvc.get("http://localhost/logout") {
             cookie(
-                Cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(authenticationToken)),
-                Cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(authorizedClient)),
+                Cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken)),
+                Cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient)),
             )
         }.andExpect {
             status { isFound() }

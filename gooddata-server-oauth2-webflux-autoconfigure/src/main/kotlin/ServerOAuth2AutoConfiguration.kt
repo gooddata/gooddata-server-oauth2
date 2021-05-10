@@ -63,7 +63,13 @@ class ServerOAuth2AutoConfiguration {
     class EnabledSecurity
 
     @Bean
-    fun cookieSerializer(cookieServiceProperties: CookieServiceProperties) = CookieSerializer(cookieServiceProperties)
+    fun cookieSerializer(
+        cookieServiceProperties: CookieServiceProperties,
+        client: AuthenticationStoreClient,
+    ) = CookieSerializer(
+        cookieServiceProperties,
+        client
+    )
 
     @Bean
     fun cookieService(

@@ -15,7 +15,15 @@
  */
 package com.gooddata.oauth2.server.common
 
+import com.google.crypto.tink.CleartextKeysetHandle
+import com.google.crypto.tink.JsonKeysetReader
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.mockkStatic
 import io.netty.handler.codec.http.cookie.CookieHeaderNames
+import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
 import strikt.api.expectCatching
 import strikt.api.expectThat
@@ -25,16 +33,49 @@ import strikt.assertions.isGreaterThan
 import strikt.assertions.isLessThan
 import strikt.assertions.isSuccess
 import java.time.Duration
+import java.time.Instant
 import java.util.Base64
 
 internal class CookieSerializerTest {
-    private val properties = CookieServiceProperties(Duration.ofDays(1), CookieHeaderNames.SameSite.Lax, "")
+    @Language("JSON")
+    private val keyset = """
+        {
+            "primaryKeyId": 482808123,
+            "key": [
+                {
+                    "keyData": {
+                        "typeUrl": "type.googleapis.com/google.crypto.tink.AesGcmKey",
+                        "keyMaterialType": "SYMMETRIC",
+                        "value": "GiBpR+IuA4xWtq5ZijTXae/Y9plMy0TMMc97wqdOrK7ndA=="
+                    },
+                    "outputPrefixType": "TINK",
+                    "keyId": 482808123,
+                    "status": "ENABLED"
+                }
+            ]
+        }
+    """
 
-    private val cookieSerializer = CookieSerializer(properties)
+    private val client: AuthenticationStoreClient = mockk {
+        coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
+        coEvery { getCookieSecurityProperties("org") } returns CookieSecurityProperties(
+            keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
+            lastRotation = Instant.now(),
+            rotationInterval = Duration.ofDays(1),
+        )
+    }
+
+    private val properties = CookieServiceProperties(
+        Duration.ofDays(1),
+        CookieHeaderNames.SameSite.Lax,
+        Duration.ofDays(1)
+    )
+    private val cookieSerializer = CookieSerializer(properties, client)
 
     @Test
     fun `output is base64 encoded`() {
         val encoded = cookieSerializer.encodeCookie(
+            "localhost",
             arrayOf<Byte>(0, 1, 2, 3, 4, 20, 21, 50, 80, 127, -128, -127, -5, -1).toString()
         )
         expectCatching {
@@ -46,7 +87,7 @@ internal class CookieSerializerTest {
     fun `invalid base64 value throws error`() {
         val invalidValue = "not a base 64 value !@#$%^&*()_+"
         expectThrows<IllegalArgumentException> {
-            cookieSerializer.decodeCookie(invalidValue)
+            cookieSerializer.decodeCookie("localhost", invalidValue)
         }
     }
 
@@ -54,7 +95,7 @@ internal class CookieSerializerTest {
     fun `invalid encrypted value throws error`() {
         val invalidValue = String(Base64.getEncoder().encode("some not-correctly-encrypted value".toByteArray()))
         expectThrows<IllegalArgumentException> {
-            cookieSerializer.decodeCookie(invalidValue)
+            cookieSerializer.decodeCookie("localhost", invalidValue)
         }
     }
 
@@ -70,7 +111,7 @@ internal class CookieSerializerTest {
         val acceptedErrorInPercents = 50.0
 
         val input = ByteArray(inputSize) { 0 }
-        val encoded = cookieSerializer.encodeCookie(String(input))
+        val encoded = cookieSerializer.encodeCookie("localhost", String(input))
         val encrypted = Base64.getDecoder().decode(encoded.toByteArray())
         val byteSize = Byte.MAX_VALUE - Byte.MIN_VALUE + 1
         val frequencyTable = IntArray(byteSize) { 0 }
@@ -95,7 +136,89 @@ internal class CookieSerializerTest {
     @Test
     fun `is possible to decrypt encrypted value`() {
         val input = "testingValue"
-        val transformed = cookieSerializer.decodeCookie(cookieSerializer.encodeCookie(input))
+        val transformed = cookieSerializer.decodeCookie("localhost", cookieSerializer.encodeCookie("localhost", input))
         expectThat(transformed).isEqualTo(input)
+    }
+
+    @Test
+    fun `getAead scenarios with large TTL`() {
+        mockkStatic(Instant::class)
+
+        val client: AuthenticationStoreClient = mockk {
+            coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
+            coEvery { getCookieSecurityProperties("org") } answers {
+                CookieSecurityProperties(
+                    keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
+                    lastRotation = Instant.now(),
+                    rotationInterval = Duration.ofSeconds(10),
+                )
+            }
+        }
+
+        val properties = CookieServiceProperties(
+            Duration.ofDays(1),
+            CookieHeaderNames.SameSite.Lax,
+            Duration.ofSeconds(50)
+        )
+
+        val cookieSerializer = CookieSerializer(properties, client)
+
+        // Start at time 0
+        every { Instant.now() } returns Instant.ofEpochSecond(0)
+
+        // Called with no cache - read from backend
+        cookieSerializer.encodeCookie("localhost", "")
+        coVerify(exactly = 1) { client.getCookieSecurityProperties("org") }
+
+        // Called before rotationInterval and before TTL - use cache
+        every { Instant.now() } returns Instant.ofEpochSecond(9)
+        cookieSerializer.encodeCookie("localhost", "")
+        coVerify(exactly = 1) { client.getCookieSecurityProperties("org") }
+
+        // Call after rotationInterval and before TTL - read from backend
+        every { Instant.now() } returns Instant.ofEpochSecond(11)
+        cookieSerializer.encodeCookie("localhost", "")
+        coVerify(exactly = 2) { client.getCookieSecurityProperties("org") }
+    }
+
+    @Test
+    fun `getAead scenarios with small TTL`() {
+        mockkStatic(Instant::class)
+
+        val client: AuthenticationStoreClient = mockk {
+            coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
+            coEvery { getCookieSecurityProperties("org") } answers {
+                CookieSecurityProperties(
+                    keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
+                    lastRotation = Instant.now(),
+                    rotationInterval = Duration.ofSeconds(10),
+                )
+            }
+        }
+
+        val properties = CookieServiceProperties(
+            Duration.ofDays(1),
+            CookieHeaderNames.SameSite.Lax,
+            Duration.ofSeconds(5)
+        )
+
+        val cookieSerializer = CookieSerializer(properties, client)
+
+        // Start at time 0
+        every { Instant.now() } returns Instant.ofEpochSecond(0)
+
+        // Called with no cache - read from backend
+        cookieSerializer.encodeCookie("localhost", "")
+        coVerify(exactly = 1) { client.getCookieSecurityProperties("org") }
+
+        // Called before rotationInterval and after TTL - read from backend
+        every { Instant.now() } returns Instant.ofEpochSecond(9)
+        cookieSerializer.encodeCookie("localhost", "")
+        coVerify(exactly = 2) { client.getCookieSecurityProperties("org") }
+
+        // Call after rotationInterval and after TTL - read from backend
+        every { Instant.now() } returns Instant.ofEpochSecond(20)
+        cookieSerializer.encodeCookie("localhost", "")
+        coVerify(exactly = 3) { client.getCookieSecurityProperties("org") }
     }
 }
