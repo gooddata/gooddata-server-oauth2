@@ -300,7 +300,7 @@ class UserContextWebMvcTest(
                         "Location",
                         Matchers.matchesRegex(
                             "http:\\/\\/localhost:3000\\/dex\\/auth\\?response_type=code&client_id=clientId&" +
-                                "scope=openid%20profile%20offline_access&state=[^&]+&" +
+                                "scope=openid%20profile&state=[^&]+&" +
                                 "redirect_uri=http:\\/\\/localhost\\/login\\/oauth2\\/code\\/localhost&nonce=.+"
                         )
                     )

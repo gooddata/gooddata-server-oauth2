@@ -53,7 +53,7 @@ fun buildClientRegistration(
     .clientId(organization.oauthClientId)
     .clientSecret(organization.oauthClientSecret)
     .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-    .scope("openid", "profile", "offline_access")
+    .scope("openid", "profile")
     .userNameAttributeName("name")
     .build()
 

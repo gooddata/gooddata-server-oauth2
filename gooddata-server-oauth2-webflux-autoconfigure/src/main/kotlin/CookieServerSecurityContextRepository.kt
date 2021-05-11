@@ -23,8 +23,6 @@ import org.springframework.security.core.context.SecurityContextImpl
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository
-import org.springframework.security.oauth2.core.OAuth2TokenValidator
-import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult
 import org.springframework.security.oauth2.core.oidc.OidcIdToken
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser
 import org.springframework.security.oauth2.core.oidc.user.OidcUser
@@ -44,11 +42,7 @@ import reactor.kotlin.core.publisher.switchIfEmpty
 class CookieServerSecurityContextRepository(
     private val clientRegistrationRepository: ReactiveClientRegistrationRepository,
     private val cookieService: ReactiveCookieService,
-    private val jwtDecoderFactory: ReactiveJwtDecoderFactory<ClientRegistration> =
-        NoCachingReactiveDecoderFactory().apply {
-            // ID token and its expiration is not validated in WebSessionServerSecurityContextRepository neither
-            jwtValidatorFactory = { OAuth2TokenValidator { OAuth2TokenValidatorResult.success() } }
-        },
+    private val jwtDecoderFactory: ReactiveJwtDecoderFactory<ClientRegistration> = NoCachingReactiveDecoderFactory(),
 ) : ServerSecurityContextRepository {
 
     private val logger = KotlinLogging.logger {}
@@ -88,8 +82,7 @@ class CookieServerSecurityContextRepository(
                             // decode JWT token from JSON
                             .decode((it.principal as OidcUser).idToken.tokenValue)
                             .onErrorResume(JwtException::class.java) { exception ->
-
-                                logger.info(exception) { "Stored JWT token cannot be decoded" }
+                                logger.info { "Stored JWT token cannot be decoded: ${exception.message}" }
                                 Mono.empty()
                             }
                             .map { jwt -> OidcIdToken(jwt.tokenValue, jwt.issuedAt, jwt.expiresAt, jwt.claims) }
