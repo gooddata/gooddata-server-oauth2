@@ -81,7 +81,7 @@ class CookieOAuth2AuthorizedClientRepository(
 
     override fun removeAuthorizedClient(
         clientRegistrationId: String,
-        principal: Authentication,
+        principal: Authentication?,
         request: HttpServletRequest,
         response: HttpServletResponse
     ) {

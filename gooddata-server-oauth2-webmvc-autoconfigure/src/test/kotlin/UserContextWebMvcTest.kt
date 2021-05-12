@@ -43,10 +43,12 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority
 import org.springframework.security.web.context.SecurityContextRepository
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
+import org.springframework.test.web.servlet.post
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ResponseStatusException
 import strikt.api.expectThrows
+import strikt.assertions.isEqualTo
 import java.time.Instant
 import javax.servlet.http.Cookie
 
@@ -336,6 +338,57 @@ class UserContextWebMvcTest(
                 status { isInternalServerError() }
                 content { string("") }
             }
+    }
+
+    @Test
+    fun `filter redirects logout without cookies`() {
+        every { securityContextRepository.loadContext(any()) } returns SecurityContextImpl()
+        every { securityContextRepository.saveContext(any(), any(), any()) } returns Unit
+        every { securityContextRepository.containsContext(any()) } returns false
+
+        mockMvc.get("http://localhost/logout")
+            .andExpect {
+                status { isFound() }
+                header { string("Location", "/") }
+            }
+    }
+
+    @Test
+    fun `filter redirects logout with cookies`() {
+        everyValidSecurityContext()
+        every { securityContextRepository.saveContext(any(), any(), any()) } returns Unit
+        every { securityContextRepository.containsContext(any()) } returns true
+        everyValidOrganization()
+        coEvery { authenticationStoreClient.getUserByAuthenticationId("organizationId", "sub") } returns User(
+            "userId",
+        )
+        val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
+        val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
+
+        mockMvc.get("http://localhost/logout") {
+            cookie(
+                Cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(authenticationToken)),
+                Cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(authorizedClient)),
+            )
+        }.andExpect {
+            status { isFound() }
+            header { string("Location", "/") }
+        }
+    }
+
+    @Test
+    fun `POST logout ends with 405`() {
+        every { securityContextRepository.loadContext(any()) } returns SecurityContextImpl()
+        every { securityContextRepository.saveContext(any(), any(), any()) } returns Unit
+        every { securityContextRepository.containsContext(any()) } returns false
+
+        expectThrows<ResponseStatusException> {
+            mockMvc.post("http://localhost/logout")
+                .andExpect {
+                    status { isFound() }
+                    header { string("Location", "/") }
+                }
+        }.get { status }.isEqualTo(HttpStatus.METHOD_NOT_ALLOWED)
     }
 
     private fun everyValidSecurityContext() {
