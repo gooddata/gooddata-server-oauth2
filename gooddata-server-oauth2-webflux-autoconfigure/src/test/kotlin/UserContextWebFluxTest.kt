@@ -383,6 +383,64 @@ class UserContextWebFluxTest(
             .jsonPath("requestId").exists()
     }
 
+    @Test
+    fun `filter redirects logout without cookies`() {
+        every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
+        every { serverSecurityContextRepository.save(any(), null) } returns Mono.empty()
+
+        webClient.get().uri("http://localhost/logout")
+            .exchange()
+            .expectStatus()
+            .isFound
+            .expectHeader().location("/")
+            .expectCookie().exists("SPRING_REDIRECT_URI")
+    }
+
+    @Test
+    fun `filter redirects logout with cookies`() {
+        everyValidSecurityContext()
+        every { serverSecurityContextRepository.save(any(), null) } returns Mono.empty()
+        everyValidOrganization()
+        coEvery { authenticationStoreClient.getUserByAuthenticationId("organizationTestId", "sub") } returns User(
+            "userTestId",
+        )
+        val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
+        val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
+
+        webClient.get().uri("http://localhost/logout")
+            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(authenticationToken))
+            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(authorizedClient))
+            .exchange()
+            .expectStatus()
+            .isFound
+            .expectHeader().location("/")
+            .expectCookie().exists("SPRING_REDIRECT_URI")
+    }
+
+    @Test
+    fun `POST logout ends with 405`() {
+        every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
+        every { serverSecurityContextRepository.save(any(), null) } returns Mono.empty()
+
+        webClient.post().uri("http://localhost/logout")
+            .exchange()
+            .expectStatus()
+            .isEqualTo(HttpStatus.METHOD_NOT_ALLOWED)
+            .expectCookie().exists("SPRING_REDIRECT_URI")
+    }
+
+    @Test
+    fun `POST logout all ends with 405`() {
+        every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
+        every { serverSecurityContextRepository.save(any(), null) } returns Mono.empty()
+
+        webClient.post().uri("http://localhost/logout/all")
+            .exchange()
+            .expectStatus()
+            .isEqualTo(HttpStatus.METHOD_NOT_ALLOWED)
+            .expectCookie().exists("SPRING_REDIRECT_URI")
+    }
+
     private fun everyValidSecurityContext() {
         every { serverSecurityContextRepository.load(any()) } returns Mono.just(
             OidcIdToken(

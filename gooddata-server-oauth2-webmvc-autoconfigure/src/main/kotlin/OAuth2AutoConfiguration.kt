@@ -37,10 +37,9 @@ import org.springframework.security.oauth2.jwt.JwtDecoderFactory
 import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationFilter
 import org.springframework.security.web.access.ExceptionTranslationFilter
 import org.springframework.security.web.authentication.logout.CompositeLogoutHandler
+import org.springframework.security.web.authentication.logout.LogoutFilter
 import org.springframework.security.web.authentication.logout.LogoutHandler
-import org.springframework.security.web.authentication.ui.DefaultLogoutPageGeneratingFilter
 import org.springframework.security.web.context.SecurityContextRepository
-import org.springframework.security.web.csrf.CsrfToken
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher
 import org.springframework.security.web.util.matcher.NegatedRequestMatcher
 import org.springframework.security.web.util.matcher.OrRequestMatcher
@@ -159,7 +158,9 @@ class OAuth2AutoConfiguration(
                 it.addLogoutHandler(
                     logoutHandler
                 )
+                it.logoutRequestMatcher(AntPathRequestMatcher("/logout", "GET"))
             }
+            .addFilterBefore(PostLogoutNotAllowedFilter(), LogoutFilter::class.java)
             .addFilterBefore(
                 ResponseStatusExceptionHandlingFilter(),
                 BearerTokenAuthenticationFilter::class.java,
@@ -169,16 +170,6 @@ class OAuth2AutoConfiguration(
                     authenticationStoreClient, authenticationEntryPoint, logoutHandler, userContextHolder
                 ),
                 ExceptionTranslationFilter::class.java
-            )
-            .addFilterAt(
-                DefaultLogoutPageGeneratingFilter().apply {
-                    setResolveHiddenInputs {
-                        (it.getAttribute(CsrfToken::class.java.name) as CsrfToken?)
-                            ?.let { token -> mapOf(token.parameterName to token.token) }
-                            ?: emptyMap<String, String>()
-                    }
-                },
-                DefaultLogoutPageGeneratingFilter::class.java
             )
             .oauth2Client()
     }

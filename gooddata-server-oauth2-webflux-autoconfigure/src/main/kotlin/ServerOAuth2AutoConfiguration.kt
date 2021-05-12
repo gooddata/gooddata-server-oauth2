@@ -40,7 +40,6 @@ import org.springframework.security.web.server.authentication.logout.LogoutWebFi
 import org.springframework.security.web.server.authentication.logout.SecurityContextServerLogoutHandler
 import org.springframework.security.web.server.authentication.logout.ServerLogoutHandler
 import org.springframework.security.web.server.context.ServerSecurityContextRepository
-import org.springframework.security.web.server.ui.LogoutPageGeneratingWebFilter
 import org.springframework.security.web.server.util.matcher.NegatedServerWebExchangeMatcher
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers.pathMatchers
 import org.springframework.web.reactive.config.EnableWebFlux
@@ -164,8 +163,9 @@ class ServerOAuth2AutoConfiguration {
             .logout {
                 it.logoutSuccessHandler(logoutSuccessHandler)
                 it.logoutHandler(logoutHandler)
+                it.requiresLogout(pathMatchers(HttpMethod.GET, "/logout"))
             }
-            .addFilterAt(LogoutPageGeneratingWebFilter(), SecurityWebFiltersOrder.LOGOUT_PAGE_GENERATING)
+            .addFilterBefore(PostLogoutNotAllowedWebFilter(), SecurityWebFiltersOrder.LOGOUT)
             .addFilterAfter(
                 UserContextWebFilter(client, authenticationEntryPoint, logoutHandler, userContextHolder),
                 SecurityWebFiltersOrder.LOGOUT
@@ -179,7 +179,7 @@ class ServerOAuth2AutoConfiguration {
                             LogoutAllServerLogoutHandler(client, userContextHolder),
                         )
                     )
-                    setRequiresLogoutMatcher(pathMatchers(HttpMethod.POST, "/logout/all"))
+                    setRequiresLogoutMatcher(pathMatchers(HttpMethod.GET, "/logout/all"))
                 },
                 SecurityWebFiltersOrder.EXCEPTION_TRANSLATION
             )
