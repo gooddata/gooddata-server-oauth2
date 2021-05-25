@@ -15,9 +15,15 @@
  */
 package com.gooddata.oauth2.server.servlet
 
+import com.gooddata.oauth2.server.common.AuthenticationStoreClient
+import com.gooddata.oauth2.server.common.CookieSecurityProperties
 import com.gooddata.oauth2.server.common.CookieSerializer
 import com.gooddata.oauth2.server.common.CookieServiceProperties
+import com.gooddata.oauth2.server.common.Organization
 import com.gooddata.oauth2.server.common.SPRING_SEC_SECURITY_CONTEXT
+import com.google.crypto.tink.CleartextKeysetHandle
+import com.google.crypto.tink.JsonKeysetReader
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -28,6 +34,7 @@ import net.javacrumbs.jsonunit.JsonAssert.assertJsonEquals
 import net.javacrumbs.jsonunit.core.Configuration
 import net.javacrumbs.jsonunit.core.Option
 import net.javacrumbs.jsonunit.core.util.ResourceUtils.resource
+import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextImpl
@@ -53,9 +60,41 @@ internal class CookieSecurityContextRepositoryTest {
 
     private val clientRegistrationRepository: ClientRegistrationRepository = mockk()
 
-    private val properties = CookieServiceProperties(Duration.ofDays(1), CookieHeaderNames.SameSite.Lax, "")
+    private val properties = CookieServiceProperties(
+        Duration.ofDays(1),
+        CookieHeaderNames.SameSite.Lax,
+        Duration.ofDays(1)
+    )
 
-    private val cookieSerializer = CookieSerializer(properties)
+    @Language("JSON")
+    private val keyset = """
+        {
+            "primaryKeyId": 482808123,
+            "key": [
+                {
+                    "keyData": {
+                        "typeUrl": "type.googleapis.com/google.crypto.tink.AesGcmKey",
+                        "keyMaterialType": "SYMMETRIC",
+                        "value": "GiBpR+IuA4xWtq5ZijTXae/Y9plMy0TMMc97wqdOrK7ndA=="
+                    },
+                    "outputPrefixType": "TINK",
+                    "keyId": 482808123,
+                    "status": "ENABLED"
+                }
+            ]
+        }
+    """
+
+    private val client: AuthenticationStoreClient = mockk {
+        coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
+        coEvery { getCookieSecurityProperties("org") } returns CookieSecurityProperties(
+            keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
+            lastRotation = Instant.now(),
+            rotationInterval = Duration.ofDays(1),
+        )
+    }
+
+    private val cookieSerializer = CookieSerializer(properties, client)
 
     private val cookieService = spyk(CookieService(properties, cookieSerializer))
 
@@ -117,6 +156,7 @@ internal class CookieSecurityContextRepositoryTest {
     @Test
     fun `should not load context when nonsense is stored in cookies`() {
         every { request.cookies } returns arrayOf(Cookie(SPRING_SEC_SECURITY_CONTEXT, "something"))
+        every { request.serverName } returns "localhost"
 
         val context = repository.loadContext(HttpRequestResponseHolder(request, response))
 
@@ -129,8 +169,9 @@ internal class CookieSecurityContextRepositoryTest {
     fun `should not load context from cookie if registration id is not mapped`() {
         val body = resource("oauth2_authentication_token.json").readText()
         every { request.cookies } returns arrayOf(
-            Cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(body))
+            Cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", body))
         )
+        every { request.serverName } returns "localhost"
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns null
 
         val context = repository.loadContext(HttpRequestResponseHolder(request, response))
@@ -144,8 +185,9 @@ internal class CookieSecurityContextRepositoryTest {
     fun `should load context from cookie`() {
         val body = resource("oauth2_authentication_token.json").readText()
         every { request.cookies } returns arrayOf(
-            Cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(body))
+            Cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", body))
         )
+        every { request.serverName } returns "localhost"
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns ClientRegistrations
             .fromIssuerLocation("https://dev-6-eq6djb.eu.auth0.com/")
             .registrationId("localhost")

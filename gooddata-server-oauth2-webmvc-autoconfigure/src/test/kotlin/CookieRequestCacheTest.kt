@@ -15,14 +15,22 @@
  */
 package com.gooddata.oauth2.server.servlet
 
+import com.gooddata.oauth2.server.common.AuthenticationStoreClient
+import com.gooddata.oauth2.server.common.CookieSecurityProperties
 import com.gooddata.oauth2.server.common.CookieSerializer
 import com.gooddata.oauth2.server.common.CookieServiceProperties
+import com.gooddata.oauth2.server.common.Organization
 import com.gooddata.oauth2.server.common.SPRING_REDIRECT_URI
+import com.google.crypto.tink.CleartextKeysetHandle
+import com.google.crypto.tink.JsonKeysetReader
+import io.mockk.coEvery
 import io.mockk.every
+import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.spyk
 import io.mockk.verify
 import io.netty.handler.codec.http.cookie.CookieHeaderNames
+import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpServletResponse
@@ -31,13 +39,46 @@ import strikt.assertions.isEqualTo
 import strikt.assertions.isNotNull
 import strikt.assertions.isNull
 import java.time.Duration
+import java.time.Instant
 import javax.servlet.http.Cookie
 
 internal class CookieRequestCacheTest {
 
-    private val properties = CookieServiceProperties(Duration.ofDays(1), CookieHeaderNames.SameSite.Lax, "")
+    private val properties = CookieServiceProperties(
+        Duration.ofDays(1),
+        CookieHeaderNames.SameSite.Lax,
+        Duration.ofDays(1)
+    )
 
-    private val cookieSerializer = CookieSerializer(properties)
+    @Language("JSON")
+    private val keyset = """
+        {
+            "primaryKeyId": 482808123,
+            "key": [
+                {
+                    "keyData": {
+                        "typeUrl": "type.googleapis.com/google.crypto.tink.AesGcmKey",
+                        "keyMaterialType": "SYMMETRIC",
+                        "value": "GiBpR+IuA4xWtq5ZijTXae/Y9plMy0TMMc97wqdOrK7ndA=="
+                    },
+                    "outputPrefixType": "TINK",
+                    "keyId": 482808123,
+                    "status": "ENABLED"
+                }
+            ]
+        }
+    """
+
+    private val client: AuthenticationStoreClient = mockk {
+        coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
+        coEvery { getCookieSecurityProperties("org") } returns CookieSecurityProperties(
+            keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
+            lastRotation = Instant.now(),
+            rotationInterval = Duration.ofDays(1),
+        )
+    }
+
+    private val cookieSerializer = CookieSerializer(properties, client)
 
     private val cookieService = spyk(CookieService(properties, cookieSerializer))
 
@@ -99,7 +140,7 @@ internal class CookieRequestCacheTest {
     fun `should load redirect URI from cookie`() {
         val redirect = "/requestURI?query=true"
         val request = MockHttpServletRequest("GET", "/requestURI?query=true").apply {
-            setCookies(Cookie(SPRING_REDIRECT_URI, cookieSerializer.encodeCookie(redirect)))
+            setCookies(Cookie(SPRING_REDIRECT_URI, cookieSerializer.encodeCookie("localhost", redirect)))
         }
         val response = MockHttpServletResponse()
 
@@ -117,7 +158,7 @@ internal class CookieRequestCacheTest {
         val request = MockHttpServletRequest("GET", "/requestURI?query=true").apply {
             pathInfo = "/requestURI"
             queryString = "query=true"
-            setCookies(Cookie(SPRING_REDIRECT_URI, cookieSerializer.encodeCookie(redirect)))
+            setCookies(Cookie(SPRING_REDIRECT_URI, cookieSerializer.encodeCookie("localhost", redirect)))
         }
         val response = MockHttpServletResponse()
 
@@ -136,7 +177,7 @@ internal class CookieRequestCacheTest {
         val request = MockHttpServletRequest("GET", "/requestURI?query=true").apply {
             pathInfo = "/requestURI"
             queryString = "query=true"
-            setCookies(Cookie(SPRING_REDIRECT_URI, cookieSerializer.encodeCookie("/other")))
+            setCookies(Cookie(SPRING_REDIRECT_URI, cookieSerializer.encodeCookie("localhost", "/other")))
         }
         val response = MockHttpServletResponse()
 

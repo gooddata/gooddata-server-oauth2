@@ -16,11 +16,14 @@
 package com.gooddata.oauth2.server.reactive
 
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
+import com.gooddata.oauth2.server.common.CookieSecurityProperties
 import com.gooddata.oauth2.server.common.CookieSerializer
 import com.gooddata.oauth2.server.common.Organization
 import com.gooddata.oauth2.server.common.SPRING_SEC_OAUTH2_AUTHZ_CLIENT
 import com.gooddata.oauth2.server.common.SPRING_SEC_SECURITY_CONTEXT
 import com.gooddata.oauth2.server.common.User
+import com.google.crypto.tink.CleartextKeysetHandle
+import com.google.crypto.tink.JsonKeysetReader
 import com.ninjasquad.springmockk.MockkBean
 import io.mockk.coEvery
 import io.mockk.every
@@ -30,6 +33,7 @@ import kotlinx.coroutines.reactor.ReactorContext
 import kotlinx.coroutines.reactor.asCoroutineContext
 import kotlinx.coroutines.reactor.mono
 import net.javacrumbs.jsonunit.core.util.ResourceUtils
+import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest
@@ -54,6 +58,7 @@ import org.springframework.web.server.ResponseStatusException
 import reactor.core.publisher.Mono
 import reactor.util.context.Context
 import reactor.util.context.ContextView
+import java.time.Duration
 import java.time.Instant
 import kotlin.coroutines.coroutineContext
 
@@ -65,6 +70,25 @@ class UserContextWebFluxTest(
     @Autowired private val authenticationStoreClient: AuthenticationStoreClient,
     @Autowired private val cookieSerializer: CookieSerializer,
 ) {
+    @Language("JSON")
+    private val keyset = """
+        {
+            "primaryKeyId": 482808123,
+            "key": [
+                {
+                    "keyData": {
+                        "typeUrl": "type.googleapis.com/google.crypto.tink.AesGcmKey",
+                        "keyMaterialType": "SYMMETRIC",
+                        "value": "GiBpR+IuA4xWtq5ZijTXae/Y9plMy0TMMc97wqdOrK7ndA=="
+                    },
+                    "outputPrefixType": "TINK",
+                    "keyId": 482808123,
+                    "status": "ENABLED"
+                }
+            ]
+        }
+    """
+
     @Test
     fun `filter works with cookies`() {
         everyValidSecurityContext()
@@ -72,12 +96,18 @@ class UserContextWebFluxTest(
         coEvery { authenticationStoreClient.getUserByAuthenticationId("organizationTestId", "sub") } returns User(
             "userTestId",
         )
+        coEvery { authenticationStoreClient.getCookieSecurityProperties("organizationTestId") } returns
+            CookieSecurityProperties(
+                keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
+                lastRotation = Instant.now(),
+                rotationInterval = Duration.ofDays(1),
+            )
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
         webClient.get().uri("http://localhost/")
-            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(authenticationToken))
-            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(authorizedClient))
+            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken))
+            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient))
             .exchange()
             .expectStatus()
             .isOk
@@ -92,12 +122,18 @@ class UserContextWebFluxTest(
         coEvery { authenticationStoreClient.getUserByAuthenticationId("organizationTestId", "sub") } returns User(
             "userTestId",
         )
+        coEvery { authenticationStoreClient.getCookieSecurityProperties("organizationTestId") } returns
+            CookieSecurityProperties(
+                keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
+                lastRotation = Instant.now(),
+                rotationInterval = Duration.ofDays(1),
+            )
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
         webClient.get().uri("http://localhost/appLogin?redirectTo=/api/profile")
-            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(authenticationToken))
-            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(authorizedClient))
+            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken))
+            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient))
             .exchange()
             .expectStatus()
             .isFound
@@ -111,12 +147,18 @@ class UserContextWebFluxTest(
         coEvery { authenticationStoreClient.getUserByAuthenticationId("organizationTestId", "sub") } returns User(
             "userId",
         )
+        coEvery { authenticationStoreClient.getCookieSecurityProperties("organizationTestId") } returns
+            CookieSecurityProperties(
+                keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
+                lastRotation = Instant.now(),
+                rotationInterval = Duration.ofDays(1),
+            )
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
         webClient.get().uri("http://localhost/appLogin?redirectTo=https://localhost:8443/api/profile")
-            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(authenticationToken))
-            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(authorizedClient))
+            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken))
+            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient))
             .exchange()
             .expectStatus()
             .isFound
@@ -169,8 +211,8 @@ class UserContextWebFluxTest(
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
         webClient.get().uri("http://localhost/")
-            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(authenticationToken))
-            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(authorizedClient))
+            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken))
+            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient))
             .exchange()
             .expectStatus()
             .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -192,8 +234,8 @@ class UserContextWebFluxTest(
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
         webClient.get().uri("http://localhost/")
-            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(authenticationToken))
-            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(authorizedClient))
+            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken))
+            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient))
             .exchange()
             .expectStatus().isNotFound
             .expectBody()
@@ -218,8 +260,8 @@ class UserContextWebFluxTest(
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
         webClient.get().uri("http://localhost/")
-            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(authenticationToken))
-            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(authorizedClient))
+            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken))
+            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient))
             .exchange()
             .expectStatus().isNotFound
             .expectBody()
@@ -244,8 +286,8 @@ class UserContextWebFluxTest(
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
         webClient.get().uri("http://localhost/")
-            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(authenticationToken))
-            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(authorizedClient))
+            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken))
+            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient))
             .exchange()
             .expectStatus()
             .isFound
@@ -408,8 +450,8 @@ class UserContextWebFluxTest(
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
         webClient.get().uri("http://localhost/logout")
-            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(authenticationToken))
-            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(authorizedClient))
+            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken))
+            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient))
             .exchange()
             .expectStatus()
             .isFound

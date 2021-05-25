@@ -15,15 +15,22 @@
  */
 package com.gooddata.oauth2.server.servlet
 
+import com.gooddata.oauth2.server.common.AuthenticationStoreClient
+import com.gooddata.oauth2.server.common.CookieSecurityProperties
 import com.gooddata.oauth2.server.common.CookieSerializer
 import com.gooddata.oauth2.server.common.CookieServiceProperties
+import com.gooddata.oauth2.server.common.Organization
 import com.gooddata.oauth2.server.common.jackson.mapper
+import com.google.crypto.tink.CleartextKeysetHandle
+import com.google.crypto.tink.JsonKeysetReader
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import io.netty.handler.codec.http.cookie.CookieHeaderNames
 import net.javacrumbs.jsonunit.core.util.ResourceUtils.resource
+import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest
@@ -33,6 +40,7 @@ import strikt.assertions.isNotNull
 import strikt.assertions.isNull
 import strikt.assertions.isTrue
 import java.time.Duration
+import java.time.Instant
 import javax.servlet.http.Cookie
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
@@ -47,13 +55,45 @@ internal class CookieServiceTest {
 
     private val response: HttpServletResponse = mockk()
 
-    private val properties = CookieServiceProperties(duration, CookieHeaderNames.SameSite.Lax, "")
+    private val properties = CookieServiceProperties(
+        Duration.ofDays(1),
+        CookieHeaderNames.SameSite.Lax,
+        Duration.ofDays(1)
+    )
 
-    private val cookieSerializer = CookieSerializer(properties)
+    @Language("JSON")
+    private val keyset = """
+        {
+            "primaryKeyId": 482808123,
+            "key": [
+                {
+                    "keyData": {
+                        "typeUrl": "type.googleapis.com/google.crypto.tink.AesGcmKey",
+                        "keyMaterialType": "SYMMETRIC",
+                        "value": "GiBpR+IuA4xWtq5ZijTXae/Y9plMy0TMMc97wqdOrK7ndA=="
+                    },
+                    "outputPrefixType": "TINK",
+                    "keyId": 482808123,
+                    "status": "ENABLED"
+                }
+            ]
+        }
+    """
+
+    private val client: AuthenticationStoreClient = mockk {
+        coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
+        coEvery { getCookieSecurityProperties("org") } returns CookieSecurityProperties(
+            keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
+            lastRotation = Instant.now(),
+            rotationInterval = Duration.ofDays(1),
+        )
+    }
+
+    private val cookieSerializer = CookieSerializer(properties, client)
 
     private val cookieService = CookieService(properties, cookieSerializer)
 
-    private val encodedValue = cookieSerializer.encodeCookie(value)
+    private val encodedValue = cookieSerializer.encodeCookie("localhost", value)
 
     @BeforeEach
     internal fun setUp() {
@@ -65,6 +105,7 @@ internal class CookieServiceTest {
     fun `creates cookie`() {
         val slot = slot<Cookie>()
         every { response.addCookie(capture(slot)) } returns Unit
+        every { request.serverName } returns "localhost"
 
         cookieService.createCookie(request, response, name, value)
 
@@ -74,7 +115,7 @@ internal class CookieServiceTest {
         expectThat(cookie) {
             get(Cookie::getName).isEqualTo(name)
             get(Cookie::getValue).assert("is properly encoded") {
-                cookieSerializer.decodeCookie(it).contentEquals(value)
+                cookieSerializer.decodeCookie("localhost", it).contentEquals(value)
             }
             get(Cookie::getPath).isEqualTo("/")
             get(Cookie::isHttpOnly).isTrue()
@@ -113,6 +154,7 @@ internal class CookieServiceTest {
     @Test
     fun `decodes cookie from invalid exchange`() {
         every { request.cookies } returns arrayOf(Cookie(name, "something"))
+        every { request.serverName } returns "localhost"
 
         val value = cookieService.decodeCookie(request, name)
 
@@ -122,6 +164,7 @@ internal class CookieServiceTest {
     @Test
     fun `decodes cookie from exchange`() {
         every { request.cookies } returns arrayOf(Cookie(name, encodedValue))
+        every { request.serverName } returns "localhost"
 
         val value = cookieService.decodeCookie(request, name)
 
@@ -131,6 +174,7 @@ internal class CookieServiceTest {
     @Test
     fun `decodes and cannot parse cookie from exchange`() {
         every { request.cookies } returns arrayOf(Cookie(name, encodedValue))
+        every { request.serverName } returns "localhost"
 
         val value = cookieService.decodeCookie(
             request, name, mapper, OAuth2AuthorizationRequest::class.java
@@ -142,7 +186,8 @@ internal class CookieServiceTest {
     @Test
     fun `decodes and parses cookie from request`() {
         val body = resource("mock_authorization_request.json").readText()
-        every { request.cookies } returns arrayOf(Cookie(name, cookieSerializer.encodeCookie(body)))
+        every { request.cookies } returns arrayOf(Cookie(name, cookieSerializer.encodeCookie("localhost", body)))
+        every { request.serverName } returns "localhost"
 
         val value = cookieService.decodeCookie(
             request, name, mapper, OAuth2AuthorizationRequest::class.java

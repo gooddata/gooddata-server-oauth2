@@ -65,6 +65,14 @@ interface AuthenticationStoreClient {
      * @param organizationId ID identifying the organization
      */
     suspend fun logoutAll(userId: String, organizationId: String)
+
+    /**
+     * Retrieve [CookieSecurityProperties] for given organization.
+     *
+     * @param organizationId ID identifying the organization
+     * @return [CookieSecurityProperties] for given organization
+     */
+    suspend fun getCookieSecurityProperties(organizationId: String): CookieSecurityProperties
 }
 
 data class Organization(

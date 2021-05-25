@@ -34,6 +34,7 @@ dependencies {
     val kotlinLoggingVersion: String by project
     val mockkVersion: String by project
     val springMockkVersion: String by project
+    val tinkVersion: String by project
 
     api(project(":gooddata-server-oauth2-common"))
 
@@ -58,4 +59,5 @@ dependencies {
         exclude(group="org.mockito", module="mockito-core")
         exclude(group="org.skyscreamer", module="jsonassert")
     }
+    testImplementation("com.google.crypto.tink:tink:${tinkVersion}")
 }

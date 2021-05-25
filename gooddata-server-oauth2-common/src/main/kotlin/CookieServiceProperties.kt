@@ -37,8 +37,9 @@ class CookieServiceProperties(
     val sameSite: CookieHeaderNames.SameSite,
 
     /**
-     * Location of the keyset file that is used for cookie encryption.
+     * Max lifetime of keySet cache. This value is used when doing manual emergency keySet rotation (to remove all
+     * past decryption keys). This is maximal time, when manually rotated keys will be still used.
      */
-    @DefaultValue("")
-    val keysetFile: String,
+    @DefaultValue("10m")
+    val keySetCacheDuration: Duration,
 )
