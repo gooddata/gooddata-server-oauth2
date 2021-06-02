@@ -1,0 +1,2 @@
+gdc.gradle.params=-Dorg.gradle.parallel=false --stacktrace --info
+gdc.java_version=openjdk-11
