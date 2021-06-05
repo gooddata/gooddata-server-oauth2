@@ -35,6 +35,7 @@ dependencies {
     val mockkVersion: String by project
     val springMockkVersion: String by project
     val tinkVersion: String by project
+    val wiremockVersion: String by project
 
     api(project(":gooddata-server-oauth2-common"))
 
@@ -60,4 +61,5 @@ dependencies {
         exclude(group="org.skyscreamer", module="jsonassert")
     }
     testImplementation("com.google.crypto.tink:tink:${tinkVersion}")
+    testImplementation("com.github.tomakehurst:wiremock:${wiremockVersion}")
 }

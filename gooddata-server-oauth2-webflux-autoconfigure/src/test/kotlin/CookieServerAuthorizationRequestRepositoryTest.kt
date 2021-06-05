@@ -134,7 +134,7 @@ internal class CookieServerAuthorizationRequestRepositoryTest {
 
         expectThat(request) {
             get(OAuth2AuthorizationRequest::getAuthorizationUri)
-                .isEqualTo("https://dev-6-eq6djb.eu.auth0.com/authorize")
+                .isEqualTo("https://localhost/authorize")
         }
     }
 
@@ -197,7 +197,7 @@ internal class CookieServerAuthorizationRequestRepositoryTest {
 
         expectThat(request) {
             get(OAuth2AuthorizationRequest::getAuthorizationUri)
-                .isEqualTo("https://dev-6-eq6djb.eu.auth0.com/authorize")
+                .isEqualTo("https://localhost/authorize")
         }
 
         // one for loaded request, one for terminal

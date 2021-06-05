@@ -36,9 +36,6 @@ import org.springframework.security.oauth2.jwt.ReactiveJwtDecoderFactory
  * created) the old properties are used and newly created tokens cannot be decoded.
  * As [ReactiveOidcIdTokenDecoderFactory] is final class and it was not intended to copy its logic out
  * the [NoCachingReactiveDecoderFactory] simply creates new instance of [ReactiveOidcIdTokenDecoderFactory] every time.
- *
- * TODO - 1) avoid creating new [ReactiveOidcIdTokenDecoderFactory] by reusing its internal logic
- * TODO - 2) only invalidate decoders when registration is changed, needs to use messaging to distribute invalidation
  */
 class NoCachingReactiveDecoderFactory : ReactiveJwtDecoderFactory<ClientRegistration> {
 

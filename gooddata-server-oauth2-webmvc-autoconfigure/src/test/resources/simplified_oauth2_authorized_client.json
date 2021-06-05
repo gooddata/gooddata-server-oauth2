@@ -1,6 +1,6 @@
 {
   "registrationId": "localhost",
-  "principalName": "auth0|5f6dee2c5924f0006f077df0",
+  "principalName": "localhost|5f6dee2c5924f0006f077df0",
   "accessToken": {
     "tokenType": {
       "value": "Bearer"

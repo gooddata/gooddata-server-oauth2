@@ -25,7 +25,5 @@ import reactor.core.publisher.Mono
  * while this suspending function is waiting, this function immediately resumes with CancellationException.
  *
  * @see [kotlinx.coroutines.reactive.awaitSingle]
- *
- * TODO replace awaitFirstOrNull with awaitSingleOrNull on upgrade to never version of Coroutines (blocked by Kroto+)
  */
 suspend fun <T> Mono<T>.awaitOrNull(): T? = this.awaitFirstOrNull()

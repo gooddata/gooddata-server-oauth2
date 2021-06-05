@@ -15,6 +15,11 @@
  */
 package com.gooddata.oauth2.server.reactive
 
+import com.github.tomakehurst.wiremock.WireMockServer
+import com.github.tomakehurst.wiremock.client.WireMock.aResponse
+import com.github.tomakehurst.wiremock.client.WireMock.get
+import com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
 import com.gooddata.oauth2.server.common.CookieSecurityProperties
 import com.gooddata.oauth2.server.common.CookieSerializer
@@ -35,13 +40,17 @@ import net.javacrumbs.jsonunit.core.Configuration
 import net.javacrumbs.jsonunit.core.Option
 import net.javacrumbs.jsonunit.core.util.ResourceUtils.resource
 import org.intellij.lang.annotations.Language
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpCookie
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextImpl
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
-import org.springframework.security.oauth2.client.registration.ClientRegistrations
+import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository
+import org.springframework.security.oauth2.core.AuthenticationMethod
+import org.springframework.security.oauth2.core.AuthorizationGrantType
 import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
 import org.springframework.security.oauth2.core.oidc.OidcIdToken
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser
@@ -103,6 +112,11 @@ internal class CookieServerSecurityContextRepositoryTest {
     private val exchange: ServerWebExchange = mockk()
 
     private val repository = CookieServerSecurityContextRepository(clientRegistrationRepository, cookieService)
+
+    @AfterEach
+    internal fun tearDown() {
+        wireMockServer.resetAll()
+    }
 
     @Test
     fun `should save context`() {
@@ -206,12 +220,25 @@ internal class CookieServerSecurityContextRepositoryTest {
             )
         )
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.just(
-            ClientRegistrations
-                .fromIssuerLocation("https://dev-6-eq6djb.eu.auth0.com/")
-                .registrationId("localhost")
+            ClientRegistration
+                .withRegistrationId("localhost")
+                .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
+                .authorizationUri("http://localhost:${wireMockServer.port()}/dex/auth")
+                .tokenUri("http://localhost:${wireMockServer.port()}/dex/token")
+                .userInfoUri("http://localhost:${wireMockServer.port()}/dex/userinfo")
+                .userInfoAuthenticationMethod(AuthenticationMethod("header"))
+                .jwkSetUri("http://localhost:${wireMockServer.port()}/dex/keys")
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .scope("openid", "profile")
+                .userNameAttributeName("name")
                 .clientId("zB85JfotOTabIdSAqsIWPj6ZV4tCXaHD")
                 .build()
         )
+        wireMockServer
+            .stubFor(
+                get(urlEqualTo("/dex/keys"))
+                    .willReturn(aResponse().withBody(resource("keySet.json").readText()))
+            )
 
         val context = repository.load(exchange).blockOptional().get()
 
@@ -219,6 +246,18 @@ internal class CookieServerSecurityContextRepositoryTest {
             isA<OAuth2AuthenticationToken>()
                 .get(OAuth2AuthenticationToken::getAuthorizedClientRegistrationId)
                 .isEqualTo("localhost")
+        }
+    }
+
+    companion object {
+        private val wireMockServer = WireMockServer(WireMockConfiguration().dynamicPort()).apply {
+            start()
+        }
+
+        @AfterAll
+        @JvmStatic
+        fun cleanUp() {
+            wireMockServer.stop()
         }
     }
 }

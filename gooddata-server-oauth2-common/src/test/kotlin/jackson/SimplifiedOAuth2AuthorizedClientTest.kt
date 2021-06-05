@@ -37,7 +37,7 @@ internal class SimplifiedOAuth2AuthorizedClientTest {
         val obj = mapper.readValue(body, SimplifiedOAuth2AuthorizedClient::class.java)
         expectThat(obj) {
             get(SimplifiedOAuth2AuthorizedClient::principalName)
-                .isEqualTo("auth0|5f6dee2c5924f0006f077df0")
+                .isEqualTo("localhost|5f6dee2c5924f0006f077df0")
             get(SimplifiedOAuth2AuthorizedClient::registrationId)
                 .isEqualTo("localhost")
         }

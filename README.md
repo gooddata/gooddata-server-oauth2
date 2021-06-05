@@ -85,3 +85,25 @@ root@a45628275f4a:/# ./tinkey create-keyset --key-template AES256_GCM
     * clears `SPRING_SEC_OAUTH2_AUTHZ_CLIENT`, `SPRING_SEC_SECURITY_CONTEXT` - i.e. OAuth2 tokens
 * **/appLogin**
     * resource that handles unauthenticated requests and redirects authenticated to `redirectTo` query parameter
+
+## Configuration Properties
+
+* **spring.security.oauth2.client.cookies.duration**
+    * Cookie validity.
+    * defaults to 7 days
+* **spring.security.oauth2.client.cookies.same-site**
+    * SameSite attribute used for created cookies.
+    * possible options Lax, Strict and None
+    * defaults to Lax
+* **spring.security.oauth2.client.cookies.key-set-cache-duration**
+    * Max lifetime of key set cache used for cookie encryption.
+    * defaults to 10 minutes
+* **spring.security.oauth2.client.repository.remote-address**
+    * Address of the built-in OIDC provider that is accessible from user's web browser.
+    * defaults to http://localhost:3000
+* **spring.security.oauth2.client.repository.local-address**
+    * Address of the built-in OIDC provider that is accessible from services that use this starter.
+    * defaults to http://dex:5556
+* **spring.security.oauth2.client.applogin.allow-redirect**
+    * Defines which hostnames are allowed to be used in `redirectTo` param on `/appLogin` resource. When empty value is used it means that only relative URIs are allowed in `redirectTo`. If hostname is set to some schema+host+port (e.g. http://localhost:3000) then request can be redirected there.
+    * defaults to empty value
