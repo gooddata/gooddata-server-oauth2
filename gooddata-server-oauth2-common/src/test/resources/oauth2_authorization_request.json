@@ -1,5 +1,5 @@
 {
-  "authorizationUri": "https://dev-6-eq6djb.eu.auth0.com/authorize",
+  "authorizationUri": "https://localhost/authorize",
   "authorizationGrantType": {
     "value": "authorization_code"
   },
@@ -28,7 +28,7 @@
   "additionalParameters": {
     "nonce": "RRUHHEafTSt5AlqphICzybZszLSpG3GC6RW7cyWAscc"
   },
-  "authorizationRequestUri": "https://dev-6-eq6djb.eu.auth0.com/authorize?response_type=code&client_id=zB85JfotOTabIdSAqsIWPj6ZV4tCXaHD&scope=openid%20profile%20offline_access%20name%20given_name%20family_name%20nickname%20email%20email_verified%20picture%20created_at%20identities%20phone%20address&state=uU7JWS6lJJuoFgFS96FCqwusuOLM4bXXoWNxVgJB9kQ%3D&redirect_uri=http://localhost:3000/login/oauth2/code/localhost&nonce=RRUHHEafTSt5AlqphICzybZszLSpG3GC6RW7cyWAscc",
+  "authorizationRequestUri": "https://localhost/authorize?response_type=code&client_id=zB85JfotOTabIdSAqsIWPj6ZV4tCXaHD&scope=openid%20profile%20offline_access%20name%20given_name%20family_name%20nickname%20email%20email_verified%20picture%20created_at%20identities%20phone%20address&state=uU7JWS6lJJuoFgFS96FCqwusuOLM4bXXoWNxVgJB9kQ%3D&redirect_uri=http://localhost:3000/login/oauth2/code/localhost&nonce=RRUHHEafTSt5AlqphICzybZszLSpG3GC6RW7cyWAscc",
   "attributes": {
     "registration_id": "localhost",
     "nonce": "3P_mwTmlV9K2jrdlizc9XYW7rwX8oTZW0DPWM7rIADbHZqb91yR4PNgT6gSyIBhMsoe6T-DPU47KWQ_-MT3rIEMHH6zXutoBfofwB2wSeYUyxxjEgOIx7bmLZAiBFJsD"

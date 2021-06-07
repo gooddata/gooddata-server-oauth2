@@ -124,7 +124,7 @@ internal class CookieAuthorizationRequestRepositoryTest {
         expectThat(authRequest) {
             isNotNull()
                 .get(OAuth2AuthorizationRequest::getAuthorizationUri)
-                .isEqualTo("https://dev-6-eq6djb.eu.auth0.com/authorize")
+                .isEqualTo("https://localhost/authorize")
         }
     }
 
@@ -176,7 +176,7 @@ internal class CookieAuthorizationRequestRepositoryTest {
         expectThat(authRequest) {
             isNotNull()
                 .get(OAuth2AuthorizationRequest::getAuthorizationUri)
-                .isEqualTo("https://dev-6-eq6djb.eu.auth0.com/authorize")
+                .isEqualTo("https://localhost/authorize")
         }
 
         verify(exactly = 1) { cookieService.invalidateCookie(request, response, SPRING_SEC_OAUTH2_AUTHZ_RQ) }

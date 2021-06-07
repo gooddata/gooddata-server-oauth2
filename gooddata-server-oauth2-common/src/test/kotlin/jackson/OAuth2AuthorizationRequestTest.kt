@@ -36,7 +36,7 @@ internal class OAuth2AuthorizationRequestTest {
         val obj = mapper.readValue(body, OAuth2AuthorizationRequest::class.java)
         expectThat(obj) {
             get(OAuth2AuthorizationRequest::getAuthorizationUri)
-                .isEqualTo("https://dev-6-eq6djb.eu.auth0.com/authorize")
+                .isEqualTo("https://localhost/authorize")
             get(OAuth2AuthorizationRequest::getGrantType)
                 .isEqualTo(AuthorizationGrantType.AUTHORIZATION_CODE)
             get(OAuth2AuthorizationRequest::getResponseType)
@@ -56,7 +56,7 @@ internal class OAuth2AuthorizationRequestTest {
                 .isEqualTo(mapOf("nonce" to "RRUHHEafTSt5AlqphICzybZszLSpG3GC6RW7cyWAscc"))
             get(OAuth2AuthorizationRequest::getAuthorizationRequestUri)
                 .isEqualTo(
-                    "https://dev-6-eq6djb.eu.auth0.com/authorize?" +
+                    "https://localhost/authorize?" +
                         "response_type=code&client_id=zB85JfotOTabIdSAqsIWPj6ZV4tCXaHD&" +
                         "scope=openid%20profile%20offline_access%20name%20given_name%20family_name%20nickname%20" +
                         "email%20email_verified%20picture%20created_at%20identities%20phone%20address&" +

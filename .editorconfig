@@ -1,0 +1,37 @@
+# top-most EditorConfig file
+root = true
+
+# defaults
+[*]
+charset=utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+end_of_line=lf
+indent_size = 4
+indent_style = space
+
+[*.{java, kt, kts}]
+continuation_indent_size = 4
+max_line_length=120
+wildcard_import_limit=99
+
+[*.xml]
+continuation_indent_size = 8
+
+# YAML
+# http://yaml.org/spec/1.2/2009-07-21/spec.html#id2576668
+[*.{yaml,yml}]
+indent_size = 2
+
+# Shell
+# https://google.github.io/styleguide/shell.xml#Indentation
+[*.{bash,sh,zsh}]
+indent_size = 2
+
+# HTML
+# https://google.github.io/styleguide/htmlcssguide.xml#General_Formatting_Rules
+[*.{htm,html}]
+indent_size = 2
+
+[*.json]
+indent_size=2

@@ -36,9 +36,6 @@ import org.springframework.security.oauth2.jwt.JwtDecoderFactory
  * created) the old properties are used and newly created tokens cannot be decoded.
  * As [OidcIdTokenDecoderFactory] is final class and it was not intended to copy its logic out
  * the [NoCachingDecoderFactory] simply creates new instance of [OidcIdTokenDecoderFactory] every time.
- *
- * TODO - 1) avoid creating new [OidcIdTokenDecoderFactory] by reusing its internal logic
- * TODO - 2) only invalidate decoders when registration is changed, needs to use Pulsar to distribute invalidation
  */
 class NoCachingDecoderFactory : JwtDecoderFactory<ClientRegistration> {
 

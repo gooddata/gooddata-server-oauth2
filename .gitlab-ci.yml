@@ -19,7 +19,7 @@ build-kotlin:
     - ./gradlew clean build compileTestKotlin -x test --info
   artifacts:
     paths:
-      - gooddata-server-oauth2-starter/build/**/*
+      - '**/build/**/*'
   rules:
     - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"'
 test-kotlin:

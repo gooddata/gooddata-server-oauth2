@@ -38,8 +38,10 @@ import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient
+import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository
-import org.springframework.security.oauth2.client.registration.ClientRegistrations
+import org.springframework.security.oauth2.core.AuthenticationMethod
+import org.springframework.security.oauth2.core.AuthorizationGrantType
 import org.springframework.security.oauth2.core.OAuth2AccessToken
 import strikt.api.expectThat
 import strikt.api.expectThrows
@@ -153,9 +155,15 @@ internal class CookieOAuth2AuthorizedClientRepositoryTest {
             )
         )
         every { request.serverName } returns "localhost"
-        every { clientRegistrationRepository.findByRegistrationId(any()) } returns ClientRegistrations
-            .fromIssuerLocation("https://dev-6-eq6djb.eu.auth0.com/")
-            .registrationId("localhost")
+        every { clientRegistrationRepository.findByRegistrationId(any()) } returns ClientRegistration
+            .withRegistrationId("localhost")
+            .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
+            .authorizationUri("https://localhost/dex/auth")
+            .tokenUri("https://localhost/dex/token")
+            .userInfoUri("https://localhost/dex/userinfo")
+            .userInfoAuthenticationMethod(AuthenticationMethod("header"))
+            .jwkSetUri("https://localhost/dex/keys")
+            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
             .clientId("clientId")
             .build()
 
@@ -166,16 +174,22 @@ internal class CookieOAuth2AuthorizedClientRepositoryTest {
         expectThat(client) {
             isNotNull()
                 .get(OAuth2AuthorizedClient::getPrincipalName)
-                .isEqualTo("auth0|5f6dee2c5924f0006f077df0")
+                .isEqualTo("localhost|5f6dee2c5924f0006f077df0")
         }
     }
 
     @Test
     fun `should save client`() {
         val client = OAuth2AuthorizedClient(
-            ClientRegistrations
-                .fromIssuerLocation("https://dev-6-eq6djb.eu.auth0.com/")
-                .registrationId("localhost")
+            ClientRegistration
+                .withRegistrationId("localhost")
+                .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
+                .authorizationUri("https://localhost/dex/auth")
+                .tokenUri("https://localhost/dex/token")
+                .userInfoUri("https://localhost/dex/userinfo")
+                .userInfoAuthenticationMethod(AuthenticationMethod("header"))
+                .jwkSetUri("https://localhost/dex/keys")
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .clientId("clientId")
                 .build(),
             "principalName",
