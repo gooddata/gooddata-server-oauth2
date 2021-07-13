@@ -220,7 +220,7 @@ class UserContextWebFluxTest(
             .jsonPath("path").isEqualTo("/")
             .jsonPath("status").isEqualTo("500")
             .jsonPath("error").isEqualTo("Internal Server Error")
-            .jsonPath("message").isEqualTo("")
+            .jsonPath("message").doesNotExist()
             .jsonPath("timestamp").exists()
             .jsonPath("requestId").exists()
     }
@@ -242,7 +242,7 @@ class UserContextWebFluxTest(
             .jsonPath("path").isEqualTo("/")
             .jsonPath("status").isEqualTo("404")
             .jsonPath("error").isEqualTo("Not Found")
-            .jsonPath("message").isEqualTo("")
+            .jsonPath("message").doesNotExist()
             .jsonPath("timestamp").exists()
             .jsonPath("requestId").exists()
     }
@@ -268,7 +268,7 @@ class UserContextWebFluxTest(
             .jsonPath("path").isEqualTo("/")
             .jsonPath("status").isEqualTo("404")
             .jsonPath("error").isEqualTo("Not Found")
-            .jsonPath("message").isEqualTo("")
+            .jsonPath("message").doesNotExist()
             .jsonPath("timestamp").exists()
             .jsonPath("requestId").exists()
     }
@@ -327,7 +327,7 @@ class UserContextWebFluxTest(
             .jsonPath("path").isEqualTo("/")
             .jsonPath("status").isEqualTo("500")
             .jsonPath("error").isEqualTo("Internal Server Error")
-            .jsonPath("message").isEqualTo("")
+            .jsonPath("message").doesNotExist()
             .jsonPath("timestamp").exists()
             .jsonPath("requestId").exists()
     }
@@ -346,7 +346,7 @@ class UserContextWebFluxTest(
             .jsonPath("path").isEqualTo("/")
             .jsonPath("status").isEqualTo("404")
             .jsonPath("error").isEqualTo("Not Found")
-            .jsonPath("message").isEqualTo("")
+            .jsonPath("message").doesNotExist()
             .jsonPath("timestamp").exists()
             .jsonPath("requestId").exists()
     }
@@ -402,7 +402,7 @@ class UserContextWebFluxTest(
             .jsonPath("path").isEqualTo("/oauth2/authorization/localhost")
             .jsonPath("status").isEqualTo("404")
             .jsonPath("error").isEqualTo("Not Found")
-            .jsonPath("message").isEqualTo("")
+            .jsonPath("message").doesNotExist()
             .jsonPath("timestamp").exists()
             .jsonPath("requestId").exists()
     }
@@ -420,7 +420,7 @@ class UserContextWebFluxTest(
             .jsonPath("path").isEqualTo("/oauth2/authorization/localhost")
             .jsonPath("status").isEqualTo("500")
             .jsonPath("error").isEqualTo("Internal Server Error")
-            .jsonPath("message").isEqualTo("")
+            .jsonPath("message").doesNotExist()
             .jsonPath("timestamp").exists()
             .jsonPath("requestId").exists()
     }
