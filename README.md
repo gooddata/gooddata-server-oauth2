@@ -107,3 +107,8 @@ root@a45628275f4a:/# ./tinkey create-keyset --key-template AES256_GCM
 * **spring.security.oauth2.client.applogin.allow-redirect**
     * Defines which hostnames are allowed to be used in `redirectTo` param on `/appLogin` resource. When empty value is used it means that only relative URIs are allowed in `redirectTo`. If hostname is set to some schema+host+port (e.g. http://localhost:3000) then request can be redirected there.
     * defaults to empty value
+
+## Updating dependencies
+
+When updating project dependencies it is important to also update existing [attribution file](NOTICE.txt).
+To request new attribution file follow the guide described on Confluence _Licencing Compliance Review Process_ under section _Procedure / Standard flow_.
