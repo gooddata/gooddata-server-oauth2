@@ -24,88 +24,91 @@ This project includes a number of subcomponents with separate copyright notices 
 
 DEPENDENCIES
 
-- ASM based accessors helper used by json-smart (1.2) [Apache-2.0]
-- ASM Core (5.0.4) [BSD-3-Clause, Apache 2.0]
-- Core functionality for the Reactor Netty library (1.0.2) [Apache-2.0]
-- Expression Language 3.0 (3.0.3) [Multi-license: GPL-2.0-with-classpath-exception OR EPL-2.0, Apache-2.0]
-- HTTP functionality for the Reactor Netty library (1.0.2) [Apache-2.0]
+- ASM based accessors helper used by json-smart (2.4.7) [Apache-2.0]
+- ASM Core (9.1) [BSD-3-Clause]
+- Core functionality for the Reactor Netty library (1.0.8) [Apache-2.0]
+- HTTP functionality for the Reactor Netty library (1.0.8) [Apache-2.0]
 - IntelliJ IDEA Annotations (13.0) [Apache-2.0]
-- Jackson datatype: JSR310 (2.11.3) [Apache-2.0]
-- Jackson-annotations (2.11.3) [Apache-2.0]
-- Jackson-core (2.11.3) [Apache-2.0]
-- jackson-databind (2.11.3) [Apache-2.0]
-- Jackson-datatype-jdk8 (2.11.3) [Apache-2.0]
-- Jackson-module-parameter-names (2.11.3) [Apache-2.0]
-- jakarta.annotation-api (1.3.5) [Multi-license: EPL-2.0 OR GPL-2.0-with-classpath-exception]
+- Jackson BOM (2.12.3) [Apache-2.0]
+- Jackson datatype: jdk8 (2.12.3) [Apache-2.0]
+- Jackson datatype: JSR310 (2.12.3) [Apache-2.0]
+- Jackson-annotations (2.12.3) [Apache-2.0]
+- Jackson-core (2.12.3) [Apache-2.0]
+- jackson-databind (2.12.3) [Apache-2.0]
+- Jackson-module-parameter-names (2.12.3) [Apache-2.0]
+- jakarta.annotation-api (1.3.5) [Multi-license: GPL-2.0-with-classpath-exception OR EPL-2.0]
 - Java Servlet API (4.0.1) [Apache-2.0, Multi-license: GPL-2.0-with-classpath-exception OR CDDL-1.1]
 - JCIP Annotations under Apache License (1.0-1) [Apache-2.0]
 - JSON in Java (20180813) [JSON]
-- JSON Small and Fast Parser (2.3) [Apache-2.0]
-- Kotlin extensions for Project Reactor (1.1.1) [Apache-2.0]
+- JSON Small and Fast Parser (2.4.7) [Apache-2.0]
+- Kotlin extensions for Project Reactor (1.1.3) [Apache-2.0]
 - kotlin-logging (2.0.4) [Apache-2.0]
 - kotlin-logging (2.0.4) [Apache-2.0]
-- kotlin-stdlib (1.4.31) [Apache-2.0]
 - kotlinx-coroutines-core (1.3.8) [Apache-2.0]
-- kotlinx-coroutines-core (1.4.2) [Apache-2.0]
-- kotlinx-coroutines-core (1.4.2) [Apache-2.0]
-- kotlinx-coroutines-reactive (1.4.2) [Apache-2.0]
+- kotlinx-coroutines-core (1.5.0) [Apache-2.0]
+- kotlinx-coroutines-core (1.5.0) [Apache-2.0]
+- kotlinx-coroutines-reactive (1.5.0) [Apache-2.0]
 - kotlinx-coroutines-reactor (1.3.8) [Apache-2.0]
-- kotlinx-coroutines-reactor (1.4.2) [Apache-2.0]
+- kotlinx-coroutines-reactor (1.5.0) [Apache-2.0]
 - kotlinx-coroutines-slf4j (1.3.8) [Apache-2.0]
-- kotlinx-coroutines-slf4j (1.4.2) [Apache-2.0]
-- Netty/Buffer (4.1.55.Final) [Apache-2.0]
-- Netty/Codec (4.1.55.Final) [Apache-2.0]
-- Netty/Codec/DNS (4.1.55.Final) [Apache-2.0]
-- Netty/Codec/HTTP (4.1.55.Final) [Apache-2.0, MIT, BSD-3-Clause]
-- Netty/Codec/HTTP2 (4.1.55.Final) [Apache-2.0]
-- Netty/Codec/Socks (4.1.55.Final) [Apache-2.0]
-- Netty/Common (4.1.55.Final) [Apache-2.0, MIT]
-- Netty/Handler (4.1.55.Final) [Apache-2.0]
-- Netty/Handler/Proxy (4.1.55.Final) [Apache-2.0]
-- Netty/Resolver (4.1.55.Final) [Apache-2.0]
-- Netty/Resolver/DNS (4.1.55.Final) [Apache-2.0]
-- Netty/Transport (4.1.55.Final) [Apache-2.0]
-- Netty/Transport/Native/Epoll (4.1.55.Final) [Apache-2.0]
-- Netty/Transport/Native/Unix/Common (4.1.55.Final) [Apache-2.0]
+- kotlinx-coroutines-slf4j (1.5.0) [Apache-2.0]
+- Netty/Buffer (4.1.65.Final) [Apache-2.0]
+- Netty/Codec (4.1.65.Final) [Apache-2.0]
+- Netty/Codec/DNS (4.1.65.Final) [Apache-2.0]
+- Netty/Codec/HTTP (4.1.65.Final) [Apache-2.0, MIT, BSD-3-Clause]
+- Netty/Codec/HTTP2 (4.1.65.Final) [Apache-2.0]
+- Netty/Codec/Socks (4.1.65.Final) [Apache-2.0]
+- Netty/Common (4.1.65.Final) [Apache-2.0, MIT]
+- Netty/Handler (4.1.65.Final) [Apache-2.0]
+- Netty/Handler/Proxy (4.1.65.Final) [Apache-2.0]
+- Netty/Resolver (4.1.65.Final) [Apache-2.0]
+- Netty/Resolver/DNS (4.1.65.Final) [Apache-2.0]
+- Netty/Resolver/DNS/MacOS (4.1.65.Final) [Apache-2.0]
+- Netty/Transport (4.1.65.Final) [Apache-2.0]
+- Netty/Transport/Native/Epoll (4.1.65.Final) [Apache-2.0]
+- Netty/Transport/Native/Unix/Common (4.1.65.Final) [Apache-2.0]
 - Nimbus Content Type (2.1) [Apache-2.0]
-- Nimbus JOSE+JWT (9.1.3) [Apache-2.0]
-- Nimbus LangTag (1.4.4) [Apache-2.0]
-- Non-Blocking Reactive Foundation for the JVM (3.4.1) [Apache-2.0]
-- OAuth 2.0 SDK with OpenID Connect extensions (8.23.1) [Apache-2.0]
+- Nimbus JOSE+JWT (9.10) [Apache-2.0]
+- Nimbus LangTag (1.5) [Apache-2.0]
+- Non-Blocking Reactive Foundation for the JVM (3.4.7) [Apache-2.0]
+- OAuth 2.0 SDK with OpenID Connect extensions (9.9) [Apache-2.0]
+- org.jetbrains.kotlin:kotlin-stdlib (1.4.31) [Apache-2.0]
 - org.jetbrains.kotlin:kotlin-stdlib-common (1.4.31) [Apache-2.0]
 - org.jetbrains.kotlin:kotlin-stdlib-jdk7 (1.4.31) [Apache-2.0]
 - org.jetbrains.kotlin:kotlin-stdlib-jdk8 (1.4.31) [Apache-2.0]
-- Protocol Buffer Java API (3.11.1) [BSD-3-Clause]
+- Protocol Buffers [Core] (3.11.1) [BSD-3-Clause]
 - reactive-streams (1.0.3) [CC0-1.0]
-- SLF4J API Module (1.7.30) [MIT]
-- SnakeYAML (1.27) [Apache-2.0, Multi-license: LGPL-2.1-or-later OR GPL-2.0-or-later OR EPL-1.0 OR BSD-3-Clause OR Apache-2.0]
-- Spring AOP (5.3.2) [Apache-2.0]
-- Spring Beans (5.3.2) [Apache-2.0]
-- Spring Boot (2.4.1) [Apache-2.0]
-- Spring Boot AutoConfigure (2.4.1) [Apache-2.0]
-- Spring Boot Json Starter (2.4.1) [Apache-2.0]
-- Spring Boot Reactor Netty Starter (2.4.1) [Apache-2.0]
-- Spring Boot Starter (2.4.1) [Apache-2.0]
-- Spring Boot Tomcat Starter (2.4.1) [Apache-2.0]
-- Spring Boot Web Starter (2.4.1) [Apache-2.0]
-- Spring Boot WebFlux Starter (2.4.1) [Apache-2.0]
-- Spring Commons Logging Bridge (5.3.2) [Apache-2.0]
-- Spring Context (5.3.2) [Apache-2.0]
-- Spring Core (5.3.2) [Apache-2.0, BSD-3-Clause]
-- Spring Expression Language (SpEL) (5.3.2) [Apache-2.0]
-- Spring Web (5.3.2) [Apache-2.0, public-domain]
-- Spring Web MVC (5.3.2) [Apache-2.0]
-- Spring WebFlux (5.3.2) [Apache-2.0]
-- spring-security-config (5.4.2) [Apache-2.0]
-- spring-security-core (5.4.2) [Apache-2.0, MIT]
-- spring-security-oauth2-client (5.4.2) [Apache-2.0]
-- spring-security-oauth2-core (5.4.2) [Apache-2.0]
-- spring-security-oauth2-jose (5.4.2) [Apache-2.0]
-- spring-security-oauth2-resource-server (5.4.2) [Apache-2.0]
-- spring-security-web (5.4.2) [Apache-2.0]
+- SLF4J API Module (1.7.31) [MIT]
+- SnakeYAML (1.28) [Apache-2.0, Multi-license: LGPL-2.1-or-later OR GPL-2.0-or-later OR EPL-1.0 OR BSD-3-Clause OR Apache-2.0]
+- Spring AOP (5.3.8) [Apache-2.0]
+- Spring Beans (5.3.8) [Apache-2.0]
+- Spring Boot (2.5.2) [Apache-2.0]
+- Spring Boot AutoConfigure (2.5.2) [Apache-2.0]
+- Spring Boot Json Starter (2.5.2) [Apache-2.0]
+- Spring Boot Reactor Netty Starter (2.5.2) [Apache-2.0]
+- Spring Boot Starter (2.5.2) [Apache-2.0]
+- Spring Boot Tomcat Starter (2.5.2) [Apache-2.0]
+- Spring Boot Web Starter (2.5.2) [Apache-2.0]
+- Spring Boot WebFlux Starter (2.5.2) [Apache-2.0]
+- Spring Commons Logging Bridge (5.3.8) [Apache-2.0]
+- Spring Context (5.3.8) [Apache-2.0]
+- Spring Core (5.3.8) [Apache-2.0, BSD-3-Clause]
+- Spring Expression Language (SpEL) (5.3.8) [Apache-2.0]
+- Spring Web (5.3.8) [Apache-2.0, public-domain]
+- Spring Web MVC (5.3.8) [Apache-2.0]
+- Spring WebFlux (5.3.8) [Apache-2.0]
+- spring-security-config (5.5.1) [Apache-2.0]
+- spring-security-core (5.5.1) [Apache-2.0]
+- spring-security-crypto (5.5.1) [Apache-2.0, MIT]
+- spring-security-oauth2-client (5.5.1) [Apache-2.0]
+- spring-security-oauth2-core (5.5.1) [Apache-2.0]
+- spring-security-oauth2-jose (5.5.1) [Apache-2.0]
+- spring-security-oauth2-resource-server (5.5.1) [Apache-2.0]
+- spring-security-web (5.5.1) [Apache-2.0]
 - Tink Cryptography API (1.5.0) [Apache-2.0]
-- tomcat-embed-core (9.0.41) [Apache-2.0, Multi-license: GPL-2.0-with-classpath-exception OR CDDL-1.1]
-- tomcat-embed-websocket (9.0.41) [Apache-2.0]
+- tomcat-embed-core (9.0.48) [Apache-2.0, Multi-license: GPL-2.0-with-classpath-exception OR CDDL-1.1]
+- tomcat-embed-el (9.0.48) [Apache-2.0]
+- tomcat-embed-websocket (9.0.48) [Apache-2.0]
 
 
 APPENDIX: LICENSES
@@ -123,13 +126,13 @@ GNU Lesser General Public License v2.1
                                   Dependencies
 ================================================================================
 --------------------------------------------------------------------------------
-ASM based accessors helper used by json-smart (1.2)
+ASM based accessors helper used by json-smart (2.4.7)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
 Apache-2.0
 
-Copyright 2021, ASM based accessors helper used by json-smart Contributors
+Copyright 2011 JSON
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -145,57 +148,44 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-ASM Core (5.0.4)
+ASM Core (9.1)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
-BSD-3-Clause, Apache 2.0
+BSD-3-Clause
 
-Copyright (c) 2021, ASM Core Contributors . All rights reserved.
+// ASM: a very small and fast Java bytecode manipulation framework
+// Copyright (c) 2000-2011 INRIA, France Telecom
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions
+// are met:
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
+// 2. Redistributions in binary form must reproduce the above copyright
+//    notice, this list of conditions and the following disclaimer in the
+//    documentation and/or other materials provided with the distribution.
+// 3. Neither the name of the copyright holders nor the names of its
+//    contributors may be used to endorse or promote products derived from
+//    this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+// THE POSSIBILITY OF SUCH DAMAGE.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-   1. Redistributions of source code must retain the above copyright notice,
-      this list of conditions and the following disclaimer.
-
-   2. Redistributions in binary form must reproduce the above copyright notice,
-      this list of conditions and the following disclaimer in the documentation
-      and/or other materials provided with the distribution.
-
-   3. Neither the name of the copyright holder nor the names of its
-      contributors may be used to endorse or promote products derived from
-      this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
-Copyright 2021, ASM Core Contributors
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-
-See the License for the specific language governing permissions and limitations under the License.
 
 
 --------------------------------------------------------------------------------
-Core functionality for the Reactor Netty library (1.0.2)
+Core functionality for the Reactor Netty library (1.0.8)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -217,51 +207,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Expression Language 3.0 (3.0.3)
---------------------------------------------------------------------------------
-
-* Declared Licenses *
- 
-
-* Other Licenses *
-Multi-license: GPL-2.0-with-classpath-exception OR EPL-2.0, Apache-2.0
-
-
-* Copyright (c) 1997, 2018 Oracle and/or its affiliates. All rights reserved.
- *
- * This program and the accompanying materials are made available under the
- * terms of the Eclipse Public License v. 2.0, which is available at
- * http://www.eclipse.org/legal/epl-2.0.
- *
- * This Source Code may also be made available under the following Secondary
- * Licenses when the conditions for such availability set forth in the
- * Eclipse Public License v. 2.0 are satisfied: GNU General Public License,
- * version 2 with the GNU Classpath Exception, which is available at
- * https://www.gnu.org/software/classpath/license.html.
- *
- * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
- */
-
-
- * Copyright (c) 1997-2018 Oracle and/or its affiliates and others.
- * All rights reserved.
- * Copyright 2004 The Apache Software Foundation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-
-
---------------------------------------------------------------------------------
-HTTP functionality for the Reactor Netty library (1.0.2)
+HTTP functionality for the Reactor Netty library (1.0.8)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -289,7 +235,7 @@ IntelliJ IDEA Annotations (13.0)
 * Declared Licenses *
 Apache-2.0
 
-Copyright 2021, IntelliJ IDEA Annotations Contributors
+Copyright 2000-2009 JetBrains s
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -305,7 +251,52 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Jackson datatype: JSR310 (2.11.3)
+Jackson BOM (2.12.3)
+--------------------------------------------------------------------------------
+
+* Declared Licenses *
+Apache-2.0
+
+Copyright 2021, Jackson BOM Contributors
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+
+See the License for the specific language governing permissions and limitations under the License.
+
+
+--------------------------------------------------------------------------------
+Jackson datatype: jdk8 (2.12.3)
+--------------------------------------------------------------------------------
+
+* Declared Licenses *
+Apache-2.0
+
+* Copyright 2013 FasterXML.com
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License. You may obtain
+ * a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the license for the specific language governing permissions and
+ * limitations under the license.
+
+
+
+--------------------------------------------------------------------------------
+Jackson datatype: JSR310 (2.12.3)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -323,101 +314,56 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 
 --------------------------------------------------------------------------------
-Jackson-annotations (2.11.3)
+Jackson-annotations (2.12.3)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
 Apache-2.0
 
-This copy of Jackson JSON processor annotations is licensed under the
-Apache (Software) License, version 2.0 ("the License").
-See the License for details about distribution rights, and the
-specific rights regarding derivate works.
-
-You may obtain a copy of the License at:
-
-http://www.apache.org/licenses/LICENSE-2.0
 
 
 
 --------------------------------------------------------------------------------
-Jackson-core (2.11.3)
+Jackson-core (2.12.3)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
 Apache-2.0
 
-This copy of Jackson JSON processor streaming parser/generator is licensed under the
-Apache (Software) License, version 2.0 ("the License").
-See the License for details about distribution rights, and the
-specific rights regarding derivate works.
 
-You may obtain a copy of the License at:
-
-http://www.apache.org/licenses/LICENSE-2.0
 
 
 
 --------------------------------------------------------------------------------
-jackson-databind (2.11.3)
+jackson-databind (2.12.3)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
 Apache-2.0
 
-This copy of Jackson JSON processor databind module is licensed under the
-Apache (Software) License, version 2.0 ("the License").
-See the License for details about distribution rights, and the
-specific rights regarding derivate works.
-
-You may obtain a copy of the License at:
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-
 
 --------------------------------------------------------------------------------
-Jackson-datatype-jdk8 (2.11.3)
+Jackson-module-parameter-names (2.12.3)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
 Apache-2.0
 
-Copyright 2021, Jackson-datatype-jdk8 Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+Copyright 2013 FasterXML.com
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may
+not use this file except in compliance with the License. You may obtain
+a copy of the License at
 
 http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the license for the specific language governing permissions and
+limitations under the license.
 
-See the License for the specific language governing permissions and limitations under the License.
-
-
---------------------------------------------------------------------------------
-Jackson-module-parameter-names (2.11.3)
---------------------------------------------------------------------------------
-
-* Declared Licenses *
-Apache-2.0
-
-Copyright 2021, Jackson-module-parameter-names Contributors
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-
-See the License for the specific language governing permissions and limitations under the License.
 
 
 --------------------------------------------------------------------------------
@@ -428,7 +374,8 @@ jakarta.annotation-api (1.3.5)
  
 
 * Other Licenses *
-Multi-license: EPL-2.0 OR GPL-2.0-with-classpath-exception
+Multi-license: GPL-2.0-with-classpath-exception OR EPL-2.0
+
 
 * Copyright (c) 2009, 2018 Oracle and/or its affiliates. All rights reserved.
  *
@@ -443,6 +390,7 @@ Multi-license: EPL-2.0 OR GPL-2.0-with-classpath-exception
  * https://www.gnu.org/software/classpath/license.html.
  *
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
+
 
 --------------------------------------------------------------------------------
 Java Servlet API (4.0.1)
@@ -517,7 +465,7 @@ JCIP Annotations under Apache License (1.0-1)
 * Declared Licenses *
 Apache-2.0
 
-Copyright 2021, JCIP Annotations under Apache License Contributors
+Copyright 2013 Stephen Connolly
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -547,13 +495,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 --------------------------------------------------------------------------------
-JSON Small and Fast Parser (2.3)
+JSON Small and Fast Parser (2.4.7)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
 Apache-2.0
 
-Copyright 2021, JSON Small and Fast Parser Contributors
+Copyright 2011 JSON
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -569,7 +517,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Kotlin extensions for Project Reactor (1.1.1)
+Kotlin extensions for Project Reactor (1.1.3)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -635,28 +583,6 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-kotlin-stdlib (1.4.31)
---------------------------------------------------------------------------------
-
-* Declared Licenses *
-Apache-2.0
-
-Copyright 2010-2015 JetBrains s
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-
-See the License for the specific language governing permissions and limitations under the License.
-
-
---------------------------------------------------------------------------------
 kotlinx-coroutines-core (1.3.8)
 --------------------------------------------------------------------------------
 
@@ -679,7 +605,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-kotlinx-coroutines-core (1.4.2)
+kotlinx-coroutines-core (1.5.0)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -701,7 +627,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-kotlinx-coroutines-core (1.4.2)
+kotlinx-coroutines-core (1.5.0)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -723,7 +649,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-kotlinx-coroutines-reactive (1.4.2)
+kotlinx-coroutines-reactive (1.5.0)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -767,7 +693,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-kotlinx-coroutines-reactor (1.4.2)
+kotlinx-coroutines-reactor (1.5.0)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -811,7 +737,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-kotlinx-coroutines-slf4j (1.4.2)
+kotlinx-coroutines-slf4j (1.5.0)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -833,7 +759,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Netty/Buffer (4.1.55.Final)
+Netty/Buffer (4.1.65.Final)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -855,29 +781,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Netty/Codec (4.1.55.Final)
---------------------------------------------------------------------------------
-
-* Declared Licenses *
-Apache-2.0
-
-Copyright 2012 The Netty Project
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-
-See the License for the specific language governing permissions and limitations under the License.
-
-
---------------------------------------------------------------------------------
-Netty/Codec/DNS (4.1.55.Final)
+Netty/Codec (4.1.65.Final)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -899,7 +803,29 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Netty/Codec/HTTP (4.1.55.Final)
+Netty/Codec/DNS (4.1.65.Final)
+--------------------------------------------------------------------------------
+
+* Declared Licenses *
+Apache-2.0
+
+Copyright 2014 The Netty Project
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+
+See the License for the specific language governing permissions and limitations under the License.
+
+
+--------------------------------------------------------------------------------
+Netty/Codec/HTTP (4.1.65.Final)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -984,7 +910,7 @@ Apache-2.0, MIT, BSD-3-Clause
 
 
 --------------------------------------------------------------------------------
-Netty/Codec/HTTP2 (4.1.55.Final)
+Netty/Codec/HTTP2 (4.1.65.Final)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1006,7 +932,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Netty/Codec/Socks (4.1.55.Final)
+Netty/Codec/Socks (4.1.65.Final)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1028,7 +954,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Netty/Common (4.1.55.Final)
+Netty/Common (4.1.65.Final)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1076,7 +1002,7 @@ Apache-2.0, MIT
 
 
 --------------------------------------------------------------------------------
-Netty/Handler (4.1.55.Final)
+Netty/Handler (4.1.65.Final)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1098,7 +1024,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Netty/Handler/Proxy (4.1.55.Final)
+Netty/Handler/Proxy (4.1.65.Final)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1120,7 +1046,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Netty/Resolver (4.1.55.Final)
+Netty/Resolver (4.1.65.Final)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1142,13 +1068,13 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Netty/Resolver/DNS (4.1.55.Final)
+Netty/Resolver/DNS (4.1.65.Final)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
 Apache-2.0
 
-Copyright 2014 The Netty Project
+Copyright 2018 The Netty Project
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1164,7 +1090,29 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Netty/Transport (4.1.55.Final)
+Netty/Resolver/DNS/MacOS (4.1.65.Final)
+--------------------------------------------------------------------------------
+
+* Declared Licenses *
+Apache-2.0
+
+Copyright 2019 The Netty Project
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+
+See the License for the specific language governing permissions and limitations under the License.
+
+
+--------------------------------------------------------------------------------
+Netty/Transport (4.1.65.Final)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1186,7 +1134,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Netty/Transport/Native/Epoll (4.1.55.Final)
+Netty/Transport/Native/Epoll (4.1.65.Final)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1208,13 +1156,13 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Netty/Transport/Native/Unix/Common (4.1.55.Final)
+Netty/Transport/Native/Unix/Common (4.1.65.Final)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
 Apache-2.0
 
-Copyright 2018 The Netty Project
+Copyright 2020 The Netty Project
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1252,7 +1200,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Nimbus JOSE+JWT (9.1.3)
+Nimbus JOSE+JWT (9.10)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1274,7 +1222,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Nimbus LangTag (1.4.4)
+Nimbus LangTag (1.5)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1296,7 +1244,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Non-Blocking Reactive Foundation for the JVM (3.4.1)
+Non-Blocking Reactive Foundation for the JVM (3.4.7)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1318,13 +1266,35 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-OAuth 2.0 SDK with OpenID Connect extensions (8.23.1)
+OAuth 2.0 SDK with OpenID Connect extensions (9.9)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
 Apache-2.0
 
 Copyright 2012-2016, Connect2id Ltd and contributors
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+
+See the License for the specific language governing permissions and limitations under the License.
+
+
+--------------------------------------------------------------------------------
+org.jetbrains.kotlin:kotlin-stdlib (1.4.31)
+--------------------------------------------------------------------------------
+
+* Declared Licenses *
+Apache-2.0
+
+Copyright 2010-2015 JetBrains s
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1406,7 +1376,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Protocol Buffer Java API (3.11.1)
+Protocol Buffers [Core] (3.11.1)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1460,7 +1430,7 @@ CC0-1.0
 
 
 --------------------------------------------------------------------------------
-SLF4J API Module (1.7.30)
+SLF4J API Module (1.7.31)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1490,7 +1460,7 @@ Copyright (c) 2004-2017 QOS.ch
 
 
 --------------------------------------------------------------------------------
-SnakeYAML (1.27)
+SnakeYAML (1.28)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1548,13 +1518,13 @@ package org.yaml.snakeyaml.external.biz.base64Coder;
 
 
 --------------------------------------------------------------------------------
-Spring AOP (5.3.2)
+Spring AOP (5.3.8)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
 Apache-2.0
 
-Copyright 2002-2017 the original author or authors
+Copyright 2002-2012 the original author or authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1570,13 +1540,13 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Spring Beans (5.3.2)
+Spring Beans (5.3.8)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
 Apache-2.0
 
-Copyright 2002-2020 the original author or authors
+Copyright 2002-2013 the original author or authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1592,30 +1562,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Spring Boot (2.4.1)
---------------------------------------------------------------------------------
-
-* Declared Licenses *
-Apache-2.0
-
-
- * Copyright 2012-2019 the original author or authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.                    
-
-
---------------------------------------------------------------------------------
-Spring Boot AutoConfigure (2.4.1)
+Spring Boot (2.5.2)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1633,11 +1580,33 @@ Apache-2.0
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.                         
+ * limitations under the License.
 
 
 --------------------------------------------------------------------------------
-Spring Boot Json Starter (2.4.1)
+Spring Boot AutoConfigure (2.5.2)
+--------------------------------------------------------------------------------
+
+* Declared Licenses *
+Apache-2.0
+
+ * Copyright 2012-2019 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+
+
+--------------------------------------------------------------------------------
+Spring Boot Json Starter (2.5.2)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1647,16 +1616,7 @@ Apache-2.0
 
 
 --------------------------------------------------------------------------------
-Spring Boot Reactor Netty Starter (2.4.1)
---------------------------------------------------------------------------------
-
-* Declared Licenses *
-Apache-2.0
-
-
-
---------------------------------------------------------------------------------
-Spring Boot Starter (2.4.1)
+Spring Boot Reactor Netty Starter (2.5.2)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1666,17 +1626,36 @@ Apache-2.0
 
 
 --------------------------------------------------------------------------------
-Spring Boot Tomcat Starter (2.4.1)
+Spring Boot Starter (2.5.2)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
 Apache-2.0
 
 
-                             
+--------------------------------------------------------------------------------
+Spring Boot Tomcat Starter (2.5.2)
+--------------------------------------------------------------------------------
+
+* Declared Licenses *
+Apache-2.0
+
+
+
 
 --------------------------------------------------------------------------------
-Spring Boot Web Starter (2.4.1)
+Spring Boot Web Starter (2.5.2)
+--------------------------------------------------------------------------------
+
+* Declared Licenses *
+Apache-2.0
+
+
+                           
+
+
+--------------------------------------------------------------------------------
+Spring Boot WebFlux Starter (2.5.2)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1685,17 +1664,29 @@ Apache-2.0
 
 
 --------------------------------------------------------------------------------
-Spring Boot WebFlux Starter (2.4.1)
+Spring Commons Logging Bridge (5.3.8)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
 Apache-2.0
 
+Copyright 2002-2018 the original author or authors
 
-                             
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+
+See the License for the specific language governing permissions and limitations under the License.
+
 
 --------------------------------------------------------------------------------
-Spring Commons Logging Bridge (5.3.2)
+Spring Context (5.3.8)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1717,29 +1708,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Spring Context (5.3.2)
---------------------------------------------------------------------------------
-
-* Declared Licenses *
-Apache-2.0
-
-Copyright 2002-2020 the original author or authors
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-
-See the License for the specific language governing permissions and limitations under the License.
-
-
---------------------------------------------------------------------------------
-Spring Core (5.3.2)
+Spring Core (5.3.8)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1793,7 +1762,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 --------------------------------------------------------------------------------
-Spring Expression Language (SpEL) (5.3.2)
+Spring Expression Language (SpEL) (5.3.8)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1815,13 +1784,13 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Spring Web (5.3.2)
+Spring Web (5.3.8)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
 Apache-2.0
 
-Copyright 2002-2013 the original author or authors
+Copyright 2002-2012 the original author or authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1842,7 +1811,7 @@ public-domain
 
 
 --------------------------------------------------------------------------------
-Spring Web MVC (5.3.2)
+Spring Web MVC (5.3.8)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1864,7 +1833,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-Spring WebFlux (5.3.2)
+Spring WebFlux (5.3.8)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1886,7 +1855,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-spring-security-config (5.4.2)
+spring-security-config (5.5.1)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1908,13 +1877,35 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-spring-security-core (5.4.2)
+spring-security-core (5.5.1)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
 Apache-2.0
 
-Copyright 2004, 2005, 2006 Acegi Technology Pty Limited
+Copyright 2002-2016 the original author or authors
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+
+See the License for the specific language governing permissions and limitations under the License.
+
+
+--------------------------------------------------------------------------------
+spring-security-crypto (5.5.1)
+--------------------------------------------------------------------------------
+
+* Declared Licenses *
+Apache-2.0
+
+Copyright 2002-2019 the original author or authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1954,7 +1945,29 @@ SOFTWARE.
 
 
 --------------------------------------------------------------------------------
-spring-security-oauth2-client (5.4.2)
+spring-security-oauth2-client (5.5.1)
+--------------------------------------------------------------------------------
+
+* Declared Licenses *
+Apache-2.0
+
+Copyright 2002-2021 the original author or authors
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+
+See the License for the specific language governing permissions and limitations under the License.
+
+
+--------------------------------------------------------------------------------
+spring-security-oauth2-core (5.5.1)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1976,7 +1989,29 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-spring-security-oauth2-core (5.4.2)
+spring-security-oauth2-jose (5.5.1)
+--------------------------------------------------------------------------------
+
+* Declared Licenses *
+Apache-2.0
+
+Copyright 2002-2017 the original author or authors
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+
+See the License for the specific language governing permissions and limitations under the License.
+
+
+--------------------------------------------------------------------------------
+spring-security-oauth2-resource-server (5.5.1)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -1998,51 +2033,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-spring-security-oauth2-jose (5.4.2)
---------------------------------------------------------------------------------
-
-* Declared Licenses *
-Apache-2.0
-
-Copyright 2002-2020 the original author or authors
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-
-See the License for the specific language governing permissions and limitations under the License.
-
-
---------------------------------------------------------------------------------
-spring-security-oauth2-resource-server (5.4.2)
---------------------------------------------------------------------------------
-
-* Declared Licenses *
-Apache-2.0
-
-Copyright 2002-2018 the original author or authors
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-
-See the License for the specific language governing permissions and limitations under the License.
-
-
---------------------------------------------------------------------------------
-spring-security-web (5.4.2)
+spring-security-web (5.5.1)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -2086,7 +2077,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-tomcat-embed-core (9.0.41)
+tomcat-embed-core (9.0.48)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -2152,7 +2143,16 @@ Apache-2.0, Multi-license: GPL-2.0-with-classpath-exception OR CDDL-1.1
 
 
 --------------------------------------------------------------------------------
-tomcat-embed-websocket (9.0.41)
+tomcat-embed-el (9.0.48)
+--------------------------------------------------------------------------------
+
+* Declared Licenses *
+Apache-2.0
+
+
+
+--------------------------------------------------------------------------------
+tomcat-embed-websocket (9.0.48)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -2173,8 +2173,12 @@ Apache-2.0
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+
+
+
 ================================================================================
-LICENSES APPENDIX
+APPENDIX: LICENSES
 ================================================================================
 * Apache 2.0 *
                                  Apache License
@@ -2735,5 +2739,6 @@ Ty Coon, President of Vice
 That's all there is to it!
 
 --------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
-Report Generated by FOSSA on 2021-6-8
+Report Generated by FOSSA on 2021-8-4
