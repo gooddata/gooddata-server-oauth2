@@ -24,8 +24,6 @@ import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
 import org.springframework.security.oauth2.server.resource.BearerTokenAuthenticationToken
 import java.time.Instant
 
-typealias RestartAuthentication = Boolean
-
 /**
  * Builds [ClientRegistration] from [Organization] retrieved from [AuthenticationStoreClient].
  *
@@ -81,26 +79,45 @@ suspend fun userContextAuthenticationToken(
  * has been issued before stored date `null` user is returned and flag indicating that authentication flow is to be
  * restarted.
  *
- * In case there is no [User] to be found `null` user is returned as well.
- *
  * @param client authentication client
  * @param auth OAuth2 authentication token
- * @return organization and user unless global logout has been triggered no user has been retrieved.
- * Flag indicating whether authentication flow should be restarted is returned as well.
+ * @return user context
+ *
  */
 suspend fun getUserContextForAuthenticationToken(
     client: AuthenticationStoreClient,
     auth: OAuth2AuthenticationToken,
-): Triple<Organization, User?, RestartAuthentication> {
+): UserContext {
     val organization = client.getOrganizationByHostname(auth.authorizedClientRegistrationId)
-    val user = client.getUserByAuthenticationId(
+    return client.getUserByAuthenticationId(
         organization.id,
         auth.principal.attributes[IdTokenClaimNames.SUB] as String
-    )?.let {
+    )?.let { user ->
         val tokenIssuedAtTime = auth.principal.attributes[IdTokenClaimNames.IAT] as Instant
-        val lastLogoutAllTimestamp = it.lastLogoutAllTimestamp
+        val lastLogoutAllTimestamp = user.lastLogoutAllTimestamp
         val isValid = lastLogoutAllTimestamp == null || tokenIssuedAtTime.isAfter(lastLogoutAllTimestamp)
-        if (isValid) Pair(it, false) else Pair(null, true)
-    } ?: Pair(null, false)
-    return Triple(organization, user.first, user.second)
+        if (isValid) {
+            UserContext(organization, user, restartAuthentication = false)
+        } else {
+            UserContext(organization, user = null, restartAuthentication = true)
+        }
+    } ?: UserContext(organization, user = null, restartAuthentication = false)
 }
+
+/**
+ * Organization and user unless global logout has been triggered or no user has been retrieved.
+ */
+data class UserContext(
+    /**
+     * Organization
+     */
+    val organization: Organization,
+    /**
+     * User or `null` if no [User] has been found or global logout has been triggered
+     */
+    val user: User?,
+    /**
+     * Flag indicating whether authentication flow should be restarted or not
+     */
+    val restartAuthentication: Boolean
+)

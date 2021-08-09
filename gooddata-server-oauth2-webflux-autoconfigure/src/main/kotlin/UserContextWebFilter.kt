@@ -69,14 +69,13 @@ class UserContextWebFilter(
         mono(Dispatchers.Unconfined + CoroutineName("userContextWebFilter")) {
             val authOption = Option(Level.WARN, { "ReactorContext is not a part of coroutineContext" }) {
                 coroutineContext[ReactorContext]?.context
-            }.map(Level.DEBUG, { "Security context is not set, probably accessing unauthenticated resource" }) {
-                if (it.hasKey(SecurityContext::class.java)) {
-                    it.get<Mono<SecurityContext>>(SecurityContext::class.java)
-                } else {
-                    null
-                }
-            }.map(Level.WARN, { "Security cannot be retrieved" }) {
-                it.awaitOrNull()?.authentication
+            }.map(
+                Level.DEBUG,
+                { "Security context is not set, probably accessing unauthenticated resource" }
+            ) { context ->
+                context.getOrDefault<Mono<SecurityContext>>(SecurityContext::class.java, null)
+            }.map(Level.WARN, { "Security cannot be retrieved" }) { context ->
+                context.awaitOrNull()?.authentication
             }
 
             when (authOption) {
@@ -98,16 +97,18 @@ class UserContextWebFilter(
         exchange: ServerWebExchange,
         chain: WebFilterChain,
     ): Void? {
-        val (organization, user, restartAuthentication) = getUserContextForAuthenticationToken(client, auth)
+        val userContext = getUserContextForAuthenticationToken(client, auth)
 
-        return if (user == null) {
+        return if (userContext.user == null) {
             logger.info { "Session was logged out" }
             serverLogoutHandler.logout(WebFilterExchange(exchange, chain), auth).awaitOrNull()
-            if (restartAuthentication) {
+            if (userContext.restartAuthentication) {
                 authenticationEntryPoint.commence(exchange, null).awaitOrNull()
-            } else throw ResponseStatusException(HttpStatus.NOT_FOUND, "User is not registered")
+            } else {
+                throw ResponseStatusException(HttpStatus.NOT_FOUND, "User is not registered")
+            }
         } else {
-            withUserContext(organization, user, auth.name) {
+            withUserContext(userContext.organization, userContext.user!!, auth.name) {
                 chain.filter(exchange).awaitOrNull()
             }
         }
