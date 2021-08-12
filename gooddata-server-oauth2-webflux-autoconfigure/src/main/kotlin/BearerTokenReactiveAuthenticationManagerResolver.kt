@@ -32,13 +32,12 @@ class BearerTokenReactiveAuthenticationManagerResolver(
     private val client: AuthenticationStoreClient,
 ) : ReactiveAuthenticationManagerResolver<ServerWebExchange> {
 
-    @Suppress("TooGenericExceptionCaught")
     override fun resolve(exchange: ServerWebExchange): Mono<ReactiveAuthenticationManager> =
         mono(Dispatchers.Unconfined) {
             ReactiveAuthenticationManager { authentication ->
                 mono(Dispatchers.Unconfined) {
-                    (authentication as? BearerTokenAuthenticationToken)?.let {
-                        userContextAuthenticationToken(client, exchange.request.uri.host, it)
+                    (authentication as? BearerTokenAuthenticationToken)?.let { authenticationToken ->
+                        userContextAuthenticationToken(client, exchange.request.uri.host, authenticationToken)
                     }
                 }
             }

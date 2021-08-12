@@ -17,6 +17,7 @@ package com.gooddata.oauth2.server.reactive
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
+import mu.KotlinLogging
 import org.springframework.http.HttpMethod
 import org.springframework.security.web.server.DefaultServerRedirectStrategy
 import org.springframework.security.web.server.util.matcher.AndServerWebExchangeMatcher
@@ -38,27 +39,53 @@ import java.net.URI
  *
  * This [WebFilter] is in place mainly to allow JS apps to benefit from server-side OIDC authentication.
  */
-class AppLoginWebFilter(properties: AppLoginProperties) : WebFilter {
+class AppLoginWebFilter(private val properties: AppLoginProperties) : WebFilter {
+
+    private val logger = KotlinLogging.logger {}
 
     private val matcher = AndServerWebExchangeMatcher(
         ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, APP_LOGIN_PATH),
-        ServerWebExchangeMatcher {
-            it.request.queryParams[REDIRECT_TO]
-                ?.firstOrNull()
-                ?.let { redirectTo -> kotlin.runCatching { URI.create(redirectTo).normalize() }.getOrNull() }
-                ?.takeIf { redirectTo ->
-                    val uri = UriComponentsBuilder.fromUri(redirectTo)
-                        .replacePath(null)
-                        .replaceQuery(null)
-                        .fragment(null)
-                        .build().toUri()
-                    uri == properties.allowRedirect || (uri == EMPTY_URI && redirectTo.path.startsWith("/"))
-                }
+        ServerWebExchangeMatcher { serverWebExchange ->
+            serverWebExchange.redirectToOrNull()
+                ?.takeIf { redirectTo -> canRedirect(redirectTo) }
                 ?.let { redirectTo ->
                     ServerWebExchangeMatcher.MatchResult.match(mapOf(REDIRECT_TO to redirectTo.toASCIIString()))
                 } ?: ServerWebExchangeMatcher.MatchResult.notMatch()
         }
     )
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun ServerWebExchange.redirectToOrNull(): URI? {
+        val redirectTo = this.request.queryParams[REDIRECT_TO]?.firstOrNull()
+        return if (redirectTo == null) {
+            logger.trace { "Query param \"$REDIRECT_TO\" not found" }
+            null
+        } else {
+            try {
+                URI.create(redirectTo).normalize()
+            } catch (exception: Throwable) {
+                logger.debug { "URL normalization error: $exception" }
+                null
+            }
+        }
+    }
+
+    private fun URI.normalizeToRedirectToPattern() =
+        UriComponentsBuilder.fromUri(this)
+            .replacePath(null)
+            .replaceQuery(null)
+            .fragment(null)
+            .build().toUri()
+
+    private fun canRedirect(redirectTo: URI): Boolean {
+        val uri = redirectTo.normalizeToRedirectToPattern()
+        val allow = uri == properties.allowRedirect || (uri == EMPTY_URI && redirectTo.path.startsWith("/"))
+        if (!allow) {
+            logger.trace { "URI \"$uri\" can't be redirected" }
+        }
+        return allow
+    }
+
     private val redirectStrategy = DefaultServerRedirectStrategy()
 
     override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> = mono(Dispatchers.Unconfined) {
