@@ -21,7 +21,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import pl.allegro.tech.build.axion.release.domain.TagNameSerializationConfig
 
 plugins {
-    val kotlinVersion = "1.4.31"
+    val kotlinVersion = "1.5.30"
 
     kotlin("jvm") version kotlinVersion
     kotlin("plugin.spring") version kotlinVersion apply false
@@ -33,13 +33,13 @@ plugins {
     id("io.gitlab.arturbosch.detekt") version "1.14.2"
     id("io.spring.dependency-management") version "1.0.11.RELEASE"
     id("org.datlowe.maven-publish-auth") version "2.0.2" apply false
-    id("org.springframework.boot") version "2.5.2" apply false
-    id("pl.allegro.tech.build.axion-release") version "1.12.1"
+    id("org.springframework.boot") version "2.5.3" apply false
+    id("pl.allegro.tech.build.axion-release") version "1.13.1"
 }
 
 scmVersion {
     tag(closureOf<TagNameSerializationConfig> {
-        prefix = project.name
+        prefix = "${project.name}-"
     })
 }
 
@@ -75,10 +75,7 @@ subprojects {
 
     dependencyManagement {
         imports {
-            mavenBom(org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES) {
-                // remove this when SpringBoot upgrades to kotlin 1.4.*
-                bomProperty("kotlin.version", "1.4.31")
-            }
+            mavenBom(org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES)
         }
     }
 
