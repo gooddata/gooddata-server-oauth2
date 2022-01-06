@@ -41,6 +41,8 @@ import org.springframework.security.web.server.authentication.logout.SecurityCon
 import org.springframework.security.web.server.authentication.logout.ServerLogoutHandler
 import org.springframework.security.web.server.context.ServerSecurityContextRepository
 import org.springframework.security.web.server.util.matcher.NegatedServerWebExchangeMatcher
+import org.springframework.security.web.server.util.matcher.OrServerWebExchangeMatcher
+import org.springframework.security.web.server.util.matcher.PathPatternParserServerWebExchangeMatcher
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers.pathMatchers
 import org.springframework.web.reactive.config.EnableWebFlux
 import java.net.URI
@@ -136,9 +138,13 @@ class ServerOAuth2AutoConfiguration {
         http
             .securityMatcher {
                 NegatedServerWebExchangeMatcher(
-                    pathMatchers("/actuator", "/actuator/**", "/api/schemas/*"),
-                )
-                    .matches(it)
+                    OrServerWebExchangeMatcher(
+                        PathPatternParserServerWebExchangeMatcher("/actuator", null),
+                        PathPatternParserServerWebExchangeMatcher("/actuator/**", null),
+                        PathPatternParserServerWebExchangeMatcher("/api/schemas/*", HttpMethod.GET),
+                        PathPatternParserServerWebExchangeMatcher("/error", HttpMethod.GET),
+                    )
+                ).matches(it)
             }
             .csrf {
                 it.disable()
