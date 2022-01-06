@@ -139,8 +139,9 @@ class ServerOAuth2AutoConfiguration {
             .securityMatcher {
                 NegatedServerWebExchangeMatcher(
                     OrServerWebExchangeMatcher(
-                        PathPatternParserServerWebExchangeMatcher("/actuator", null),
-                        PathPatternParserServerWebExchangeMatcher("/actuator/**", null),
+                        PathPatternParserServerWebExchangeMatcher("/actuator"),
+                        PathPatternParserServerWebExchangeMatcher("/actuator/**"),
+                        PathPatternParserServerWebExchangeMatcher("/login"),
                         PathPatternParserServerWebExchangeMatcher("/api/schemas/*", HttpMethod.GET),
                         PathPatternParserServerWebExchangeMatcher("/error", HttpMethod.GET),
                     )

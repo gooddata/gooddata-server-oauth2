@@ -107,8 +107,9 @@ class OAuth2AutoConfiguration(
                 it.requestMatchers(
                     NegatedRequestMatcher(
                         OrRequestMatcher(
-                            AntPathRequestMatcher("/actuator", null),
-                            AntPathRequestMatcher("/actuator/**", null),
+                            AntPathRequestMatcher("/actuator"),
+                            AntPathRequestMatcher("/actuator/**"),
+                            AntPathRequestMatcher("/login"),
                             AntPathRequestMatcher("/api/schemas/*", HttpMethod.GET.name),
                             AntPathRequestMatcher("/error", HttpMethod.GET.name),
                         )
