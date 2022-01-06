@@ -19,6 +19,7 @@ import com.gooddata.oauth2.server.common.AuthenticationStoreClient
 import com.gooddata.oauth2.server.common.CookieSerializer
 import com.gooddata.oauth2.server.common.CookieServiceProperties
 import com.gooddata.oauth2.server.common.HostBasedClientRegistrationRepositoryProperties
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfigureBefore
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration
@@ -50,8 +51,8 @@ import javax.servlet.Filter
 @AutoConfigureBefore(OAuth2ClientAutoConfiguration::class)
 @ConditionalOnClass(Filter::class)
 class OAuth2AutoConfiguration(
-    private val authenticationStoreClient: AuthenticationStoreClient,
-    private val userContextHolder: UserContextHolder,
+    private val authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>,
+    private val userContextHolder: ObjectProvider<UserContextHolder>,
     private val cookieServiceProperties: CookieServiceProperties,
     private val hostBasedClientRegistrationRepositoryProperties: HostBasedClientRegistrationRepositoryProperties,
 ) : WebSecurityConfigurerAdapter() {
@@ -64,7 +65,7 @@ class OAuth2AutoConfiguration(
     class EnabledSecurity
 
     @Bean
-    fun cookieSerializer() = CookieSerializer(cookieServiceProperties, authenticationStoreClient)
+    fun cookieSerializer() = CookieSerializer(cookieServiceProperties, authenticationStoreClient.`object`)
 
     @Bean
     fun cookieService() =
@@ -77,7 +78,7 @@ class OAuth2AutoConfiguration(
     @Bean
     fun clientRegistrationRepository(): ClientRegistrationRepository =
         HostBasedClientRegistrationRepository(
-            authenticationStoreClient,
+            authenticationStoreClient.`object`,
             hostBasedClientRegistrationRepositoryProperties,
         )
 
@@ -117,7 +118,9 @@ class OAuth2AutoConfiguration(
                 )
             }
             .oauth2ResourceServer {
-                it.authenticationManagerResolver(BearerTokenAuthenticationManagerResolver(authenticationStoreClient))
+                it.authenticationManagerResolver(
+                    BearerTokenAuthenticationManagerResolver(authenticationStoreClient.`object`)
+                )
             }
             .oauth2Login {
                 it.authorizationEndpoint { endpointConfig ->
@@ -168,7 +171,10 @@ class OAuth2AutoConfiguration(
             )
             .addFilterAfter(
                 UserContextFilter(
-                    authenticationStoreClient, authenticationEntryPoint, logoutHandler, userContextHolder
+                    authenticationStoreClient.`object`,
+                    authenticationEntryPoint,
+                    logoutHandler,
+                    userContextHolder.`object`
                 ),
                 ExceptionTranslationFilter::class.java
             )

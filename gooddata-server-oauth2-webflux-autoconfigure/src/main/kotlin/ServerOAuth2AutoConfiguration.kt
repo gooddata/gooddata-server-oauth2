@@ -19,6 +19,7 @@ import com.gooddata.oauth2.server.common.AuthenticationStoreClient
 import com.gooddata.oauth2.server.common.CookieSerializer
 import com.gooddata.oauth2.server.common.CookieServiceProperties
 import com.gooddata.oauth2.server.common.HostBasedClientRegistrationRepositoryProperties
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfigureBefore
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.security.oauth2.client.reactive.ReactiveOAuth2ClientAutoConfiguration
@@ -67,10 +68,10 @@ class ServerOAuth2AutoConfiguration {
     @Bean
     fun cookieSerializer(
         cookieServiceProperties: CookieServiceProperties,
-        client: AuthenticationStoreClient,
+        client: ObjectProvider<AuthenticationStoreClient>,
     ) = CookieSerializer(
         cookieServiceProperties,
-        client
+        client.`object`
     )
 
     @Bean
@@ -91,10 +92,10 @@ class ServerOAuth2AutoConfiguration {
 
     @Bean
     fun clientRegistrationRepository(
-        client: AuthenticationStoreClient,
+        client: ObjectProvider<AuthenticationStoreClient>,
         properties: HostBasedClientRegistrationRepositoryProperties,
     ): ReactiveClientRegistrationRepository =
-        HostBasedReactiveClientRegistrationRepository(client, properties)
+        HostBasedReactiveClientRegistrationRepository(client.`object`, properties)
 
     @Bean
     fun serverSecurityContextRepository(
@@ -114,9 +115,9 @@ class ServerOAuth2AutoConfiguration {
         clientRegistrationRepository: ReactiveClientRegistrationRepository,
         cookieService: ReactiveCookieService,
         serverSecurityContextRepository: ServerSecurityContextRepository,
-        client: AuthenticationStoreClient,
+        client: ObjectProvider<AuthenticationStoreClient>,
         appLoginProperties: AppLoginProperties,
-        userContextHolder: UserContextHolder<*>,
+        userContextHolder: ObjectProvider<UserContextHolder<*>>,
     ): SecurityWebFilterChain {
         val cookieServerRequestCache = CookieServerRequestCache(cookieService)
         val authenticationEntryPoint = HostBasedServerAuthenticationEntryPoint(cookieServerRequestCache)
@@ -157,7 +158,7 @@ class ServerOAuth2AutoConfiguration {
                 it.hsts()
             }
             .oauth2ResourceServer {
-                it.authenticationManagerResolver(BearerTokenReactiveAuthenticationManagerResolver(client))
+                it.authenticationManagerResolver(BearerTokenReactiveAuthenticationManagerResolver(client.`object`))
             }
             .oauth2Login {
                 it.authorizationRequestRepository(CookieServerAuthorizationRequestRepository(cookieService))
@@ -180,7 +181,12 @@ class ServerOAuth2AutoConfiguration {
             }
             .addFilterBefore(PostLogoutNotAllowedWebFilter(), SecurityWebFiltersOrder.LOGOUT)
             .addFilterAfter(
-                UserContextWebFilter(client, authenticationEntryPoint, logoutHandler, userContextHolder),
+                UserContextWebFilter(
+                    client.`object`,
+                    authenticationEntryPoint,
+                    logoutHandler,
+                    userContextHolder.`object`
+                ),
                 SecurityWebFiltersOrder.LOGOUT
             )
             .addFilterBefore(
@@ -189,7 +195,7 @@ class ServerOAuth2AutoConfiguration {
                     setLogoutHandler(
                         DelegatingServerLogoutHandler(
                             logoutHandler,
-                            LogoutAllServerLogoutHandler(client, userContextHolder),
+                            LogoutAllServerLogoutHandler(client.`object`, userContextHolder.`object`),
                         )
                     )
                     setRequiresLogoutMatcher(pathMatchers(HttpMethod.GET, "/logout/all"))
