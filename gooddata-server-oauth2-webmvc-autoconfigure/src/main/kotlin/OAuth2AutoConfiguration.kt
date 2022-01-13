@@ -26,7 +26,9 @@ import org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAu
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
+import org.springframework.http.HttpStatus
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter
@@ -38,6 +40,7 @@ import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepo
 import org.springframework.security.oauth2.jwt.JwtDecoderFactory
 import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationFilter
 import org.springframework.security.web.access.ExceptionTranslationFilter
+import org.springframework.security.web.authentication.AuthenticationEntryPointFailureHandler
 import org.springframework.security.web.authentication.logout.CompositeLogoutHandler
 import org.springframework.security.web.authentication.logout.LogoutFilter
 import org.springframework.security.web.authentication.logout.LogoutHandler
@@ -129,6 +132,10 @@ class OAuth2AutoConfiguration(
                     CookieAndSavedRequestAwareAuthenticationSuccessHandler(securityContextRepository()).apply {
                         setRequestCache(cookieRequestCache)
                     }
+                authenticationFailureHandler = AuthenticationEntryPointFailureHandler { _, response, _ ->
+                    response.status = HttpStatus.UNAUTHORIZED.value()
+                    response.addHeader(HttpHeaders.WWW_AUTHENTICATE, "Authentication failed")
+                }
             }
             exceptionHandling {
                 authenticationEntryPoint = hostBasedAuthEntryPoint
