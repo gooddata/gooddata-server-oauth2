@@ -30,6 +30,7 @@ import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter
+import org.springframework.security.config.web.servlet.invoke
 import org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository
@@ -92,92 +93,81 @@ class OAuth2AutoConfiguration(
     @Suppress("LongMethod")
     override fun configure(http: HttpSecurity) {
         val cookieRequestCache = CookieRequestCache(cookieService())
-        val authorizedClientRepository = authorizedClientRepository()
-        val authenticationEntryPoint = HostBasedAuthenticationEntryPoint(cookieRequestCache)
+        val oAuth2AuthorizedClientRepository = authorizedClientRepository()
+        val hostBasedAuthEntryPoint = HostBasedAuthenticationEntryPoint(cookieRequestCache)
         val logoutHandler = CompositeLogoutHandler(
             SecurityContextClearingLogoutHandler(securityContextRepository()),
             LogoutHandler { request, response, authentication ->
-                authorizedClientRepository.removeAuthorizedClient(
+                oAuth2AuthorizedClientRepository.removeAuthorizedClient(
                     request.serverName, authentication, request, response
                 )
             }
         )
 
-        http
-            .requestMatchers {
-                it.requestMatchers(
-                    NegatedRequestMatcher(
-                        OrRequestMatcher(
-                            AntPathRequestMatcher("/actuator"),
-                            AntPathRequestMatcher("/actuator/**"),
-                            AntPathRequestMatcher("/login"),
-                            AntPathRequestMatcher("/api/schemas/*", HttpMethod.GET.name),
-                            AntPathRequestMatcher("/error", HttpMethod.GET.name),
-                        )
+        return (http.securityContext { it.securityContextRepository(securityContextRepository()) }) {
+            securityMatcher(
+                NegatedRequestMatcher(
+                    OrRequestMatcher(
+                        AntPathRequestMatcher("/actuator"),
+                        AntPathRequestMatcher("/actuator/**"),
+                        AntPathRequestMatcher("/login"),
+                        AntPathRequestMatcher("/api/schemas/*", HttpMethod.GET.name),
+                        AntPathRequestMatcher("/error", HttpMethod.GET.name),
                     )
                 )
-            }
-            .oauth2ResourceServer {
-                it.authenticationManagerResolver(
+            )
+            oauth2ResourceServer {
+                authenticationManagerResolver =
                     BearerTokenAuthenticationManagerResolver(authenticationStoreClient.`object`)
-                )
             }
-            .oauth2Login {
-                it.authorizationEndpoint { endpointConfig ->
-                    endpointConfig.authorizationRequestRepository(CookieAuthorizationRequestRepository(cookieService()))
+            oauth2Login {
+                authorizationEndpoint {
+                    authorizationRequestRepository = CookieAuthorizationRequestRepository(cookieService())
                 }
-                it.authorizedClientRepository(authorizedClientRepository)
-                it.successHandler(
+                authorizedClientRepository = oAuth2AuthorizedClientRepository
+                authenticationSuccessHandler =
                     CookieAndSavedRequestAwareAuthenticationSuccessHandler(securityContextRepository()).apply {
                         setRequestCache(cookieRequestCache)
                     }
-                )
             }
-            .exceptionHandling {
-                it.authenticationEntryPoint(authenticationEntryPoint)
+            exceptionHandling {
+                authenticationEntryPoint = hostBasedAuthEntryPoint
             }
-            .authorizeRequests {
-                it.anyRequest().authenticated()
+            authorizeRequests {
+                authorize(anyRequest, authenticated)
             }
-            .requestCache {
-                it.requestCache(cookieRequestCache)
+            requestCache {
+                requestCache = cookieRequestCache
             }
-            .securityContext {
-                it.securityContextRepository(securityContextRepository())
+            csrf { disable() }
+            headers {
+                contentTypeOptions {}
+                cacheControl {}
+                httpStrictTransportSecurity {}
             }
-            .csrf {
-                it.disable()
-            }
-            .headers {
-                it.contentTypeOptions()
-                it.cacheControl()
-                it.httpStrictTransportSecurity()
-            }
-            .logout {
-                it.logoutSuccessHandler(
+            logout {
+                logoutSuccessHandler =
                     OidcClientInitiatedLogoutSuccessHandler(clientRegistrationRepository()).apply {
                         setPostLogoutRedirectUri("{baseUrl}")
                     }
-                )
-                it.addLogoutHandler(
-                    logoutHandler
-                )
-                it.logoutRequestMatcher(AntPathRequestMatcher("/logout", "GET"))
+                addLogoutHandler(logoutHandler)
+                logoutRequestMatcher = AntPathRequestMatcher("/logout", "GET")
             }
-            .addFilterBefore(PostLogoutNotAllowedFilter(), LogoutFilter::class.java)
-            .addFilterBefore(
+            addFilterBefore(PostLogoutNotAllowedFilter(), LogoutFilter::class.java)
+            addFilterBefore(
                 ResponseStatusExceptionHandlingFilter(),
                 BearerTokenAuthenticationFilter::class.java,
             )
-            .addFilterAfter(
+            addFilterAfter(
                 UserContextFilter(
                     authenticationStoreClient.`object`,
-                    authenticationEntryPoint,
+                    hostBasedAuthEntryPoint,
                     logoutHandler,
                     userContextHolder.`object`
                 ),
                 ExceptionTranslationFilter::class.java
             )
-            .oauth2Client()
+            oauth2Client {}
+        }
     }
 }
