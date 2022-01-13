@@ -19,28 +19,35 @@ import com.gooddata.oauth2.server.common.AuthenticationStoreClient
 import com.gooddata.oauth2.server.common.CookieSerializer
 import com.gooddata.oauth2.server.common.CookieServiceProperties
 import com.gooddata.oauth2.server.common.HostBasedClientRegistrationRepositoryProperties
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfigureBefore
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.security.oauth2.client.reactive.ReactiveOAuth2ClientAutoConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
+import org.springframework.http.HttpStatus
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder
 import org.springframework.security.config.web.server.ServerHttpSecurity
+import org.springframework.security.config.web.server.invoke
 import org.springframework.security.oauth2.client.oidc.web.server.logout.OidcClientInitiatedServerLogoutSuccessHandler
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizedClientRepository
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoderFactory
 import org.springframework.security.web.server.SecurityWebFilterChain
+import org.springframework.security.web.server.authentication.ServerAuthenticationEntryPointFailureHandler
 import org.springframework.security.web.server.authentication.logout.DelegatingServerLogoutHandler
 import org.springframework.security.web.server.authentication.logout.LogoutWebFilter
 import org.springframework.security.web.server.authentication.logout.SecurityContextServerLogoutHandler
 import org.springframework.security.web.server.authentication.logout.ServerLogoutHandler
 import org.springframework.security.web.server.context.ServerSecurityContextRepository
 import org.springframework.security.web.server.util.matcher.NegatedServerWebExchangeMatcher
+import org.springframework.security.web.server.util.matcher.OrServerWebExchangeMatcher
+import org.springframework.security.web.server.util.matcher.PathPatternParserServerWebExchangeMatcher
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers.pathMatchers
 import org.springframework.web.reactive.config.EnableWebFlux
 import java.net.URI
@@ -65,10 +72,10 @@ class ServerOAuth2AutoConfiguration {
     @Bean
     fun cookieSerializer(
         cookieServiceProperties: CookieServiceProperties,
-        client: AuthenticationStoreClient,
+        client: ObjectProvider<AuthenticationStoreClient>,
     ) = CookieSerializer(
         cookieServiceProperties,
-        client
+        client.`object`
     )
 
     @Bean
@@ -89,10 +96,10 @@ class ServerOAuth2AutoConfiguration {
 
     @Bean
     fun clientRegistrationRepository(
-        client: AuthenticationStoreClient,
+        client: ObjectProvider<AuthenticationStoreClient>,
         properties: HostBasedClientRegistrationRepositoryProperties,
     ): ReactiveClientRegistrationRepository =
-        HostBasedReactiveClientRegistrationRepository(client, properties)
+        HostBasedReactiveClientRegistrationRepository(client.`object`, properties)
 
     @Bean
     fun serverSecurityContextRepository(
@@ -108,22 +115,22 @@ class ServerOAuth2AutoConfiguration {
     @Suppress("LongParameterList", "LongMethod")
     fun springSecurityFilterChain(
         http: ServerHttpSecurity,
-        authorizedClientRepository: ServerOAuth2AuthorizedClientRepository,
+        oauth2ClientRepository: ServerOAuth2AuthorizedClientRepository,
         clientRegistrationRepository: ReactiveClientRegistrationRepository,
         cookieService: ReactiveCookieService,
         serverSecurityContextRepository: ServerSecurityContextRepository,
-        client: AuthenticationStoreClient,
+        client: ObjectProvider<AuthenticationStoreClient>,
         appLoginProperties: AppLoginProperties,
-        userContextHolder: UserContextHolder<*>,
+        userContextHolder: ObjectProvider<UserContextHolder<*>>,
     ): SecurityWebFilterChain {
         val cookieServerRequestCache = CookieServerRequestCache(cookieService)
-        val authenticationEntryPoint = HostBasedServerAuthenticationEntryPoint(cookieServerRequestCache)
+        val hostBasedAuthEntryPoint = HostBasedServerAuthenticationEntryPoint(cookieServerRequestCache)
         val logoutHandler = DelegatingServerLogoutHandler(
             SecurityContextServerLogoutHandler().apply {
                 setSecurityContextRepository(serverSecurityContextRepository)
             },
             ServerLogoutHandler { exchange, authentication ->
-                authorizedClientRepository.removeAuthorizedClient(
+                oauth2ClientRepository.removeAuthorizedClient(
                     exchange.exchange.request.uri.host, authentication, exchange.exchange
                 )
             }
@@ -133,64 +140,80 @@ class ServerOAuth2AutoConfiguration {
             setLogoutSuccessUrl(URI.create("/"))
         }
 
-        http
-            .securityMatcher {
+        return (http.securityContextRepository(serverSecurityContextRepository)) {
+            securityMatcher {
                 NegatedServerWebExchangeMatcher(
-                    pathMatchers("/actuator", "/actuator/**", "/api/schemas/*"),
-                )
-                    .matches(it)
+                    OrServerWebExchangeMatcher(
+                        PathPatternParserServerWebExchangeMatcher("/actuator"),
+                        PathPatternParserServerWebExchangeMatcher("/actuator/**"),
+                        PathPatternParserServerWebExchangeMatcher("/login"),
+                        PathPatternParserServerWebExchangeMatcher("/api/schemas/*", HttpMethod.GET),
+                        PathPatternParserServerWebExchangeMatcher("/error", HttpMethod.GET),
+                    )
+                ).matches(it)
             }
-            .csrf {
-                it.disable()
+            csrf {
+                disable()
             }
-            .headers {
-                it.contentTypeOptions()
-                it.cache()
-                it.frameOptions().disable()
-                it.hsts()
+            headers {
+                contentTypeOptions {}
+                cache {}
+                frameOptions { disable() }
+                hsts {}
             }
-            .oauth2ResourceServer {
-                it.authenticationManagerResolver(BearerTokenReactiveAuthenticationManagerResolver(client))
+            oauth2ResourceServer {
+                authenticationManagerResolver = BearerTokenReactiveAuthenticationManagerResolver(client.`object`)
             }
-            .oauth2Login {
-                it.authorizationRequestRepository(CookieServerAuthorizationRequestRepository(cookieService))
-                it.authorizedClientRepository(authorizedClientRepository)
+            oauth2Login {
+                authorizationRequestRepository = CookieServerAuthorizationRequestRepository(cookieService)
+                authorizedClientRepository = oauth2ClientRepository
+                authenticationFailureHandler = ServerAuthenticationEntryPointFailureHandler { exchange, _ ->
+                    exchange.response.apply {
+                        statusCode = HttpStatus.UNAUTHORIZED
+                        headers.add(HttpHeaders.WWW_AUTHENTICATE, "Authentication failed")
+                    }.setComplete()
+                }
             }
-            .exceptionHandling {
-                it.authenticationEntryPoint(authenticationEntryPoint)
+            exceptionHandling {
+                authenticationEntryPoint = hostBasedAuthEntryPoint
             }
-            .authorizeExchange {
-                it.anyExchange().authenticated()
+            authorizeExchange {
+                authorize(anyExchange, authenticated)
             }
-            .requestCache {
-                it.requestCache(cookieServerRequestCache)
+            requestCache {
+                requestCache = cookieServerRequestCache
             }
-            .securityContextRepository(serverSecurityContextRepository)
-            .logout {
-                it.logoutSuccessHandler(logoutSuccessHandler)
-                it.logoutHandler(logoutHandler)
-                it.requiresLogout(pathMatchers(HttpMethod.GET, "/logout"))
+
+            logout {
+                this.logoutSuccessHandler = logoutSuccessHandler
+                this.logoutHandler = logoutHandler
+                requiresLogout = pathMatchers(HttpMethod.GET, "/logout")
             }
-            .addFilterBefore(PostLogoutNotAllowedWebFilter(), SecurityWebFiltersOrder.LOGOUT)
-            .addFilterAfter(
-                UserContextWebFilter(client, authenticationEntryPoint, logoutHandler, userContextHolder),
+            addFilterBefore(PostLogoutNotAllowedWebFilter(), SecurityWebFiltersOrder.LOGOUT)
+            addFilterAfter(
+                UserContextWebFilter(
+                    client.`object`,
+                    hostBasedAuthEntryPoint,
+                    logoutHandler,
+                    userContextHolder.`object`
+                ),
                 SecurityWebFiltersOrder.LOGOUT
             )
-            .addFilterBefore(
+            addFilterBefore(
                 LogoutWebFilter().apply {
                     setLogoutSuccessHandler(logoutSuccessHandler)
                     setLogoutHandler(
                         DelegatingServerLogoutHandler(
                             logoutHandler,
-                            LogoutAllServerLogoutHandler(client, userContextHolder),
+                            LogoutAllServerLogoutHandler(client.`object`, userContextHolder.`object`),
                         )
                     )
                     setRequiresLogoutMatcher(pathMatchers(HttpMethod.GET, "/logout/all"))
                 },
                 SecurityWebFiltersOrder.EXCEPTION_TRANSLATION
             )
-            .addFilterAfter(AppLoginWebFilter(appLoginProperties), SecurityWebFiltersOrder.AUTHORIZATION)
-            .oauth2Client()
-        return http.build()
+            addFilterAfter(AppLoginWebFilter(appLoginProperties), SecurityWebFiltersOrder.AUTHORIZATION)
+            oauth2Client {}
+        }
     }
 }
