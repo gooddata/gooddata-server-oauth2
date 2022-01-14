@@ -4,9 +4,24 @@ variables:
   GRADLE_OPTS: "-Dorg.gradle.daemon=false"
   BUILD_IMAGE_VERSION: "x86_64-debianslim-jdk-11.0.10_9"
 stages:
+  - compliance-check
   - build
   - test
   - release
+compliance-check:
+  image: $AWS_ECR_URL/infra/compliance-check:latest
+  stage: compliance-check
+  dependencies: []
+  variables:
+    GIT_STRATEGY: none
+    GITLAB_API_PRIVATE_TOKEN: $COMPLIANCE_CHECK_TOKEN
+  before_script: []
+  script:
+    - echo "Running compliance check in enforcing mode..."
+    - /scripts/gitlab.sh
+  rules:
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"'
+      when: always
 build-kotlin:
   stage: build
   cache:
