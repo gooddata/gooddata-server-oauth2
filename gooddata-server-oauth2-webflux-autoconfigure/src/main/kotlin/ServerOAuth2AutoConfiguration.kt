@@ -18,7 +18,9 @@ package com.gooddata.oauth2.server.reactive
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
 import com.gooddata.oauth2.server.common.CookieSerializer
 import com.gooddata.oauth2.server.common.CookieServiceProperties
+import com.gooddata.oauth2.server.common.CorsConfigurations
 import com.gooddata.oauth2.server.common.HostBasedClientRegistrationRepositoryProperties
+import com.gooddata.oauth2.server.common.OrganizationCorsConfigurationSource
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfigureBefore
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -49,6 +51,7 @@ import org.springframework.security.web.server.util.matcher.NegatedServerWebExch
 import org.springframework.security.web.server.util.matcher.OrServerWebExchangeMatcher
 import org.springframework.security.web.server.util.matcher.PathPatternParserServerWebExchangeMatcher
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers.pathMatchers
+import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource
 import org.springframework.web.reactive.config.EnableWebFlux
 import java.net.URI
 
@@ -112,6 +115,24 @@ class ServerOAuth2AutoConfiguration {
     fun reactiveJwtDecoderFactory(): ReactiveJwtDecoderFactory<ClientRegistration> = NoCachingReactiveDecoderFactory()
 
     @Bean
+    fun corsConfigurationSource(
+        organizationCorsConfigurationSource: OrganizationCorsConfigurationSource,
+        globalCorsConfigurations: CorsConfigurations?
+    ): CompositeCorsConfigurationSource = CompositeCorsConfigurationSource(
+        UrlBasedCorsConfigurationSource().apply {
+            globalCorsConfigurations?.configurations?.forEach { (pattern, config) ->
+                registerCorsConfiguration(pattern, config)
+            }
+        },
+        organizationCorsConfigurationSource
+    )
+
+    @Bean
+    fun organizationCorsConfigurationSource(
+        authenticationStoreClient: AuthenticationStoreClient
+    ) = OrganizationCorsConfigurationSource(authenticationStoreClient)
+
+    @Bean
     @Suppress("LongParameterList", "LongMethod")
     fun springSecurityFilterChain(
         http: ServerHttpSecurity,
@@ -122,6 +143,7 @@ class ServerOAuth2AutoConfiguration {
         client: ObjectProvider<AuthenticationStoreClient>,
         appLoginProperties: AppLoginProperties,
         userContextHolder: ObjectProvider<UserContextHolder<*>>,
+        compositeCorsConfigurationSource: CompositeCorsConfigurationSource,
     ): SecurityWebFilterChain {
         val cookieServerRequestCache = CookieServerRequestCache(cookieService)
         val hostBasedAuthEntryPoint = HostBasedServerAuthenticationEntryPoint(cookieServerRequestCache)
@@ -213,6 +235,9 @@ class ServerOAuth2AutoConfiguration {
                 SecurityWebFiltersOrder.EXCEPTION_TRANSLATION
             )
             addFilterAfter(AppLoginWebFilter(appLoginProperties), SecurityWebFiltersOrder.AUTHORIZATION)
+            cors {
+                this.configurationSource = compositeCorsConfigurationSource
+            }
             oauth2Client {}
         }
     }

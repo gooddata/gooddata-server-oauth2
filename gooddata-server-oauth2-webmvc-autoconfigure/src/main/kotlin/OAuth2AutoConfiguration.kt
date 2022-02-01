@@ -18,7 +18,9 @@ package com.gooddata.oauth2.server.servlet
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
 import com.gooddata.oauth2.server.common.CookieSerializer
 import com.gooddata.oauth2.server.common.CookieServiceProperties
+import com.gooddata.oauth2.server.common.CorsConfigurations
 import com.gooddata.oauth2.server.common.HostBasedClientRegistrationRepositoryProperties
+import com.gooddata.oauth2.server.common.OrganizationCorsConfigurationSource
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfigureBefore
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -48,6 +50,7 @@ import org.springframework.security.web.context.SecurityContextRepository
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher
 import org.springframework.security.web.util.matcher.NegatedRequestMatcher
 import org.springframework.security.web.util.matcher.OrRequestMatcher
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 import javax.servlet.Filter
 
 @Configuration
@@ -59,6 +62,7 @@ class OAuth2AutoConfiguration(
     private val userContextHolder: ObjectProvider<UserContextHolder>,
     private val cookieServiceProperties: CookieServiceProperties,
     private val hostBasedClientRegistrationRepositoryProperties: HostBasedClientRegistrationRepositoryProperties,
+    private val globalCorsConfigurations: CorsConfigurations?,
 ) : WebSecurityConfigurerAdapter() {
 
     /**
@@ -93,6 +97,11 @@ class OAuth2AutoConfiguration(
     @Bean
     fun jwtDecoderFactory(): JwtDecoderFactory<ClientRegistration> = NoCachingDecoderFactory()
 
+    @Bean
+    fun organizationCorsConfigurationSource(
+        authenticationStoreClient: AuthenticationStoreClient
+    ) = OrganizationCorsConfigurationSource(authenticationStoreClient)
+
     @Suppress("LongMethod")
     override fun configure(http: HttpSecurity) {
         val cookieRequestCache = CookieRequestCache(cookieService())
@@ -107,7 +116,7 @@ class OAuth2AutoConfiguration(
             }
         )
 
-        return (http.securityContext { it.securityContextRepository(securityContextRepository()) }) {
+        (http.securityContext { it.securityContextRepository(securityContextRepository()) }) {
             securityMatcher(
                 NegatedRequestMatcher(
                     OrRequestMatcher(
@@ -175,6 +184,16 @@ class OAuth2AutoConfiguration(
                 ExceptionTranslationFilter::class.java
             )
             oauth2Client {}
+            cors {
+                this.configurationSource = CompositeCorsConfigurationSource(
+                    UrlBasedCorsConfigurationSource().apply {
+                        globalCorsConfigurations?.configurations?.forEach { (pattern, config) ->
+                            registerCorsConfiguration(pattern, config)
+                        }
+                    },
+                    organizationCorsConfigurationSource(authenticationStoreClient.`object`)
+                )
+            }
         }
     }
 }
