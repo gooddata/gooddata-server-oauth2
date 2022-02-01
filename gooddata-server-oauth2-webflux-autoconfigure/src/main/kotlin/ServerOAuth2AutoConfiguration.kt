@@ -234,7 +234,10 @@ class ServerOAuth2AutoConfiguration {
                 },
                 SecurityWebFiltersOrder.EXCEPTION_TRANSLATION
             )
-            addFilterAfter(AppLoginWebFilter(appLoginProperties), SecurityWebFiltersOrder.AUTHORIZATION)
+            addFilterAfter(
+                AppLoginWebFilter(appLoginProperties, client.`object`),
+                SecurityWebFiltersOrder.AUTHORIZATION
+            )
             cors {
                 this.configurationSource = compositeCorsConfigurationSource
             }

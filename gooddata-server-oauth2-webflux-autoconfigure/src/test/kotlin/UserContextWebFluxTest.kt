@@ -153,6 +153,10 @@ class UserContextWebFluxTest(
                 lastRotation = Instant.now(),
                 rotationInterval = Duration.ofDays(1),
             )
+        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } returns Organization(
+            id = "organizationTestId",
+            allowedOrigins = listOf("https://localhost:8443")
+        )
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
