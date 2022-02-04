@@ -33,6 +33,7 @@ dependencies {
     val tinkVersion: String by project
     val kotlinCoroutinesVersion: String by project
     val mockkVersion: String by project
+    val kotlinLoggingVersion: String by project
 
     detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:${detektFormattingVersion}")
 
@@ -46,6 +47,7 @@ dependencies {
     implementation("com.google.crypto.tink:tink:${tinkVersion}")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${kotlinCoroutinesVersion}")
+    implementation("io.github.microutils:kotlin-logging:${kotlinLoggingVersion}")
 
     testImplementation("io.strikt:strikt-core")
     testImplementation("net.javacrumbs.json-unit:json-unit:${jsonUnitVersion}")

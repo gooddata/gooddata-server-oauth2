@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server.reactive
 
+import com.gooddata.oauth2.server.common.AuthenticationStoreClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
@@ -39,18 +40,23 @@ import java.net.URI
  *
  * This [WebFilter] is in place mainly to allow JS apps to benefit from server-side OIDC authentication.
  */
-class AppLoginWebFilter(private val properties: AppLoginProperties) : WebFilter {
+class AppLoginWebFilter(
+    private val properties: AppLoginProperties,
+    private val authenticationStoreClient: AuthenticationStoreClient
+) : WebFilter {
 
     private val logger = KotlinLogging.logger {}
 
     private val matcher = AndServerWebExchangeMatcher(
         ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, APP_LOGIN_PATH),
         ServerWebExchangeMatcher { serverWebExchange ->
-            serverWebExchange.redirectToOrNull()
-                ?.takeIf { redirectTo -> canRedirect(redirectTo) }
-                ?.let { redirectTo ->
-                    ServerWebExchangeMatcher.MatchResult.match(mapOf(REDIRECT_TO to redirectTo.toASCIIString()))
-                } ?: ServerWebExchangeMatcher.MatchResult.notMatch()
+            mono {
+                serverWebExchange
+                    .redirectToOrNull()
+                    ?.takeIf { redirectTo -> canRedirect(redirectTo, serverWebExchange) }
+            }.flatMap { redirectTo ->
+                ServerWebExchangeMatcher.MatchResult.match(mapOf(REDIRECT_TO to redirectTo.toASCIIString()))
+            }.switchIfEmpty(ServerWebExchangeMatcher.MatchResult.notMatch())
         }
     )
 
@@ -77,14 +83,31 @@ class AppLoginWebFilter(private val properties: AppLoginProperties) : WebFilter 
             .fragment(null)
             .build().toUri()
 
-    private fun canRedirect(redirectTo: URI): Boolean {
+    private suspend fun canRedirect(redirectTo: URI, serverWebExchange: ServerWebExchange): Boolean {
         val uri = redirectTo.normalizeToRedirectToPattern()
-        val allow = uri == properties.allowRedirect || (uri == EMPTY_URI && redirectTo.path.startsWith("/"))
+
+        val organizationHost = serverWebExchange.request.uri.host
+
+        val allow =
+            uri.isAllowedGlobally() || redirectTo.isLocal() || uri.isAllowedForOrganization(organizationHost)
         if (!allow) {
             logger.trace { "URI \"$uri\" can't be redirected" }
         }
         return allow
     }
+
+    private suspend fun URI.isAllowedForOrganization(organizationHost: String): Boolean {
+        val allowedOrigins = authenticationStoreClient
+            .getOrganizationByHostname(organizationHost)
+            .allowedOrigins
+            ?.map { URI(it) }
+
+        return allowedOrigins != null && allowedOrigins.any { this == it.normalizeToRedirectToPattern() }
+    }
+
+    private fun URI.isAllowedGlobally() = this == properties.allowRedirect
+
+    private fun URI.isLocal() = normalizeToRedirectToPattern() == EMPTY_URI && path.startsWith("/")
 
     private val redirectStrategy = DefaultServerRedirectStrategy()
 

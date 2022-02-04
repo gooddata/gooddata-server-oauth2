@@ -90,10 +90,12 @@ class UserContextWebMvcTest(
         every { securityContextRepository.saveContext(any(), any(), any()) } returns Unit
         every { securityContextRepository.containsContext(any()) } returns true
         everyValidOrganization()
-        coEvery { authenticationStoreClient.getUserByAuthenticationId("organizationId", "sub") } returns User(
+        coEvery {
+            authenticationStoreClient.getUserByAuthenticationId(ORGANIZATION_ID, "sub")
+        } returns User(
             "userId",
         )
-        coEvery { authenticationStoreClient.getCookieSecurityProperties("organizationId") } returns
+        coEvery { authenticationStoreClient.getCookieSecurityProperties(ORGANIZATION_ID) } returns
             CookieSecurityProperties(
                 keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
                 lastRotation = Instant.now(),
@@ -104,8 +106,14 @@ class UserContextWebMvcTest(
 
         mockMvc.get("http://localhost/") {
             cookie(
-                Cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken)),
-                Cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient)),
+                Cookie(
+                    SPRING_SEC_SECURITY_CONTEXT,
+                    cookieSerializer.encodeCookie(ORGANIZATION_HOST_NAME, authenticationToken)
+                ),
+                Cookie(
+                    SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
+                    cookieSerializer.encodeCookie(ORGANIZATION_HOST_NAME, authorizedClient)
+                ),
             )
         }.andExpect {
             status { isOk() }
@@ -118,6 +126,7 @@ class UserContextWebMvcTest(
         every { securityContextRepository.loadContext(any()) } returns SecurityContextImpl()
         every { securityContextRepository.saveContext(any(), any(), any()) } returns Unit
         every { securityContextRepository.containsContext(any()) } returns false
+        mockGetOrganizationByHostName()
 
         mockMvc.get("http://localhost/")
             .andExpect {
@@ -132,6 +141,7 @@ class UserContextWebMvcTest(
         every { securityContextRepository.loadContext(any()) } returns SecurityContextImpl()
         every { securityContextRepository.saveContext(any(), any(), any()) } returns Unit
         every { securityContextRepository.containsContext(any()) } returns false
+        mockGetOrganizationByHostName()
 
         mockMvc.get("http://localhost/") {
             header("X-Requested-With", "XMLHttpRequest")
@@ -147,7 +157,9 @@ class UserContextWebMvcTest(
         everyValidSecurityContext()
         every { securityContextRepository.saveContext(any(), any(), any()) } returns Unit
         every { securityContextRepository.containsContext(any()) } returns true
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } throws RuntimeException("msg")
+        coEvery {
+            authenticationStoreClient.getOrganizationByHostname(ORGANIZATION_HOST_NAME)
+        } throws RuntimeException("msg")
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
@@ -158,11 +170,11 @@ class UserContextWebMvcTest(
                 cookie(
                     Cookie(
                         SPRING_SEC_SECURITY_CONTEXT,
-                        cookieSerializer.encodeCookie("localhost", authenticationToken)
+                        cookieSerializer.encodeCookie(ORGANIZATION_HOST_NAME, authenticationToken)
                     ),
                     Cookie(
                         SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
-                        cookieSerializer.encodeCookie("localhost", authorizedClient)
+                        cookieSerializer.encodeCookie(ORGANIZATION_HOST_NAME, authorizedClient)
                     ),
                 )
             }
@@ -174,15 +186,25 @@ class UserContextWebMvcTest(
         everyValidSecurityContext()
         every { securityContextRepository.saveContext(any(), any(), any()) } returns Unit
         every { securityContextRepository.containsContext(any()) } returns true
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } throws
-            ResponseStatusException(HttpStatus.NOT_FOUND, "Hostname is not registered")
+        coEvery {
+            authenticationStoreClient.getOrganizationByHostname(ORGANIZATION_HOST_NAME)
+        } throws ResponseStatusException(
+            HttpStatus.NOT_FOUND,
+            "Hostname is not registered"
+        )
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
         mockMvc.get("http://localhost/") {
             cookie(
-                Cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken)),
-                Cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient)),
+                Cookie(
+                    SPRING_SEC_SECURITY_CONTEXT,
+                    cookieSerializer.encodeCookie(ORGANIZATION_HOST_NAME, authenticationToken)
+                ),
+                Cookie(
+                    SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
+                    cookieSerializer.encodeCookie(ORGANIZATION_HOST_NAME, authorizedClient)
+                ),
             )
         }.andExpect {
             status {
@@ -203,15 +225,21 @@ class UserContextWebMvcTest(
         every { securityContextRepository.containsContext(any()) } returns true
         everyValidOrganization()
         coEvery {
-            authenticationStoreClient.getUserByAuthenticationId("organizationId", "sub")
+            authenticationStoreClient.getUserByAuthenticationId(ORGANIZATION_ID, "sub")
         } returns null
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
         mockMvc.get("http://localhost/") {
             cookie(
-                Cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken)),
-                Cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient)),
+                Cookie(
+                    SPRING_SEC_SECURITY_CONTEXT,
+                    cookieSerializer.encodeCookie(ORGANIZATION_HOST_NAME, authenticationToken)
+                ),
+                Cookie(
+                    SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
+                    cookieSerializer.encodeCookie(ORGANIZATION_HOST_NAME, authorizedClient)
+                ),
             )
         }.andExpect {
             status {
@@ -231,7 +259,9 @@ class UserContextWebMvcTest(
         every { securityContextRepository.saveContext(any(), any(), any()) } returns Unit
         every { securityContextRepository.containsContext(any()) } returns true
         everyValidOrganization()
-        coEvery { authenticationStoreClient.getUserByAuthenticationId("organizationId", "sub") } returns User(
+        coEvery {
+            authenticationStoreClient.getUserByAuthenticationId(ORGANIZATION_ID, "sub")
+        } returns User(
             "userId",
             lastLogoutAllTimestamp = Instant.ofEpochSecond(1),
         )
@@ -240,8 +270,14 @@ class UserContextWebMvcTest(
 
         mockMvc.get("http://localhost/") {
             cookie(
-                Cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken)),
-                Cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient)),
+                Cookie(
+                    SPRING_SEC_SECURITY_CONTEXT,
+                    cookieSerializer.encodeCookie(ORGANIZATION_HOST_NAME, authenticationToken)
+                ),
+                Cookie(
+                    SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
+                    cookieSerializer.encodeCookie(ORGANIZATION_HOST_NAME, authorizedClient)
+                ),
             )
         }.andExpect {
             status { isFound() }
@@ -255,9 +291,9 @@ class UserContextWebMvcTest(
         every { securityContextRepository.saveContext(any(), any(), any()) } returns Unit
         every { securityContextRepository.containsContext(any()) } returns false
         everyValidOrganization()
-        coEvery { authenticationStoreClient.getUserByApiToken("organizationId", "supersecuretoken") } returns User(
-            "userId",
-        )
+        coEvery {
+            authenticationStoreClient.getUserByApiToken(ORGANIZATION_ID, "supersecuretoken")
+        } returns User("userId")
 
         mockMvc.get("http://localhost/") {
             header("Authorization", "Bearer supersecuretoken")
@@ -272,7 +308,9 @@ class UserContextWebMvcTest(
         every { securityContextRepository.loadContext(any()) } returns SecurityContextImpl()
         every { securityContextRepository.saveContext(any(), any(), any()) } returns Unit
         every { securityContextRepository.containsContext(any()) } returns false
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } throws RuntimeException("msg")
+        coEvery {
+            authenticationStoreClient.getOrganizationByHostname(ORGANIZATION_HOST_NAME)
+        } throws RuntimeException("msg")
 
         // MockMvc does not use servlet container for testing that is normally responsible for exception translation
         // so the exception just bubbles up
@@ -288,8 +326,9 @@ class UserContextWebMvcTest(
         every { securityContextRepository.loadContext(any()) } returns SecurityContextImpl()
         every { securityContextRepository.saveContext(any(), any(), any()) } returns Unit
         every { securityContextRepository.containsContext(any()) } returns false
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } throws
-            ResponseStatusException(HttpStatus.NOT_FOUND, "Hostname is not registered")
+        coEvery {
+            authenticationStoreClient.getOrganizationByHostname(ORGANIZATION_HOST_NAME)
+        } throws ResponseStatusException(HttpStatus.NOT_FOUND, "Hostname is not registered")
 
         mockMvc.get("http://localhost/") {
             header("Authorization", "Bearer supersecuretoken")
@@ -311,7 +350,7 @@ class UserContextWebMvcTest(
         every { securityContextRepository.saveContext(any(), any(), any()) } returns Unit
         every { securityContextRepository.containsContext(any()) } returns false
         everyValidOrganization()
-        coEvery { authenticationStoreClient.getUserByApiToken("organizationId", "supersecuretoken") } throws
+        coEvery { authenticationStoreClient.getUserByApiToken(ORGANIZATION_ID, "supersecuretoken") } throws
             RuntimeException("msg")
 
         // MockMvc does not use servlet container for testing that is normally responsible for exception translation
@@ -351,9 +390,9 @@ class UserContextWebMvcTest(
         every { securityContextRepository.loadContext(any()) } returns SecurityContextImpl()
         every { securityContextRepository.saveContext(any(), any(), any()) } returns Unit
         every { securityContextRepository.containsContext(any()) } returns false
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } throws ResponseStatusException(
-            HttpStatus.NOT_FOUND
-        )
+        coEvery {
+            authenticationStoreClient.getOrganizationByHostname(ORGANIZATION_HOST_NAME)
+        } throws ResponseStatusException(HttpStatus.NOT_FOUND)
 
         mockMvc.get("http://localhost/oauth2/authorization/localhost")
             .andExpect {
@@ -367,7 +406,9 @@ class UserContextWebMvcTest(
         every { securityContextRepository.loadContext(any()) } returns SecurityContextImpl()
         every { securityContextRepository.saveContext(any(), any(), any()) } returns Unit
         every { securityContextRepository.containsContext(any()) } returns false
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } throws RuntimeException("msg")
+        coEvery {
+            authenticationStoreClient.getOrganizationByHostname(ORGANIZATION_HOST_NAME)
+        } throws RuntimeException("msg")
 
         mockMvc.get("http://localhost/oauth2/authorization/localhost")
             .andExpect {
@@ -381,6 +422,7 @@ class UserContextWebMvcTest(
         every { securityContextRepository.loadContext(any()) } returns SecurityContextImpl()
         every { securityContextRepository.saveContext(any(), any(), any()) } returns Unit
         every { securityContextRepository.containsContext(any()) } returns false
+        mockGetOrganizationByHostName()
 
         mockMvc.get("http://localhost/logout")
             .andExpect {
@@ -395,7 +437,9 @@ class UserContextWebMvcTest(
         every { securityContextRepository.saveContext(any(), any(), any()) } returns Unit
         every { securityContextRepository.containsContext(any()) } returns true
         everyValidOrganization()
-        coEvery { authenticationStoreClient.getUserByAuthenticationId("organizationId", "sub") } returns User(
+        coEvery {
+            authenticationStoreClient.getUserByAuthenticationId(ORGANIZATION_ID, "sub")
+        } returns User(
             "userId",
         )
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
@@ -403,8 +447,14 @@ class UserContextWebMvcTest(
 
         mockMvc.get("http://localhost/logout") {
             cookie(
-                Cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken)),
-                Cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient)),
+                Cookie(
+                    SPRING_SEC_SECURITY_CONTEXT,
+                    cookieSerializer.encodeCookie(ORGANIZATION_HOST_NAME, authenticationToken)
+                ),
+                Cookie(
+                    SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
+                    cookieSerializer.encodeCookie(ORGANIZATION_HOST_NAME, authorizedClient)
+                ),
             )
         }.andExpect {
             status { isFound() }
@@ -417,6 +467,7 @@ class UserContextWebMvcTest(
         every { securityContextRepository.loadContext(any()) } returns SecurityContextImpl()
         every { securityContextRepository.saveContext(any(), any(), any()) } returns Unit
         every { securityContextRepository.containsContext(any()) } returns false
+        mockGetOrganizationByHostName()
 
         expectThrows<ResponseStatusException> {
             mockMvc.post("http://localhost/logout")
@@ -444,17 +495,23 @@ class UserContextWebMvcTest(
                         it
                     ),
                     emptyList(),
-                    "localhost"
+                    ORGANIZATION_HOST_NAME
                 )
             )
         }
     }
 
     private fun everyValidOrganization() {
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } returns Organization(
-            "organizationId",
+        coEvery { authenticationStoreClient.getOrganizationByHostname(ORGANIZATION_HOST_NAME) } returns Organization(
+            ORGANIZATION_ID,
             oauthClientId = "clientId",
             oauthClientSecret = "clientSecret",
+        )
+    }
+
+    private fun mockGetOrganizationByHostName() {
+        coEvery { authenticationStoreClient.getOrganizationByHostname(ORGANIZATION_HOST_NAME) } returns Organization(
+            ORGANIZATION_ID
         )
     }
 
@@ -500,5 +557,10 @@ class UserContextWebMvcTest(
                 }
             )
         }
+    }
+
+    companion object {
+        private const val ORGANIZATION_ID = "organizationId"
+        private const val ORGANIZATION_HOST_NAME = "localhost"
     }
 }

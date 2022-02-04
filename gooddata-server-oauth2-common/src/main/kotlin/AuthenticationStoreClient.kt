@@ -80,6 +80,7 @@ data class Organization(
     val oauthIssuerLocation: String? = null,
     val oauthClientId: String? = null,
     val oauthClientSecret: String? = null,
+    val allowedOrigins: List<String>? = null,
 )
 
 data class User(

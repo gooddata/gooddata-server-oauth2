@@ -86,6 +86,16 @@ root@a45628275f4a:/# ./tinkey create-keyset --key-template AES256_GCM
 * **/appLogin**
     * resource that handles unauthenticated requests and redirects authenticated to `redirectTo` query parameter
 
+### Cross-origin resource sharing (CORS)
+
+Settings can be specified for whole application and per-organization.
+
+* Global - put `com.gooddata.oauth2.server.common.CorsConfigurations` bean to the application context
+* per-organization - update `com.gooddata.oauth2.server.common.Organization.allowedOrigins` with you allowed origins.
+  Format is `http[s]://host[:port]`.
+
+At first global settings are tried and if none match then per-organization is tried.
+
 ## Configuration Properties
 
 * **spring.security.oauth2.client.cookies.duration**
