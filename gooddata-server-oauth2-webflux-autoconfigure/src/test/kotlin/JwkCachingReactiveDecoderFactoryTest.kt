@@ -15,17 +15,26 @@
  */
 package com.gooddata.oauth2.server.reactive
 
+import com.gooddata.oauth2.server.common.JwkCache
+import io.mockk.impl.annotations.MockK
+import io.mockk.junit5.MockKExtension
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.core.AuthenticationMethod
 import org.springframework.security.oauth2.core.AuthorizationGrantType
 import strikt.api.expectThat
 import strikt.assertions.isNotSameInstanceAs
 
-internal class NoCachingReactiveDecoderFactoryTest {
+@ExtendWith(MockKExtension::class)
+internal class JwkCachingReactiveDecoderFactoryTest {
+
+    @MockK
+    private lateinit var jwkCache: JwkCache
+
     @Test
     fun `creates new instance every time`() {
-        val factory = NoCachingReactiveDecoderFactory()
+        val factory = JwkCachingReactiveDecoderFactory(jwkCache)
         val registration = ClientRegistration.withRegistrationId("id")
             .clientId("clientId")
             .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)

@@ -48,6 +48,8 @@ dependencies {
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${kotlinCoroutinesVersion}")
     implementation("io.github.microutils:kotlin-logging:${kotlinLoggingVersion}")
+    implementation("org.springframework.security:spring-security-oauth2-jose")
+    implementation("com.github.ben-manes.caffeine:caffeine:3.0.3")
 
     testImplementation("io.strikt:strikt-core")
     testImplementation("net.javacrumbs.json-unit:json-unit:${jsonUnitVersion}")

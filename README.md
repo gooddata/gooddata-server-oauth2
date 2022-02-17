@@ -117,6 +117,12 @@ At first global settings are tried and if none match then per-organization is tr
 * **spring.security.oauth2.client.applogin.allow-redirect**
     * Defines which hostnames are allowed to be used in `redirectTo` param on `/appLogin` resource. When empty value is used it means that only relative URIs are allowed in `redirectTo`. If hostname is set to some schema+host+port (e.g. http://localhost:3000) then request can be redirected there.
     * defaults to empty value
+* **spring.security.oauth2.client.cache.jwkMaxSize**
+    * Max size of JWK cache
+    * defaults to 10000
+* **spring.security.oauth2.client.cache.jwkMaxSize**
+    * Time in minutes after write after which is value expired in JWK cache
+    * defaults to 60 minutes
 
 ## Updating dependencies
 

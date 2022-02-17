@@ -15,16 +15,20 @@
  */
 package com.gooddata.oauth2.server.reactive
 
+import CachingProperties
 import com.gooddata.oauth2.server.common.AppLoginProperties
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
+import com.gooddata.oauth2.server.common.CaffeineJwkCache
 import com.gooddata.oauth2.server.common.CookieSerializer
 import com.gooddata.oauth2.server.common.CookieServiceProperties
 import com.gooddata.oauth2.server.common.CorsConfigurations
 import com.gooddata.oauth2.server.common.HostBasedClientRegistrationRepositoryProperties
+import com.gooddata.oauth2.server.common.JwkCache
 import com.gooddata.oauth2.server.common.OrganizationCorsConfigurationSource
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfigureBefore
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.security.oauth2.client.reactive.ReactiveOAuth2ClientAutoConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -61,6 +65,7 @@ import java.net.URI
     CookieServiceProperties::class,
     HostBasedClientRegistrationRepositoryProperties::class,
     AppLoginProperties::class,
+    CachingProperties::class
 )
 @AutoConfigureBefore(ReactiveOAuth2ClientAutoConfiguration::class)
 @ConditionalOnClass(EnableWebFlux::class)
@@ -109,11 +114,18 @@ class ServerOAuth2AutoConfiguration {
     fun serverSecurityContextRepository(
         clientRegistrationRepository: ReactiveClientRegistrationRepository,
         cookieService: ReactiveCookieService,
+        reactiveDecoderFactory: ReactiveJwtDecoderFactory<ClientRegistration>
     ): ServerSecurityContextRepository =
-        CookieServerSecurityContextRepository(clientRegistrationRepository, cookieService)
+        CookieServerSecurityContextRepository(clientRegistrationRepository, cookieService, reactiveDecoderFactory)
 
     @Bean
-    fun reactiveJwtDecoderFactory(): ReactiveJwtDecoderFactory<ClientRegistration> = NoCachingReactiveDecoderFactory()
+    fun reactiveJwtDecoderFactory(jwkCache: JwkCache): ReactiveJwtDecoderFactory<ClientRegistration> =
+        JwkCachingReactiveDecoderFactory(jwkCache)
+
+    @ConditionalOnMissingBean(JwkCache::class)
+    @Bean
+    fun jwkCache(cachingProperties: CachingProperties) =
+        CaffeineJwkCache(cachingProperties.jwkMaxSize, cachingProperties.jwkExpireAfterWriteMinutes)
 
     @Bean
     fun corsConfigurationSource(
