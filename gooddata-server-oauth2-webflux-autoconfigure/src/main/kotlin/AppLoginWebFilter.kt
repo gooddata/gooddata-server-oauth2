@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server.reactive
 
+import com.gooddata.oauth2.server.common.AppLoginProperties
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono

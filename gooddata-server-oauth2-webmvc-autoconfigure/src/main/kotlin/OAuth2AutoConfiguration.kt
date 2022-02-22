@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server.servlet
 
+import com.gooddata.oauth2.server.common.AppLoginProperties
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
 import com.gooddata.oauth2.server.common.CookieSerializer
 import com.gooddata.oauth2.server.common.CookieServiceProperties
@@ -54,7 +55,11 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 import javax.servlet.Filter
 
 @Configuration
-@EnableConfigurationProperties(CookieServiceProperties::class, HostBasedClientRegistrationRepositoryProperties::class)
+@EnableConfigurationProperties(
+    CookieServiceProperties::class,
+    HostBasedClientRegistrationRepositoryProperties::class,
+    AppLoginProperties::class
+)
 @AutoConfigureBefore(OAuth2ClientAutoConfiguration::class)
 @ConditionalOnClass(Filter::class)
 class OAuth2AutoConfiguration(
@@ -63,6 +68,7 @@ class OAuth2AutoConfiguration(
     private val cookieServiceProperties: CookieServiceProperties,
     private val hostBasedClientRegistrationRepositoryProperties: HostBasedClientRegistrationRepositoryProperties,
     private val globalCorsConfigurations: CorsConfigurations?,
+    private val appLoginProperties: AppLoginProperties,
 ) : WebSecurityConfigurerAdapter() {
 
     /**
@@ -191,7 +197,8 @@ class OAuth2AutoConfiguration(
                             registerCorsConfiguration(pattern, config)
                         }
                     },
-                    organizationCorsConfigurationSource(authenticationStoreClient.`object`)
+                    organizationCorsConfigurationSource(authenticationStoreClient.`object`),
+                    appLoginProperties.allowRedirect.toString()
                 )
             }
         }

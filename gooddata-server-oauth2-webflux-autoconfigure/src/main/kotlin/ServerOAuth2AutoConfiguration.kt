@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server.reactive
 
+import com.gooddata.oauth2.server.common.AppLoginProperties
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
 import com.gooddata.oauth2.server.common.CookieSerializer
 import com.gooddata.oauth2.server.common.CookieServiceProperties
@@ -117,14 +118,16 @@ class ServerOAuth2AutoConfiguration {
     @Bean
     fun corsConfigurationSource(
         organizationCorsConfigurationSource: OrganizationCorsConfigurationSource,
-        globalCorsConfigurations: CorsConfigurations?
+        globalCorsConfigurations: CorsConfigurations?,
+        appLoginProperties: AppLoginProperties,
     ): CompositeCorsConfigurationSource = CompositeCorsConfigurationSource(
         UrlBasedCorsConfigurationSource().apply {
             globalCorsConfigurations?.configurations?.forEach { (pattern, config) ->
                 registerCorsConfiguration(pattern, config)
             }
         },
-        organizationCorsConfigurationSource
+        organizationCorsConfigurationSource,
+        appLoginProperties.allowRedirect.toString()
     )
 
     @Bean

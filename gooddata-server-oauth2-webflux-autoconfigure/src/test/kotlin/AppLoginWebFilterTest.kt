@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server.reactive
 
+import com.gooddata.oauth2.server.common.AppLoginProperties
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
 import com.gooddata.oauth2.server.common.Organization
 import com.gooddata.oauth2.server.reactive.AppLoginWebFilter.Companion.APP_LOGIN_PATH

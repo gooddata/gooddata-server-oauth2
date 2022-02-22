@@ -21,7 +21,7 @@ import com.gooddata.oauth2.server.common.Organization
 import com.gooddata.oauth2.server.common.OrganizationCorsConfigurationSource
 import io.mockk.coEvery
 import io.mockk.mockk
-import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 import org.springframework.mock.web.MockHttpServletRequest
@@ -38,24 +38,50 @@ internal class CompositeCorsConfigurationSourceTest {
         UrlBasedCorsConfigurationSource().apply {
             GLOBAL_CORS_CONFIGURATION.forEach { (t, u) -> registerCorsConfiguration(t, u) }
         },
-        OrganizationCorsConfigurationSource(client)
+        OrganizationCorsConfigurationSource(client),
+        ALLOWED_REDIRECT_HOST
     )
-
-    @BeforeEach
-    internal fun setUp() {
-        coEvery { client.getOrganizationByHostname(ORGANIZATION_HOST_NAME) } returns Organization(
-            id = "testOrg",
-            allowedOrigins = ORGANIZATION_ALLOWED_ORIGINS
-        )
-    }
 
     @ParameterizedTest
     @EnumSource(TestCorsSource::class)
     fun getOrganizationCorsConfiguration(testCorsSource: TestCorsSource) {
+        mockClient(ORGANIZATION_ALLOWED_ORIGINS)
         val request = MockHttpServletRequest("GET", testCorsSource.requestUri)
+        expectCorsConfiguration(request, testCorsSource.allowedOrigins, testCorsSource.allowedMethods)
+    }
+
+    @Test
+    fun getOrganizationCorsConfigurationWithAllowRedirectNull() {
+        mockClient(listOf())
+        getOrganizationCorsConfigurationWithAllowRedirect(listOf())
+    }
+
+    @Test
+    fun getOrganizationCorsConfigurationWithAllowRedirectEmpty() {
+        mockClient(null)
+        getOrganizationCorsConfigurationWithAllowRedirect(listOf(ALLOWED_REDIRECT_HOST))
+    }
+
+    private fun getOrganizationCorsConfigurationWithAllowRedirect(expectedAllowedOrigins: List<String>?) {
+        val request = MockHttpServletRequest("GET", "/xxx/yyy")
+        expectCorsConfiguration(request, expectedAllowedOrigins, listOf(CorsConfiguration.ALL))
+    }
+
+    private fun mockClient(allowedOrigins: List<String>?) {
+        coEvery { client.getOrganizationByHostname(ORGANIZATION_HOST_NAME) } returns Organization(
+            id = "testOrg",
+            allowedOrigins = allowedOrigins
+        )
+    }
+
+    private fun expectCorsConfiguration(
+        request: MockHttpServletRequest,
+        expectedAllowedOrigins: List<String>?,
+        expectedAllowedMethods: List<String>?
+    ) {
         val corsConfiguration = corsConfigurationSource.getCorsConfiguration(request)
-        expectThat(corsConfiguration?.allowedOrigins).isEqualTo(testCorsSource.allowedOrigins)
-        expectThat(corsConfiguration?.allowedMethods).isEqualTo(testCorsSource.allowedMethods)
+        expectThat(corsConfiguration?.allowedOrigins).isEqualTo(expectedAllowedOrigins)
+        expectThat(corsConfiguration?.allowedMethods).isEqualTo(expectedAllowedMethods)
     }
 
     companion object {
@@ -77,6 +103,7 @@ internal class CompositeCorsConfigurationSourceTest {
                 allowedOrigins = listOf(GLOBAL_ALLOWED_ORIGIN)
             }
         )
+        private const val ALLOWED_REDIRECT_HOST = "http://localhost:9999"
     }
 
     enum class TestCorsSource(
