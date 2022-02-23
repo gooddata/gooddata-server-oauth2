@@ -33,13 +33,8 @@ class OrganizationCorsConfigurationSource(private val authenticationStoreClient:
     fun getOrganizationCorsConfiguration(serverName: String) = try {
         runBlocking {
             authenticationStoreClient.getOrganizationByHostname(serverName)
-        }.let { organization ->
-            CorsConfiguration().apply {
-                allowCredentials = true
-                allowedOrigins = organization.allowedOrigins
-                allowedMethods = listOf(CorsConfiguration.ALL)
-                allowedHeaders = listOf(CorsConfiguration.ALL)
-            }
+        }.let {
+            it.allowedOrigins?.toCorsConfiguration()
         }
     } catch (e: ResponseStatusException) {
         logger.debug("Organization with hostname '$serverName' not found.", e)
@@ -49,3 +44,20 @@ class OrganizationCorsConfigurationSource(private val authenticationStoreClient:
         null
     }
 }
+
+/**
+ * Convert allowed origins list to CORS configuration allowing all methods, all headers and credentials.
+ * @receiver allowed origins hosts
+ */
+private fun List<String>.toCorsConfiguration() = CorsConfiguration().apply {
+    allowCredentials = true
+    allowedOrigins = this@toCorsConfiguration
+    allowedMethods = listOf(CorsConfiguration.ALL)
+    allowedHeaders = listOf(CorsConfiguration.ALL)
+}
+
+/**
+ * Convert allowed origin host to CORS configuration allowing all methods, all headers and credentials.
+ * @receiver allowed origin host
+ */
+fun String.toCorsConfiguration() = listOf(this).toCorsConfiguration()

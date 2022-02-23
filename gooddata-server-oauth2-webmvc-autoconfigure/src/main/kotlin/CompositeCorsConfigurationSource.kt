@@ -17,6 +17,7 @@
 package com.gooddata.oauth2.server.servlet
 
 import com.gooddata.oauth2.server.common.OrganizationCorsConfigurationSource
+import com.gooddata.oauth2.server.common.toCorsConfiguration
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import javax.servlet.http.HttpServletRequest
@@ -26,13 +27,15 @@ import javax.servlet.http.HttpServletRequest
  * organization settings.
  * @param[corsConfigurationSource] CORS configuration source for whole application
  * @param[organizationCorsConfigurationSource] CORS configuration source for organization
+ * @param[allowRedirect] host which is allowed to redirect to (it also has to be added to CORS)
  */
 class CompositeCorsConfigurationSource(
     private val corsConfigurationSource: CorsConfigurationSource,
-    private val organizationCorsConfigurationSource: OrganizationCorsConfigurationSource
+    private val organizationCorsConfigurationSource: OrganizationCorsConfigurationSource,
+    private val allowRedirect: String
 ) : CorsConfigurationSource {
 
     override fun getCorsConfiguration(request: HttpServletRequest): CorsConfiguration? =
         corsConfigurationSource.getCorsConfiguration(request) ?: organizationCorsConfigurationSource
-            .getOrganizationCorsConfiguration(request.serverName)
+            .getOrganizationCorsConfiguration(request.serverName) ?: allowRedirect.toCorsConfiguration()
 }
