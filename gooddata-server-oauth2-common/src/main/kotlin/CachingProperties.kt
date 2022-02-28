@@ -29,9 +29,15 @@ import org.springframework.boot.context.properties.bind.DefaultValue
 @ConfigurationProperties(prefix = "spring.security.oauth2.client.cache")
 class CachingProperties(
 
-    @DefaultValue("${CaffeineJwkCache.CACHE_MAX_SIZE}")
+    @DefaultValue("${CaffeineCache.CACHE_MAX_SIZE}")
     val jwkMaxSize: Long,
 
-    @DefaultValue("${CaffeineJwkCache.CACHE_EXPIRE_AFTER_WRITE_MINUTES}")
-    val jwkExpireAfterWriteMinutes: Long
+    @DefaultValue("${CaffeineCache.CACHE_EXPIRE_AFTER_WRITE_MINUTES}")
+    val jwkExpireAfterWriteMinutes: Long,
+
+    @DefaultValue("${CaffeineCache.CACHE_MAX_SIZE}")
+    val clientRegistrationMaxSize: Long,
+
+    @DefaultValue("${CaffeineCache.CACHE_EXPIRE_AFTER_WRITE_MINUTES}")
+    val clientRegistrationExpireAfterWriteMinutes: Long
 )

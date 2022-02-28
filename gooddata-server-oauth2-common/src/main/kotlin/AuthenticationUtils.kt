@@ -34,10 +34,16 @@ fun buildClientRegistration(
     registrationId: String,
     organization: Organization,
     properties: HostBasedClientRegistrationRepositoryProperties,
+    clientRegistrationCache: ClientRegistrationCache,
 ): ClientRegistration = (
     organization.oauthIssuerLocation?.let {
-        ClientRegistrations
-            .fromIssuerLocation(it)
+        val clientRegistration = clientRegistrationCache.get(it) {
+            ClientRegistrations
+                .fromIssuerLocation(it)
+                .build()
+        }
+        ClientRegistration
+            .withClientRegistration(clientRegistration)
             .registrationId(registrationId)
     } ?: ClientRegistration
         .withRegistrationId(registrationId)

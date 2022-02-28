@@ -16,6 +16,7 @@
 package com.gooddata.oauth2.server.servlet
 
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
+import com.gooddata.oauth2.server.common.CaffeineClientRegistrationCache
 import com.gooddata.oauth2.server.common.HostBasedClientRegistrationRepositoryProperties
 import com.gooddata.oauth2.server.common.Organization
 import io.mockk.coEvery
@@ -34,7 +35,8 @@ internal class HostBasedClientRegistrationRepositoryTest {
 
     private val repository = HostBasedClientRegistrationRepository(
         client,
-        HostBasedClientRegistrationRepositoryProperties("remote", "local")
+        HostBasedClientRegistrationRepositoryProperties("remote", "local"),
+        CaffeineClientRegistrationCache()
     )
 
     @Test

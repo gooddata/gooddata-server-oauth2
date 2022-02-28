@@ -16,20 +16,20 @@
 
 package com.gooddata.oauth2.server.common
 
-import com.nimbusds.jose.jwk.JWKSet
+import org.springframework.security.oauth2.client.registration.ClientRegistration
 
 /**
- * Stores JWKs.
+ * Stores client registrations
  */
-interface JwkCache : Cache<String, JWKSet?>
+interface ClientRegistrationCache : Cache<String, ClientRegistration>
 
 /**
- * Caffeine implementation of JWK cache.
+ * Caffeine implementation of client registration cache.
  * @param maxSize max cache size. Default is [CaffeineCache.CACHE_MAX_SIZE].
  * @param expireAfterWriteMinutes cached values are expired after write after this value in minutes. Default is
  * [CaffeineCache.CACHE_EXPIRE_AFTER_WRITE_MINUTES].
  */
-class CaffeineJwkCache(
+class CaffeineClientRegistrationCache(
     maxSize: Long = CACHE_MAX_SIZE,
     expireAfterWriteMinutes: Long = CACHE_EXPIRE_AFTER_WRITE_MINUTES
-) : JwkCache, CaffeineCache<String, JWKSet?>(maxSize, expireAfterWriteMinutes)
+) : ClientRegistrationCache, CaffeineCache<String, ClientRegistration>(maxSize, expireAfterWriteMinutes)
