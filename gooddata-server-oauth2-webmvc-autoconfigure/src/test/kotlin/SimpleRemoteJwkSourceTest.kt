@@ -13,33 +13,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package com.gooddata.oauth2.server.reactive
+package com.gooddata.oauth2.server.servlet
 
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
+import com.gooddata.oauth2.server.common.CaffeineJwkCache
+import com.nimbusds.jose.jwk.JWKMatcher
+import com.nimbusds.jose.jwk.JWKSelector
 import net.javacrumbs.jsonunit.core.util.ResourceUtils
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import strikt.api.expect
 import strikt.assertions.isEqualTo
-import strikt.assertions.isNotNull
 
-class SimpleReactiveRemoteJWKSourceTest {
+internal class SimpleRemoteJwkSourceTest {
 
-    lateinit var jwkSource: SimpleReactiveRemoteJWKSource
+    lateinit var jwkSource: SimpleRemoteJwkSource
 
     @BeforeEach
     internal fun setUp() {
-        jwkSource = SimpleReactiveRemoteJWKSource(
-            jwkSetURL = "http://localhost:${wireMockServer.port()}/dex/keys"
+        jwkSource = SimpleRemoteJwkSource(
+            jwkSetUri = "http://localhost:${wireMockServer.port()}/dex/keys",
+            jwkCache = CaffeineJwkCache()
         )
     }
 
     @Test
-    fun getJwkSet() {
+    fun get() {
         wireMockServer
             .stubFor(
                 WireMock.get(WireMock.urlEqualTo("/dex/keys"))
@@ -48,9 +50,10 @@ class SimpleReactiveRemoteJWKSourceTest {
                     )
             )
 
-        val jwkSet = jwkSource.getJwkSet()
+        val jwks = jwkSource.get(JWKSelector(JWKMatcher.Builder().build()), null)
+
         expect {
-            that(jwkSet.block()?.keys).isNotNull().and {
+            that(jwks).and {
                 get { size }.isEqualTo(2)
                 get { this[0].keyID }.isEqualTo("mjMcdK6mERvJ9wX6aXlUK")
                 get { this[1].keyID }.isEqualTo("uRmVk7qvcuQ4hfxi2aCN8")

@@ -21,4 +21,4 @@ package com.gooddata.oauth2.server.common
  * @param[message] exception message
  * @param[cause] exception cause
  */
-class JwkException(message: String, cause: Throwable) : RuntimeException(message, cause)
+class JwkException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)

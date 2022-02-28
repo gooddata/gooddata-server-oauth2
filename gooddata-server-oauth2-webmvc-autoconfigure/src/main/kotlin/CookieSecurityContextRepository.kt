@@ -43,7 +43,7 @@ import javax.servlet.http.HttpServletResponse
 class CookieSecurityContextRepository(
     private val clientRegistrationRepository: ClientRegistrationRepository,
     private val cookieService: CookieService,
-    private val jwtDecoderFactory: JwtDecoderFactory<ClientRegistration> = NoCachingDecoderFactory(),
+    private val jwtDecoderFactory: JwtDecoderFactory<ClientRegistration>,
 ) : SecurityContextRepository {
 
     private val logger = KotlinLogging.logger {}
@@ -65,7 +65,11 @@ class CookieSecurityContextRepository(
                 // decode JWT token from JSON
                 .decode((decoded.principal as OidcUser).idToken.tokenValue)
         } catch (e: JwtException) {
-            logger.info { "Stored JWT token cannot be decoded: ${e.message}" }
+            val message = "Stored JWT token cannot be decoded: ${e.message}"
+            when (logger.isDebugEnabled) {
+                true -> logger.debug(e) { message }
+                false -> logger.info { message }
+            }
             return SecurityContextHolder.createEmptyContext()
         }
         val oidc = OidcIdToken(jwt.tokenValue, jwt.issuedAt, jwt.expiresAt, jwt.claims)
