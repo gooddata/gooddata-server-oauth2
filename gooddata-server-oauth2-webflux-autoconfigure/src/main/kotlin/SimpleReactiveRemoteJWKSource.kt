@@ -16,6 +16,7 @@
 
 package com.gooddata.oauth2.server.reactive
 
+import com.gooddata.oauth2.server.common.JwkException
 import com.nimbusds.jose.jwk.JWKSet
 import org.springframework.web.reactive.function.client.WebClient
 import reactor.core.publisher.Mono
@@ -54,10 +55,3 @@ class SimpleReactiveRemoteJWKSource(
         }
     }
 }
-
-/**
- * Thrown when some error related to JWK occurs.
- * @param[message] exception message
- * @param[cause] exception cause
- */
-class JwkException(message: String, cause: Throwable) : RuntimeException(message, cause)
