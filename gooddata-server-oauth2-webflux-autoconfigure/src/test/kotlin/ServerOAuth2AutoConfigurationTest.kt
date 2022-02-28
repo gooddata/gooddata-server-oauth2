@@ -16,6 +16,8 @@
 package com.gooddata.oauth2.server.reactive
 
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
+import com.gooddata.oauth2.server.common.CaffeineJwkCache
+import com.gooddata.oauth2.server.common.JwkCache
 import com.ninjasquad.springmockk.MockkBean
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -28,13 +30,14 @@ import org.springframework.security.web.server.SecurityWebFilterChain
 import org.springframework.test.context.TestPropertySource
 import org.springframework.test.context.junit.jupiter.SpringExtension
 import strikt.api.expectThat
+import strikt.assertions.isA
 import strikt.assertions.isNotNull
 
 @TestPropertySource(properties = ["spring.application.name=test"])
 @ExtendWith(SpringExtension::class)
 @EnableAutoConfiguration
 @AutoConfigureWebFlux
-internal class ServerOAuth2AutoConfigurationTest {
+internal abstract class ServerOAuth2AutoConfigurationTest {
 
     @Autowired
     var cookieService: ReactiveCookieService? = null
@@ -48,6 +51,9 @@ internal class ServerOAuth2AutoConfigurationTest {
     @Autowired
     var springSecurityFilterChain: SecurityWebFilterChain? = null
 
+    @Autowired
+    var jwkCache: JwkCache? = null
+
     @MockkBean
     lateinit var authenticationStoreClient: AuthenticationStoreClient
 
@@ -60,5 +66,24 @@ internal class ServerOAuth2AutoConfigurationTest {
         expectThat(authorizedClientRepository).isNotNull()
         expectThat(clientRegistrationRepository).isNotNull()
         expectThat(springSecurityFilterChain).isNotNull()
+    }
+
+    abstract fun checkCache()
+}
+
+internal class ProvidedCustomCacheServerOAuth2AutoConfigurationTest : ServerOAuth2AutoConfigurationTest() {
+
+    override fun checkCache() {
+        expectThat(jwkCache).isA<CaffeineJwkCache>()
+    }
+}
+
+internal class CustomJwkCacheServerOAuth2AutoConfigurationTest : ServerOAuth2AutoConfigurationTest() {
+
+    @MockkBean
+    lateinit var myJwkCache: JwkCache
+
+    override fun checkCache() {
+        expectThat(jwkCache).not().isA<CaffeineJwkCache>()
     }
 }

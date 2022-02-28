@@ -21,6 +21,7 @@ import com.github.tomakehurst.wiremock.client.WireMock.get
 import com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
+import com.gooddata.oauth2.server.common.CaffeineJwkCache
 import com.gooddata.oauth2.server.common.CookieSecurityProperties
 import com.gooddata.oauth2.server.common.CookieSerializer
 import com.gooddata.oauth2.server.common.CookieServiceProperties
@@ -111,7 +112,15 @@ internal class CookieServerSecurityContextRepositoryTest {
 
     private val exchange: ServerWebExchange = mockk()
 
-    private val repository = CookieServerSecurityContextRepository(clientRegistrationRepository, cookieService)
+    private val jwkCache = CaffeineJwkCache()
+
+    private val jwtDecoderFactory = JwkCachingReactiveDecoderFactory(jwkCache)
+
+    private val repository = CookieServerSecurityContextRepository(
+        clientRegistrationRepository,
+        cookieService,
+        jwtDecoderFactory
+    )
 
     @AfterEach
     internal fun tearDown() {

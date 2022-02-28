@@ -42,7 +42,7 @@ import reactor.kotlin.core.publisher.switchIfEmpty
 class CookieServerSecurityContextRepository(
     private val clientRegistrationRepository: ReactiveClientRegistrationRepository,
     private val cookieService: ReactiveCookieService,
-    private val jwtDecoderFactory: ReactiveJwtDecoderFactory<ClientRegistration> = NoCachingReactiveDecoderFactory(),
+    private val jwtDecoderFactory: ReactiveJwtDecoderFactory<ClientRegistration>,
 ) : ServerSecurityContextRepository {
 
     private val logger = KotlinLogging.logger {}
@@ -82,7 +82,7 @@ class CookieServerSecurityContextRepository(
                             // decode JWT token from JSON
                             .decode((it.principal as OidcUser).idToken.tokenValue)
                             .onErrorResume(JwtException::class.java) { exception ->
-                                logger.info { "Stored JWT token cannot be decoded: ${exception.message}" }
+                                logger.info(exception) { "Stored JWT token cannot be decoded: ${exception.message}" }
                                 Mono.empty()
                             }
                             .map { jwt -> OidcIdToken(jwt.tokenValue, jwt.issuedAt, jwt.expiresAt, jwt.claims) }
