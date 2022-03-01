@@ -16,6 +16,7 @@
 package com.gooddata.oauth2.server.reactive
 
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
+import com.gooddata.oauth2.server.common.CaffeineClientRegistrationCache
 import com.gooddata.oauth2.server.common.HostBasedClientRegistrationRepositoryProperties
 import com.gooddata.oauth2.server.common.Organization
 import io.mockk.coEvery
@@ -37,7 +38,8 @@ internal class HostBasedReactiveClientRegistrationRepositoryTest {
 
     private val repository = HostBasedReactiveClientRegistrationRepository(
         client,
-        HostBasedClientRegistrationRepositoryProperties("remote", "local")
+        HostBasedClientRegistrationRepositoryProperties("remote", "local"),
+        CaffeineClientRegistrationCache()
     )
 
     @Test
