@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server.servlet
 
+import com.gooddata.oauth2.server.common.CaffeineJwkCache
 import org.junit.jupiter.api.Test
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.core.AuthenticationMethod
@@ -22,10 +23,11 @@ import org.springframework.security.oauth2.core.AuthorizationGrantType
 import strikt.api.expectThat
 import strikt.assertions.isNotSameInstanceAs
 
-internal class NoCachingDecoderFactoryTest {
+internal class JwkCachingDecoderFactoryTest {
     @Test
     fun `creates new instance every time`() {
-        val factory = NoCachingDecoderFactory()
+        val jwkCache = CaffeineJwkCache()
+        val factory = JwkCachingDecoderFactory(jwkCache)
         val registration = ClientRegistration.withRegistrationId("id")
             .clientId("clientId")
             .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)

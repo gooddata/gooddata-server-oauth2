@@ -120,7 +120,7 @@ At first global settings are tried and if none match then per-organization is tr
 * **spring.security.oauth2.client.cache.jwkMaxSize**
     * Max size of JWK cache
     * defaults to 10000
-* **spring.security.oauth2.client.cache.jwkMaxSize**
+* **spring.security.oauth2.client.cache.jwkExpireAfterWriteMinutes**
     * Time in minutes after write after which is value expired in JWK cache
     * defaults to 60 minutes
 

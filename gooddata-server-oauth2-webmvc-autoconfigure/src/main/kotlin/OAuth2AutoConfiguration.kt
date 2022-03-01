@@ -17,14 +17,18 @@ package com.gooddata.oauth2.server.servlet
 
 import com.gooddata.oauth2.server.common.AppLoginProperties
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
+import com.gooddata.oauth2.server.common.CachingProperties
+import com.gooddata.oauth2.server.common.CaffeineJwkCache
 import com.gooddata.oauth2.server.common.CookieSerializer
 import com.gooddata.oauth2.server.common.CookieServiceProperties
 import com.gooddata.oauth2.server.common.CorsConfigurations
 import com.gooddata.oauth2.server.common.HostBasedClientRegistrationRepositoryProperties
+import com.gooddata.oauth2.server.common.JwkCache
 import com.gooddata.oauth2.server.common.OrganizationCorsConfigurationSource
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfigureBefore
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -58,7 +62,8 @@ import javax.servlet.Filter
 @EnableConfigurationProperties(
     CookieServiceProperties::class,
     HostBasedClientRegistrationRepositoryProperties::class,
-    AppLoginProperties::class
+    AppLoginProperties::class,
+    CachingProperties::class
 )
 @AutoConfigureBefore(OAuth2ClientAutoConfiguration::class)
 @ConditionalOnClass(Filter::class)
@@ -69,6 +74,7 @@ class OAuth2AutoConfiguration(
     private val hostBasedClientRegistrationRepositoryProperties: HostBasedClientRegistrationRepositoryProperties,
     private val globalCorsConfigurations: CorsConfigurations?,
     private val appLoginProperties: AppLoginProperties,
+    private val cachingProperties: CachingProperties,
 ) : WebSecurityConfigurerAdapter() {
 
     /**
@@ -97,11 +103,18 @@ class OAuth2AutoConfiguration(
         )
 
     @Bean
-    fun securityContextRepository(): SecurityContextRepository =
-        CookieSecurityContextRepository(clientRegistrationRepository(), cookieService())
+    fun securityContextRepository(jwtDecoderFactory: JwtDecoderFactory<ClientRegistration>): SecurityContextRepository =
+        CookieSecurityContextRepository(clientRegistrationRepository(), cookieService(), jwtDecoderFactory)
 
     @Bean
-    fun jwtDecoderFactory(): JwtDecoderFactory<ClientRegistration> = NoCachingDecoderFactory()
+    fun jwtDecoderFactory(jwkCache: JwkCache): JwtDecoderFactory<ClientRegistration> = JwkCachingDecoderFactory(
+        jwkCache
+    )
+
+    @ConditionalOnMissingBean(JwkCache::class)
+    @Bean
+    fun jwkCache(cachingProperties: CachingProperties) =
+        CaffeineJwkCache(cachingProperties.jwkMaxSize, cachingProperties.jwkExpireAfterWriteMinutes)
 
     @Bean
     fun organizationCorsConfigurationSource(
@@ -113,8 +126,9 @@ class OAuth2AutoConfiguration(
         val cookieRequestCache = CookieRequestCache(cookieService())
         val oAuth2AuthorizedClientRepository = authorizedClientRepository()
         val hostBasedAuthEntryPoint = HostBasedAuthenticationEntryPoint(cookieRequestCache)
+        val securityContextRepository = securityContextRepository(jwtDecoderFactory(jwkCache(cachingProperties)))
         val logoutHandler = CompositeLogoutHandler(
-            SecurityContextClearingLogoutHandler(securityContextRepository()),
+            SecurityContextClearingLogoutHandler(securityContextRepository),
             LogoutHandler { request, response, authentication ->
                 oAuth2AuthorizedClientRepository.removeAuthorizedClient(
                     request.serverName, authentication, request, response
@@ -122,7 +136,7 @@ class OAuth2AutoConfiguration(
             }
         )
 
-        (http.securityContext { it.securityContextRepository(securityContextRepository()) }) {
+        (http.securityContext { it.securityContextRepository(securityContextRepository) }) {
             securityMatcher(
                 NegatedRequestMatcher(
                     OrRequestMatcher(
@@ -144,7 +158,7 @@ class OAuth2AutoConfiguration(
                 }
                 authorizedClientRepository = oAuth2AuthorizedClientRepository
                 authenticationSuccessHandler =
-                    CookieAndSavedRequestAwareAuthenticationSuccessHandler(securityContextRepository()).apply {
+                    CookieAndSavedRequestAwareAuthenticationSuccessHandler(securityContextRepository).apply {
                         setRequestCache(cookieRequestCache)
                     }
                 authenticationFailureHandler = AuthenticationEntryPointFailureHandler { _, response, _ ->
