@@ -34,6 +34,7 @@ dependencies {
     val kotlinCoroutinesVersion: String by project
     val mockkVersion: String by project
     val kotlinLoggingVersion: String by project
+    val wiremockVersion: String by project
 
     detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:${detektFormattingVersion}")
 
@@ -55,4 +56,5 @@ dependencies {
     testImplementation("net.javacrumbs.json-unit:json-unit:${jsonUnitVersion}")
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("io.mockk:mockk:${mockkVersion}")
+    testImplementation("com.github.tomakehurst:wiremock:${wiremockVersion}")
 }
