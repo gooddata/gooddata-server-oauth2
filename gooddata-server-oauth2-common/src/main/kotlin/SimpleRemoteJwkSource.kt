@@ -13,11 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.gooddata.oauth2.server.servlet
+package com.gooddata.oauth2.server.common
 
-import com.gooddata.oauth2.server.common.JwkCache
-import com.gooddata.oauth2.server.common.JwkException
-import com.nimbusds.jose.jwk.JWK
 import com.nimbusds.jose.jwk.JWKSelector
 import com.nimbusds.jose.jwk.JWKSet
 import com.nimbusds.jose.jwk.source.JWKSource
@@ -44,11 +41,10 @@ class SimpleRemoteJwkSource(
     private val jwkCache: JwkCache
 ) : JWKSource<SecurityContext> {
 
-    override fun get(jwkSelector: JWKSelector?, context: SecurityContext?): List<JWK> {
-        val jwkSet = jwkCache.get(jwkSetUri) { JWKSet.parse(retrieveResource(URL(jwkSetUri)).content) }
-            ?: throw JwkException("Unable to retrieve JWKs from '$jwkSetUri'.")
-        return jwkSelector?.select(jwkSet) ?: emptyList()
-    }
+    override fun get(jwkSelector: JWKSelector?, context: SecurityContext?) = jwkSelector?.select(get()) ?: emptyList()
+
+    fun get() = jwkCache.get(jwkSetUri) { JWKSet.parse(retrieveResource(URL(jwkSetUri)).content) }
+        ?: throw JwkException("Unable to retrieve JWKs from '$jwkSetUri'.")
 
     private fun retrieveResource(url: URL): Resource {
         val headers = HttpHeaders().apply {

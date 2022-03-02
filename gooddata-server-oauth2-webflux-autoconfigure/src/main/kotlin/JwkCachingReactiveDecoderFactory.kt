@@ -16,6 +16,7 @@
 package com.gooddata.oauth2.server.reactive
 
 import com.gooddata.oauth2.server.common.JwkCache
+import com.gooddata.oauth2.server.common.SimpleRemoteJwkSource
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.jwk.JWKSet
 import com.nimbusds.jose.jwk.source.JWKSecurityContextJWKSet
@@ -82,8 +83,8 @@ class JwkCachingReactiveDecoderFactory(
         }
     }
 
-    private fun getJwkSet(jwkSetUri: String): Mono<JWKSet> = jwkCache.get(jwkSetUri) {
-        val remoteJWKSource = SimpleReactiveRemoteJWKSource(jwkSetURL = jwkSetUri)
-        remoteJWKSource.getJwkSet()?.block()
-    }.toMono()
+    private fun getJwkSet(jwkSetUri: String): Mono<JWKSet> = SimpleRemoteJwkSource(
+        jwkSetUri = jwkSetUri,
+        jwkCache = jwkCache
+    ).get().toMono()
 }
