@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 GoodData Corporation
+ * Copyright 2022 GoodData Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import org.springframework.security.oauth2.core.AuthenticationMethod
 import org.springframework.security.oauth2.core.AuthorizationGrantType
 import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
 import org.springframework.security.oauth2.server.resource.BearerTokenAuthenticationToken
+import org.springframework.util.DigestUtils
 import java.time.Instant
 
 /**
@@ -29,37 +30,83 @@ import java.time.Instant
  *
  * @param registrationId registration ID to be used
  * @param organization organization object retrieved from [AuthenticationStoreClient]
+ * @param properties static properties for being able to configure pre-configured DEX issuer
+ * @param clientRegistrationCache the cache where non-DEX client registrations are saved for improving performance
  */
 fun buildClientRegistration(
     registrationId: String,
     organization: Organization,
     properties: HostBasedClientRegistrationRepositoryProperties,
     clientRegistrationCache: ClientRegistrationCache,
-): ClientRegistration = (
-    organization.oauthIssuerLocation?.let {
-        val clientRegistration = clientRegistrationCache.get(it) {
-            ClientRegistrations
-                .fromIssuerLocation(it)
-                .build()
-        }
-        ClientRegistration
-            .withClientRegistration(clientRegistration)
-            .registrationId(registrationId)
-    } ?: ClientRegistration
-        .withRegistrationId(registrationId)
-        .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
-        .authorizationUri("${properties.remoteAddress}/dex/auth")
-        .tokenUri("${properties.localAddress}/dex/token")
-        .userInfoUri("${properties.localAddress}/dex/userinfo")
-        .userInfoAuthenticationMethod(AuthenticationMethod("header"))
-        .jwkSetUri("${properties.localAddress}/dex/keys")
-    )
-    .clientId(organization.oauthClientId)
+): ClientRegistration = organization.oauthIssuerLocation?.let {
+    val cacheKey = clientRegistrationCacheKey(organization)
+    val clientRegistration = clientRegistrationCache.get(cacheKey) {
+        ClientRegistrations
+            .fromIssuerLocation(it)
+            .withIssuerConfig(organization)
+            .registrationId(DUMMY_REGISTRATION_ID)
+            .build()
+    }
+    ClientRegistration
+        .withClientRegistration(clientRegistration)
+        .registrationId(registrationId)
+        .build()
+} ?: ClientRegistration
+    .withRegistrationId(registrationId)
+    .withDexConfig(properties)
+    .withIssuerConfig(organization)
+    .build()
+
+/**
+ * Computes client registration cache key from the [organization] configuration. The cache key is then used to cache the
+ * issuer location + credentials specific configuration.
+ *
+ * @param organization organization containing OIDC issuer configuration
+ * @return the cache key
+ */
+private fun clientRegistrationCacheKey(organization: Organization): String {
+    val issuerKey =
+        "${organization.oauthIssuerLocation}:${organization.oauthClientId}:${organization.oauthClientSecret}"
+    return DigestUtils.md5DigestAsHex(issuerKey.toByteArray())
+}
+
+/**
+ * Adds the OIDC issuer configuration to this receiver.
+ *
+ * @receiver the [ClientRegistration] builder
+ * @param organization the organization containing OIDC issuer configuration
+ * @return this builder
+ */
+private fun ClientRegistration.Builder.withIssuerConfig(
+    organization: Organization,
+) = clientId(organization.oauthClientId)
     .clientSecret(organization.oauthClientSecret)
     .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
     .scope("openid", "profile")
     .userNameAttributeName("name")
-    .build()
+
+/**
+ * The "dummy" client registration ID. It serves only for being able to cache pre-prepared client registration.
+ *
+ * The main reason of the existence of this property is that the client registration cannot be built without it.
+ */
+private const val DUMMY_REGISTRATION_ID = "<dummy_registration_id>"
+
+/**
+ * Adds the DEX issuer static configuration to this receiver.
+ *
+ * @receiver the [ClientRegistration] builder
+ * @param properties static properties for being able to configure pre-configured DEX issuer
+ * @return this builder
+ */
+private fun ClientRegistration.Builder.withDexConfig(
+    properties: HostBasedClientRegistrationRepositoryProperties,
+) = redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
+    .authorizationUri("${properties.remoteAddress}/dex/auth")
+    .tokenUri("${properties.localAddress}/dex/token")
+    .userInfoUri("${properties.localAddress}/dex/userinfo")
+    .userInfoAuthenticationMethod(AuthenticationMethod("header"))
+    .jwkSetUri("${properties.localAddress}/dex/keys")
 
 /**
  * Retrieves user and organization details from [AuthenticationStoreClient] for given Bearer token.
@@ -125,5 +172,5 @@ data class UserContext(
     /**
      * Flag indicating whether authentication flow should be restarted or not
      */
-    val restartAuthentication: Boolean
+    val restartAuthentication: Boolean,
 )
