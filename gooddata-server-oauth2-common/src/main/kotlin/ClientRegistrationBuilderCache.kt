@@ -19,12 +19,12 @@ package com.gooddata.oauth2.server.common
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 
 /**
- * Stores client registrations
+ * Stores client registration builders
  */
-interface ClientRegistrationCache : Cache<String, ClientRegistration>
+interface ClientRegistrationBuilderCache : Cache<String, ClientRegistration.Builder>
 
 /**
- * Caffeine implementation of client registration cache.
+ * Caffeine implementation of client registration builders cache.
  * @param maxSize max cache size. Default is [CaffeineCache.CACHE_MAX_SIZE].
  * @param expireAfterWriteMinutes cached values are expired after write after this value in minutes. Default is
  * [CaffeineCache.CACHE_EXPIRE_AFTER_WRITE_MINUTES].
@@ -32,4 +32,4 @@ interface ClientRegistrationCache : Cache<String, ClientRegistration>
 class CaffeineClientRegistrationCache(
     maxSize: Long = CACHE_MAX_SIZE,
     expireAfterWriteMinutes: Long = CACHE_EXPIRE_AFTER_WRITE_MINUTES
-) : ClientRegistrationCache, CaffeineCache<String, ClientRegistration>(maxSize, expireAfterWriteMinutes)
+) : ClientRegistrationBuilderCache, CaffeineCache<String, ClientRegistration.Builder>(maxSize, expireAfterWriteMinutes)

@@ -16,7 +16,7 @@
 package com.gooddata.oauth2.server.servlet
 
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
-import com.gooddata.oauth2.server.common.ClientRegistrationCache
+import com.gooddata.oauth2.server.common.ClientRegistrationBuilderCache
 import com.gooddata.oauth2.server.common.HostBasedClientRegistrationRepositoryProperties
 import com.gooddata.oauth2.server.common.buildClientRegistration
 import kotlinx.coroutines.runBlocking
@@ -30,7 +30,7 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 class HostBasedClientRegistrationRepository(
     private val client: AuthenticationStoreClient,
     private val properties: HostBasedClientRegistrationRepositoryProperties,
-    private val clientRegistrationCache: ClientRegistrationCache,
+    private val clientRegistrationBuilderCache: ClientRegistrationBuilderCache,
 ) : ClientRegistrationRepository {
     override fun findByRegistrationId(registrationId: String): ClientRegistration {
         return runBlocking {
@@ -39,7 +39,7 @@ class HostBasedClientRegistrationRepository(
                 registrationId,
                 client.getOrganizationByHostname(registrationId),
                 properties,
-                clientRegistrationCache
+                clientRegistrationBuilderCache
             )
         }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 GoodData Corporation
+ * Copyright 2022 GoodData Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,37 +29,57 @@ import java.time.Instant
  *
  * @param registrationId registration ID to be used
  * @param organization organization object retrieved from [AuthenticationStoreClient]
+ * @param properties static properties for being able to configure pre-configured DEX issuer
+ * @param clientRegistrationBuilderCache the cache where non-DEX client registration builders are saved
+ * for improving performance
  */
 fun buildClientRegistration(
     registrationId: String,
     organization: Organization,
     properties: HostBasedClientRegistrationRepositoryProperties,
-    clientRegistrationCache: ClientRegistrationCache,
-): ClientRegistration = (
-    organization.oauthIssuerLocation?.let {
-        val clientRegistration = clientRegistrationCache.get(it) {
+    clientRegistrationBuilderCache: ClientRegistrationBuilderCache,
+): ClientRegistration =
+    if (organization.oauthIssuerLocation != null) {
+        clientRegistrationBuilderCache.get(organization.oauthIssuerLocation) {
             ClientRegistrations
-                .fromIssuerLocation(it)
-                .build()
-        }
+                .fromIssuerLocation(organization.oauthIssuerLocation)
+        }.registrationId(registrationId)
+    } else {
         ClientRegistration
-            .withClientRegistration(clientRegistration)
-            .registrationId(registrationId)
-    } ?: ClientRegistration
-        .withRegistrationId(registrationId)
-        .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
-        .authorizationUri("${properties.remoteAddress}/dex/auth")
-        .tokenUri("${properties.localAddress}/dex/token")
-        .userInfoUri("${properties.localAddress}/dex/userinfo")
-        .userInfoAuthenticationMethod(AuthenticationMethod("header"))
-        .jwkSetUri("${properties.localAddress}/dex/keys")
-    )
-    .clientId(organization.oauthClientId)
+            .withRegistrationId(registrationId)
+            .withDexConfig(properties)
+    }.withIssuerConfig(organization).build()
+
+/**
+ * Adds the OIDC issuer configuration to this receiver.
+ *
+ * @receiver the [ClientRegistration] builder
+ * @param organization the organization containing OIDC issuer configuration
+ * @return this builder
+ */
+private fun ClientRegistration.Builder.withIssuerConfig(
+    organization: Organization,
+) = clientId(organization.oauthClientId)
     .clientSecret(organization.oauthClientSecret)
     .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
     .scope("openid", "profile")
     .userNameAttributeName("name")
-    .build()
+
+/**
+ * Adds the DEX issuer static configuration to this receiver.
+ *
+ * @receiver the [ClientRegistration] builder
+ * @param properties static properties for being able to configure pre-configured DEX issuer
+ * @return this builder
+ */
+private fun ClientRegistration.Builder.withDexConfig(
+    properties: HostBasedClientRegistrationRepositoryProperties,
+) = redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
+    .authorizationUri("${properties.remoteAddress}/dex/auth")
+    .tokenUri("${properties.localAddress}/dex/token")
+    .userInfoUri("${properties.localAddress}/dex/userinfo")
+    .userInfoAuthenticationMethod(AuthenticationMethod("header"))
+    .jwkSetUri("${properties.localAddress}/dex/keys")
 
 /**
  * Retrieves user and organization details from [AuthenticationStoreClient] for given Bearer token.
@@ -125,5 +145,5 @@ data class UserContext(
     /**
      * Flag indicating whether authentication flow should be restarted or not
      */
-    val restartAuthentication: Boolean
+    val restartAuthentication: Boolean,
 )
