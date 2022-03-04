@@ -20,7 +20,7 @@ import com.gooddata.oauth2.server.common.AuthenticationStoreClient
 import com.gooddata.oauth2.server.common.CachingProperties
 import com.gooddata.oauth2.server.common.CaffeineClientRegistrationCache
 import com.gooddata.oauth2.server.common.CaffeineJwkCache
-import com.gooddata.oauth2.server.common.ClientRegistrationCache
+import com.gooddata.oauth2.server.common.ClientRegistrationBuilderCache
 import com.gooddata.oauth2.server.common.CookieSerializer
 import com.gooddata.oauth2.server.common.CookieServiceProperties
 import com.gooddata.oauth2.server.common.CorsConfigurations
@@ -106,13 +106,13 @@ class ServerOAuth2AutoConfiguration {
     fun clientRegistrationRepository(
         client: ObjectProvider<AuthenticationStoreClient>,
         properties: HostBasedClientRegistrationRepositoryProperties,
-        clientRegistrationCache: ClientRegistrationCache,
+        clientRegistrationBuilderCache: ClientRegistrationBuilderCache,
     ): ReactiveClientRegistrationRepository =
-        HostBasedReactiveClientRegistrationRepository(client.`object`, properties, clientRegistrationCache)
+        HostBasedReactiveClientRegistrationRepository(client.`object`, properties, clientRegistrationBuilderCache)
 
-    @ConditionalOnMissingBean(ClientRegistrationCache::class)
+    @ConditionalOnMissingBean(ClientRegistrationBuilderCache::class)
     @Bean
-    fun clientRegistrationCache(cachingProperties: CachingProperties): ClientRegistrationCache =
+    fun clientRegistrationCache(cachingProperties: CachingProperties): ClientRegistrationBuilderCache =
         CaffeineClientRegistrationCache(
             cachingProperties.clientRegistrationMaxSize,
             cachingProperties.clientRegistrationExpireAfterWriteMinutes

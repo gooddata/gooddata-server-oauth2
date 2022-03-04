@@ -16,7 +16,7 @@
 package com.gooddata.oauth2.server.reactive
 
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
-import com.gooddata.oauth2.server.common.ClientRegistrationCache
+import com.gooddata.oauth2.server.common.ClientRegistrationBuilderCache
 import com.gooddata.oauth2.server.common.HostBasedClientRegistrationRepositoryProperties
 import com.gooddata.oauth2.server.common.buildClientRegistration
 import kotlinx.coroutines.Dispatchers
@@ -32,7 +32,7 @@ import reactor.core.publisher.Mono
 class HostBasedReactiveClientRegistrationRepository(
     private val client: AuthenticationStoreClient,
     private val properties: HostBasedClientRegistrationRepositoryProperties,
-    private val clientRegistrationCache: ClientRegistrationCache,
+    private val clientRegistrationBuilderCache: ClientRegistrationBuilderCache,
 ) : ReactiveClientRegistrationRepository {
 
     override fun findByRegistrationId(registrationId: String): Mono<ClientRegistration> = mono(Dispatchers.Unconfined) {
@@ -41,7 +41,7 @@ class HostBasedReactiveClientRegistrationRepository(
             registrationId,
             client.getOrganizationByHostname(registrationId),
             properties,
-            clientRegistrationCache
+            clientRegistrationBuilderCache
         )
     }
 }

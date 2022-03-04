@@ -31,7 +31,7 @@ interface Cache<K, V> {
      * @param key key
      * @param create creates/retrieves value. Its called when no value is found in cache.
      */
-    fun get(key: K, create: () -> V?): V?
+    fun get(key: K, create: () -> V): V
 }
 
 /**
@@ -56,7 +56,7 @@ abstract class CaffeineCache<K, V>(
         cache = caffeine.build()
     }
 
-    override fun get(key: K, create: () -> V?): V = cache.get(key) { create() }
+    override fun get(key: K, create: () -> V): V = cache.get(key) { create() }
 
     companion object {
         const val CACHE_MAX_SIZE: Long = 10_000
