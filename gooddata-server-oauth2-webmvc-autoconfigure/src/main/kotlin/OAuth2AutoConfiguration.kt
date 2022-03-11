@@ -35,14 +35,22 @@ import org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAu
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Import
 import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter
 import org.springframework.security.config.web.servlet.invoke
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProviderBuilder
+import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient
+import org.springframework.security.oauth2.client.endpoint.OAuth2ClientCredentialsGrantRequest
+import org.springframework.security.oauth2.client.endpoint.OAuth2PasswordGrantRequest
+import org.springframework.security.oauth2.client.endpoint.OAuth2RefreshTokenGrantRequest
 import org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository
+import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizedClientManager
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository
 import org.springframework.security.oauth2.jwt.JwtDecoderFactory
 import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationFilter
@@ -66,12 +74,13 @@ import javax.servlet.Filter
 )
 @AutoConfigureBefore(OAuth2ClientAutoConfiguration::class)
 @ConditionalOnClass(Filter::class)
+@Import(OAuth2ClientsConfiguration::class)
 class OAuth2AutoConfiguration(
     private val authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>,
     private val userContextHolder: ObjectProvider<UserContextHolder>,
     private val cookieServiceProperties: CookieServiceProperties,
     private val hostBasedClientRegistrationRepositoryProperties: HostBasedClientRegistrationRepositoryProperties,
-    private val globalCorsConfigurations: CorsConfigurations?,
+    private val globalCorsConfigurations: ObjectProvider<CorsConfigurations>,
     private val appLoginProperties: AppLoginProperties,
     private val cachingProperties: CachingProperties,
 ) : WebSecurityConfigurerAdapter() {
@@ -115,9 +124,8 @@ class OAuth2AutoConfiguration(
         CookieSecurityContextRepository(clientRegistrationRepository(), cookieService(), jwtDecoderFactory)
 
     @Bean
-    fun jwtDecoderFactory(jwkCache: JwkCache): JwtDecoderFactory<ClientRegistration> = JwkCachingDecoderFactory(
-        jwkCache
-    )
+    fun jwtDecoderFactory(jwkCache: JwkCache): JwtDecoderFactory<ClientRegistration> =
+        JwkCachingDecoderFactory(jwkCache)
 
     @ConditionalOnMissingBean(JwkCache::class)
     @Bean
@@ -125,9 +133,30 @@ class OAuth2AutoConfiguration(
         CaffeineJwkCache(cachingProperties.jwkMaxSize, cachingProperties.jwkExpireAfterWriteMinutes)
 
     @Bean
-    fun organizationCorsConfigurationSource(
-        authenticationStoreClient: AuthenticationStoreClient
-    ) = OrganizationCorsConfigurationSource(authenticationStoreClient)
+    fun organizationCorsConfigurationSource() =
+        OrganizationCorsConfigurationSource(authenticationStoreClient.`object`)
+
+    @Bean
+    fun authorizedClientManager(
+        clientRegistrationRepository: ClientRegistrationRepository,
+        authorizedClientRepository: OAuth2AuthorizedClientRepository,
+        refreshTokenTokenResponseClient: OAuth2AccessTokenResponseClient<OAuth2RefreshTokenGrantRequest>,
+        clientCredentialsTokenResponseClient: OAuth2AccessTokenResponseClient<OAuth2ClientCredentialsGrantRequest>,
+        passwordTokenResponseClient: OAuth2AccessTokenResponseClient<OAuth2PasswordGrantRequest>,
+    ): OAuth2AuthorizedClientManager {
+        val authorizedClientProvider = OAuth2AuthorizedClientProviderBuilder.builder()
+            .authorizationCode()
+            .refreshToken { it.accessTokenResponseClient(refreshTokenTokenResponseClient) }
+            .clientCredentials { it.accessTokenResponseClient(clientCredentialsTokenResponseClient) }
+            .password { it.accessTokenResponseClient(passwordTokenResponseClient) }
+            .build()
+        return DefaultOAuth2AuthorizedClientManager(
+            clientRegistrationRepository,
+            authorizedClientRepository
+        ).apply {
+            setAuthorizedClientProvider(authorizedClientProvider)
+        }
+    }
 
     @Suppress("LongMethod")
     override fun configure(http: HttpSecurity) {
@@ -170,6 +199,16 @@ class OAuth2AutoConfiguration(
                         setRequestCache(cookieRequestCache)
                     }
                 authenticationFailureHandler = OAuth2FailureHandler()
+                // We need to avoid Spring Security default RestOperations to enable Spring property based
+                // HTTP client configuration. This enables the library client to define its own values for properties
+                // like e.g. request timeouts
+                userInfoEndpoint {
+                    userService = TODO()
+                    oidcUserService = TODO()
+                }
+                tokenEndpoint {
+                    accessTokenResponseClient = TODO()
+                }
             }
             exceptionHandling {
                 authenticationEntryPoint = hostBasedAuthEntryPoint
@@ -212,11 +251,13 @@ class OAuth2AutoConfiguration(
             cors {
                 this.configurationSource = CompositeCorsConfigurationSource(
                     UrlBasedCorsConfigurationSource().apply {
-                        globalCorsConfigurations?.configurations?.forEach { (pattern, config) ->
-                            registerCorsConfiguration(pattern, config)
+                        globalCorsConfigurations.ifAvailable {
+                            it.configurations.forEach { (pattern, config) ->
+                                registerCorsConfiguration(pattern, config)
+                            }
                         }
                     },
-                    organizationCorsConfigurationSource(authenticationStoreClient.`object`),
+                    organizationCorsConfigurationSource(),
                     appLoginProperties.allowRedirect.toString()
                 )
             }
