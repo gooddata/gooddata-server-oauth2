@@ -27,11 +27,10 @@ import com.google.crypto.tink.JsonKeysetReader
 import com.ninjasquad.springmockk.MockkBean
 import io.mockk.coEvery
 import io.mockk.every
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.reactor.ReactorContext
 import kotlinx.coroutines.reactor.asCoroutineContext
-import kotlinx.coroutines.reactor.mono
 import net.javacrumbs.jsonunit.core.util.ResourceUtils
 import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
@@ -563,12 +562,10 @@ class UserContextWebFluxTest(
 
         @OptIn(ExperimentalCoroutinesApi::class)
         @GetMapping("/")
-        suspend fun getDummy(): ResponseEntity<Mono<String>> {
-            return ResponseEntity.ok(
-                mono(Dispatchers.Unconfined) {
-                    val userContext = coroutineContext[ReactorContext]?.context?.get(UserContext::class.java)!!
-                    "${userContext.userName} <${userContext.userId}@${userContext.organizationId}>"
-                }
+        suspend fun getDummy(): ResponseEntity<String> = coroutineScope {
+            val authContext = coroutineContext[ReactorContext]?.context?.get(UserContext::class.java)!!
+            ResponseEntity.ok(
+                "${authContext.userName} <${authContext.userId}@${authContext.organizationId}>"
             )
         }
     }
