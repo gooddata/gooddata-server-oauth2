@@ -25,7 +25,6 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.reactor.ReactorContext
 import org.junit.jupiter.api.Test
 import org.springframework.security.core.context.SecurityContext
@@ -42,7 +41,6 @@ import reactor.core.publisher.Mono
 import reactor.util.context.Context
 import java.time.Instant
 
-@ExperimentalCoroutinesApi
 internal class UserContextWebFilterTest {
 
     private val client: AuthenticationStoreClient = mockk()
@@ -53,7 +51,6 @@ internal class UserContextWebFilterTest {
 
     private val userContextHolder: UserContextHolder<*> = mockk()
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun `user context is stored`() {
         val idToken = OidcIdToken(

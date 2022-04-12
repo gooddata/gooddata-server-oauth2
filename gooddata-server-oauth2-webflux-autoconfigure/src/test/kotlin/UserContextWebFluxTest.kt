@@ -27,7 +27,6 @@ import com.google.crypto.tink.JsonKeysetReader
 import com.ninjasquad.springmockk.MockkBean
 import io.mockk.coEvery
 import io.mockk.every
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.reactor.ReactorContext
 import kotlinx.coroutines.reactor.asCoroutineContext
@@ -540,7 +539,6 @@ class UserContextWebFluxTest(
         val userName: String?,
     ) : AuthenticationUserContext
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     object CoroutineUserContextHolder : UserContextHolder<UserContext> {
         override suspend fun getContext(): UserContext? {
             return coroutineContext[ReactorContext]
@@ -560,7 +558,6 @@ class UserContextWebFluxTest(
     @RestController
     class DummyController {
 
-        @OptIn(ExperimentalCoroutinesApi::class)
         @GetMapping("/")
         suspend fun getDummy(): ResponseEntity<String> = coroutineScope {
             val authContext = coroutineContext[ReactorContext]?.context?.get(UserContext::class.java)!!
