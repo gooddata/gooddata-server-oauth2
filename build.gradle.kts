@@ -21,7 +21,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import pl.allegro.tech.build.axion.release.domain.TagNameSerializationConfig
 
 plugins {
-    val kotlinVersion = "1.5.30"
+    val kotlinVersion = "1.6.20"
 
     kotlin("jvm") version kotlinVersion
     kotlin("plugin.spring") version kotlinVersion apply false
@@ -29,12 +29,12 @@ plugins {
     idea
     `maven-publish`
 
-    id("com.adarshr.test-logger") version "2.1.1"
-    id("io.gitlab.arturbosch.detekt") version "1.14.2"
+    id("com.adarshr.test-logger") version "3.2.0"
+    id("io.gitlab.arturbosch.detekt") version "1.20.0-RC2"
     id("io.spring.dependency-management") version "1.0.11.RELEASE"
     id("org.datlowe.maven-publish-auth") version "2.0.2" apply false
-    id("org.springframework.boot") version "2.5.12" apply false
-    id("pl.allegro.tech.build.axion-release") version "1.13.1"
+    id("org.springframework.boot") version "2.6.6" apply false
+    id("pl.allegro.tech.build.axion-release") version "1.13.6"
 }
 
 scmVersion {
@@ -157,7 +157,7 @@ subprojects {
         withType<KotlinCompile> {
             kotlinOptions {
                 freeCompilerArgs =
-                    listOf("-Xjsr305=strict", "-Xopt-in=kotlin.RequiresOptIn", "-Xallow-result-return-type")
+                    listOf("-Xjsr305=strict", "-opt-in=kotlin.RequiresOptIn", "-Xallow-result-return-type")
                 jvmTarget = "11"
             }
         }

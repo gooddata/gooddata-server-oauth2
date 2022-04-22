@@ -47,7 +47,7 @@ import javax.servlet.Filter
     CachingProperties::class
 )
 @ConditionalOnClass(Filter::class)
-@Import(OAuth2ConfigurerAdapter::class)
+@Import(OAuth2SecurityConfiguration::class)
 class OAuth2AutoConfiguration {
     /**
      * This cannot be on top-level configuration class as annotation would be processed even though configuration
