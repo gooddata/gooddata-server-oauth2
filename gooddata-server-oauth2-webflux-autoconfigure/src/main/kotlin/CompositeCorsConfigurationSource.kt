@@ -36,6 +36,13 @@ class CompositeCorsConfigurationSource(
 ) : CorsConfigurationSource {
 
     override fun getCorsConfiguration(exchange: ServerWebExchange): CorsConfiguration? =
-        corsConfigurationSource.getCorsConfiguration(exchange) ?: organizationCorsConfigurationSource
-            .getOrganizationCorsConfiguration(exchange.request.uri.host) ?: allowRedirect.toCorsConfiguration()
+        corsConfigurationSource.getCorsConfiguration(exchange)
+            ?: getOrganizationConfiguration(exchange) ?: allowRedirect.toCorsConfiguration()
+
+    private fun getOrganizationConfiguration(
+        exchange: ServerWebExchange
+    ) = when (val host = exchange.request.uri.host) {
+            null -> null
+            else -> organizationCorsConfigurationSource.getOrganizationCorsConfiguration(host)
+        }
 }
