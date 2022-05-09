@@ -26,6 +26,7 @@ import com.gooddata.oauth2.server.common.CookieServiceProperties
 import com.gooddata.oauth2.server.common.CorsConfigurations
 import com.gooddata.oauth2.server.common.HostBasedClientRegistrationRepositoryProperties
 import com.gooddata.oauth2.server.common.JwkCache
+import com.gooddata.oauth2.server.common.OPEN_API_SCHEMA_PATTERN
 import com.gooddata.oauth2.server.common.OrganizationCorsConfigurationSource
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfigureBefore
@@ -55,6 +56,7 @@ import org.springframework.security.web.server.util.matcher.NegatedServerWebExch
 import org.springframework.security.web.server.util.matcher.OrServerWebExchangeMatcher
 import org.springframework.security.web.server.util.matcher.PathPatternParserServerWebExchangeMatcher
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers.pathMatchers
+import org.springframework.security.web.util.matcher.RegexRequestMatcher
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource
 import org.springframework.web.reactive.config.EnableWebFlux
 import java.net.URI
@@ -192,7 +194,7 @@ class ServerOAuth2AutoConfiguration {
                         PathPatternParserServerWebExchangeMatcher("/actuator"),
                         PathPatternParserServerWebExchangeMatcher("/actuator/**"),
                         PathPatternParserServerWebExchangeMatcher("/login"),
-                        PathPatternParserServerWebExchangeMatcher("/api/schemas/*", HttpMethod.GET),
+                        RegexServerWebExchangeMatcher(OPEN_API_SCHEMA_PATTERN.toRegex(), HttpMethod.GET),
                         PathPatternParserServerWebExchangeMatcher("/error", HttpMethod.GET),
                     )
                 ).matches(it)

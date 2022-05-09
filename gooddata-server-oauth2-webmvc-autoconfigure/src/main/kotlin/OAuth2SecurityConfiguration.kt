@@ -18,6 +18,7 @@ package com.gooddata.oauth2.server.servlet
 import com.gooddata.oauth2.server.common.AppLoginProperties
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
 import com.gooddata.oauth2.server.common.CorsConfigurations
+import com.gooddata.oauth2.server.common.OPEN_API_SCHEMA_PATTERN
 import com.gooddata.oauth2.server.common.OrganizationCorsConfigurationSource
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfigureBefore
@@ -43,6 +44,7 @@ import org.springframework.security.web.context.SecurityContextRepository
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher
 import org.springframework.security.web.util.matcher.NegatedRequestMatcher
 import org.springframework.security.web.util.matcher.OrRequestMatcher
+import org.springframework.security.web.util.matcher.RegexRequestMatcher
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 
 @Configuration
@@ -92,7 +94,7 @@ class OAuth2SecurityConfiguration(
                         AntPathRequestMatcher("/actuator"),
                         AntPathRequestMatcher("/actuator/**"),
                         AntPathRequestMatcher("/login"),
-                        AntPathRequestMatcher("/api/schemas/*", HttpMethod.GET.name),
+                        RegexRequestMatcher(OPEN_API_SCHEMA_PATTERN, HttpMethod.GET.name),
                         AntPathRequestMatcher("/error", HttpMethod.GET.name),
                     )
                 )
