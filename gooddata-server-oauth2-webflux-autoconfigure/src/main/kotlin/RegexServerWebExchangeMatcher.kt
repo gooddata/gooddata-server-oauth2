@@ -15,10 +15,10 @@
  */
 package com.gooddata.oauth2.server.reactive
 
-import org.springframework.http.HttpMethod;
-import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher;
-import org.springframework.web.server.ServerWebExchange;
-import reactor.core.publisher.Mono;
+import org.springframework.http.HttpMethod
+import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher
+import org.springframework.web.server.ServerWebExchange
+import reactor.core.publisher.Mono
 
 /**
  * Match HTTP request against expected protocol and regex path pattern

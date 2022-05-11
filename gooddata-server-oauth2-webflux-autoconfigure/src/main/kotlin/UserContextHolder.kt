@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server.reactive
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.reactor.ReactorContext
 
 /**
@@ -23,6 +24,7 @@ import kotlinx.coroutines.reactor.ReactorContext
  *
  * Created context is passed as a coroutine context to subsequent filter calls.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 interface UserContextHolder<UserContextT : AuthenticationUserContext> {
 
     /**

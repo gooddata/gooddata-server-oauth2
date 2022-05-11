@@ -24,18 +24,15 @@ import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfigureBefore
 import org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
-import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.core.Ordered
-import org.springframework.core.annotation.Order
 import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter
 import org.springframework.security.config.web.servlet.invoke
 import org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository
 import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationFilter
-import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.access.ExceptionTranslationFilter
 import org.springframework.security.web.authentication.logout.CompositeLogoutHandler
 import org.springframework.security.web.authentication.logout.LogoutFilter
@@ -52,7 +49,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
     AppLoginProperties::class,
 )
 @AutoConfigureBefore(OAuth2ClientAutoConfiguration::class)
-class OAuth2SecurityConfiguration(
+class OAuth2ConfigurerAdapter(
     private val authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>,
     private val userContextHolder: ObjectProvider<UserContextHolder>,
     private val globalCorsConfigurations: CorsConfigurations?,
@@ -62,19 +59,10 @@ class OAuth2SecurityConfiguration(
     private val securityContextRepository: SecurityContextRepository,
     private val clientRegistrationRepository: ClientRegistrationRepository,
     private val organizationCorsConfigurationSource: OrganizationCorsConfigurationSource,
-) {
+) : WebSecurityConfigurerAdapter() {
 
-    /**
-     * Workaround - @Order(Ordered.HIGHEST_PRECEDENCE)
-     * This bean needs to be initialized before "managementSecurityFilterChain" from spring-security, otherwise
-     * the defaults overwrite the definitions specified here. This is possibly a bug in spring-security,
-     * as ConditionalOnDefaultWebSecurity annotation should prevent the default securityFilterChain from
-     * being registered if there is a custom one, but the default bean gets registered anyway.
-     */
     @Suppress("LongMethod")
-    @Bean
-    @Order(Ordered.HIGHEST_PRECEDENCE)
-    fun filterChain(http: HttpSecurity): SecurityFilterChain {
+    override fun configure(http: HttpSecurity) {
         val cookieRequestCache = CookieRequestCache(cookieService)
         val oAuth2AuthorizedClientRepository = authorizedClientRepository
         val hostBasedAuthEntryPoint = HostBasedAuthenticationEntryPoint(cookieRequestCache)
@@ -137,15 +125,19 @@ class OAuth2SecurityConfiguration(
                 addLogoutHandler(logoutHandler)
                 logoutRequestMatcher = AntPathRequestMatcher("/logout", "GET")
             }
-            addFilterBefore<LogoutFilter>(PostLogoutNotAllowedFilter())
-            addFilterBefore<BearerTokenAuthenticationFilter>(ResponseStatusExceptionHandlingFilter())
-            addFilterAfter<ExceptionTranslationFilter>(
+            addFilterBefore(PostLogoutNotAllowedFilter(), LogoutFilter::class.java)
+            addFilterBefore(
+                ResponseStatusExceptionHandlingFilter(),
+                BearerTokenAuthenticationFilter::class.java,
+            )
+            addFilterAfter(
                 UserContextFilter(
                     authenticationStoreClient.`object`,
                     hostBasedAuthEntryPoint,
                     logoutHandler,
                     userContextHolder.`object`
-                )
+                ),
+                ExceptionTranslationFilter::class.java
             )
             oauth2Client {}
             cors {
@@ -160,6 +152,5 @@ class OAuth2SecurityConfiguration(
                 )
             }
         }
-        return http.build()
     }
 }

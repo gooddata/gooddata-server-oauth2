@@ -56,7 +56,6 @@ import org.springframework.security.web.server.util.matcher.NegatedServerWebExch
 import org.springframework.security.web.server.util.matcher.OrServerWebExchangeMatcher
 import org.springframework.security.web.server.util.matcher.PathPatternParserServerWebExchangeMatcher
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers.pathMatchers
-import org.springframework.security.web.util.matcher.RegexRequestMatcher
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource
 import org.springframework.web.reactive.config.EnableWebFlux
 import java.net.URI
