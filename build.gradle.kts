@@ -157,7 +157,7 @@ subprojects {
         withType<KotlinCompile> {
             kotlinOptions {
                 freeCompilerArgs =
-                    listOf("-Xjsr305=strict", "-opt-in=kotlin.RequiresOptIn", "-Xallow-result-return-type")
+                    listOf("-Xjsr305=strict", "-Xopt-in=kotlin.RequiresOptIn", "-Xallow-result-return-type")
                 jvmTarget = "11"
             }
         }
