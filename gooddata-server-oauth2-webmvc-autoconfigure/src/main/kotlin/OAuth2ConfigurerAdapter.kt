@@ -125,15 +125,19 @@ class OAuth2ConfigurerAdapter(
                 addLogoutHandler(logoutHandler)
                 logoutRequestMatcher = AntPathRequestMatcher("/logout", "GET")
             }
-            addFilterBefore<LogoutFilter>(PostLogoutNotAllowedFilter())
-            addFilterBefore<BearerTokenAuthenticationFilter>(ResponseStatusExceptionHandlingFilter())
-            addFilterAfter<ExceptionTranslationFilter>(
+            addFilterBefore(PostLogoutNotAllowedFilter(), LogoutFilter::class.java)
+            addFilterBefore(
+                ResponseStatusExceptionHandlingFilter(),
+                BearerTokenAuthenticationFilter::class.java,
+            )
+            addFilterAfter(
                 UserContextFilter(
                     authenticationStoreClient.`object`,
                     hostBasedAuthEntryPoint,
                     logoutHandler,
                     userContextHolder.`object`
-                )
+                ),
+                ExceptionTranslationFilter::class.java
             )
             oauth2Client {}
             cors {

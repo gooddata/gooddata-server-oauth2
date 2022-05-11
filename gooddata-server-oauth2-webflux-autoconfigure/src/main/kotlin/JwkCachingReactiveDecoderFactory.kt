@@ -78,7 +78,7 @@ class JwkCachingReactiveDecoderFactory(
             }
         }.apply {
             if (jwtValidatorFactory != null) {
-                setJwtValidator(jwtValidatorFactory.invoke(context))
+                setJwtValidator(jwtValidatorFactory?.invoke(context))
             }
         }
     }

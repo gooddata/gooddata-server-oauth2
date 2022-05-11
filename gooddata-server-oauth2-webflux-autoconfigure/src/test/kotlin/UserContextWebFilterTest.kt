@@ -42,7 +42,6 @@ import reactor.core.publisher.Mono
 import reactor.util.context.Context
 import java.time.Instant
 
-@ExperimentalCoroutinesApi
 internal class UserContextWebFilterTest {
 
     private val client: AuthenticationStoreClient = mockk()
