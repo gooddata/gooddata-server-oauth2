@@ -16,10 +16,8 @@
 package com.gooddata.oauth2.server.reactive
 
 import com.gooddata.oauth2.server.common.OPEN_API_SCHEMA_PATTERN
-import io.mockk.mockk
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
-import org.springframework.web.server.ServerWebExchange
 import strikt.api.expectThat
 import strikt.assertions.isFalse
 import strikt.assertions.isTrue

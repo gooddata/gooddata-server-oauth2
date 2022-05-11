@@ -40,7 +40,7 @@ class CompositeCorsConfigurationSourceTest {
         every { request.uri } returns URI("http", null, "/path", null)
         every { exchange.request } returns request
 
-       expectAllowedHosts()
+        expectAllowedHosts()
     }
 
     @Test
