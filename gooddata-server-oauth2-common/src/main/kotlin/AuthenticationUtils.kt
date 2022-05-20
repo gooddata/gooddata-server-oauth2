@@ -158,6 +158,18 @@ suspend fun getUserContextForAuthenticationToken(
 }
 
 /**
+ * Remove illegal characters from string according to OAuth2 specification
+ */
+fun String.removeIllegalCharacters(): String = filter(::isLegalChar)
+
+/**
+ * Detect if character is legal according to OAuth2 specification
+ */
+@Suppress("MagicNumber")
+private fun isLegalChar(c: Char): Boolean =
+    (c.code <= 0x7f) && (c.code in 0x20..0x21 || c.code in 0x23..0x5b || c.code in 0x5d..0x7e)
+
+/**
  * Organization and user unless global logout has been triggered or no user has been retrieved.
  */
 data class UserContext(

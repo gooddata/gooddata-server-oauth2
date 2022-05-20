@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server.reactive
 
+import com.gooddata.oauth2.server.common.removeIllegalCharacters
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.AuthenticationException
@@ -28,13 +29,17 @@ import reactor.core.publisher.Mono
  */
 class ServerOAuth2FailureHandler : ServerAuthenticationFailureHandler {
 
-    override fun onAuthenticationFailure(exchange: WebFilterExchange, exception: AuthenticationException): Mono<Void> =
-        exchange.setResponse(
+    override fun onAuthenticationFailure(exchange: WebFilterExchange, exception: AuthenticationException): Mono<Void> {
+        val errorDescription = exchange.getRequestErrorDescription()
+            ?: exception.message?.nullIfBlank()?.removeIllegalCharacters()
+            ?: DEFAULT_ERROR_DESCRIPTION
+        return exchange.setResponse(
             HttpStatus.UNAUTHORIZED,
-            "Unable to authenticate: ${exchange.getRequestErrorCode()}: ${exchange.getRequestErrorDescription()}"
+            "Unable to authenticate: ${exchange.getRequestErrorCode()}: $errorDescription"
         )
+    }
 
-    private fun WebFilterExchange.setResponse(responseStatus: HttpStatus, headerMessage: String) =
+    private fun WebFilterExchange.setResponse(responseStatus: HttpStatus, headerMessage: String): Mono<Void> =
         exchange.response.apply {
             statusCode = responseStatus
             headers.add(HttpHeaders.WWW_AUTHENTICATE, headerMessage)
@@ -43,11 +48,13 @@ class ServerOAuth2FailureHandler : ServerAuthenticationFailureHandler {
     private fun WebFilterExchange.getRequestErrorCode(): String =
         getRequestParam(OAuth2ParameterNames.ERROR) ?: OAuth2ParameterNames.ERROR
 
-    private fun WebFilterExchange.getRequestErrorDescription(): String =
-        getRequestParam(OAuth2ParameterNames.ERROR_DESCRIPTION) ?: DEFAULT_ERROR_DESCRIPTION
+    private fun WebFilterExchange.getRequestErrorDescription(): String? =
+        getRequestParam(OAuth2ParameterNames.ERROR_DESCRIPTION)
 
     private fun WebFilterExchange.getRequestParam(paramName: String) =
         exchange.request.queryParams.toSingleValueMap()[paramName]
+
+    private fun String?.nullIfBlank(): String? = this?.let { it.ifBlank { null } }
 
     companion object {
         private const val DEFAULT_ERROR_DESCRIPTION = "Authentication failed"
