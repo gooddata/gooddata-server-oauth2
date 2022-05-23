@@ -41,7 +41,6 @@ import org.springframework.security.web.context.SecurityContextRepository
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher
 import org.springframework.security.web.util.matcher.NegatedRequestMatcher
 import org.springframework.security.web.util.matcher.OrRequestMatcher
-import org.springframework.security.web.util.matcher.RegexRequestMatcher
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 
 @Configuration
@@ -82,8 +81,8 @@ class OAuth2ConfigurerAdapter(
                         AntPathRequestMatcher("/actuator"),
                         AntPathRequestMatcher("/actuator/**"),
                         AntPathRequestMatcher("/login"),
-                        RegexRequestMatcher(OPEN_API_SCHEMA_PATTERN, HttpMethod.GET.name),
                         AntPathRequestMatcher("/error", HttpMethod.GET.name),
+                        AntPathRequestMatcher(OPEN_API_SCHEMA_PATTERN, HttpMethod.GET.name),
                     )
                 )
             )
@@ -125,19 +124,15 @@ class OAuth2ConfigurerAdapter(
                 addLogoutHandler(logoutHandler)
                 logoutRequestMatcher = AntPathRequestMatcher("/logout", "GET")
             }
-            addFilterBefore(PostLogoutNotAllowedFilter(), LogoutFilter::class.java)
-            addFilterBefore(
-                ResponseStatusExceptionHandlingFilter(),
-                BearerTokenAuthenticationFilter::class.java,
-            )
-            addFilterAfter(
+            addFilterBefore<LogoutFilter>(PostLogoutNotAllowedFilter())
+            addFilterBefore<BearerTokenAuthenticationFilter>(ResponseStatusExceptionHandlingFilter())
+            addFilterAfter<ExceptionTranslationFilter>(
                 UserContextFilter(
                     authenticationStoreClient.`object`,
                     hostBasedAuthEntryPoint,
                     logoutHandler,
                     userContextHolder.`object`
-                ),
-                ExceptionTranslationFilter::class.java
+                )
             )
             oauth2Client {}
             cors {
