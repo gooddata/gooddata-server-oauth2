@@ -41,7 +41,6 @@ import org.springframework.security.web.context.SecurityContextRepository
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher
 import org.springframework.security.web.util.matcher.NegatedRequestMatcher
 import org.springframework.security.web.util.matcher.OrRequestMatcher
-import org.springframework.security.web.util.matcher.RegexRequestMatcher
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 
 @Configuration
@@ -82,8 +81,8 @@ class OAuth2ConfigurerAdapter(
                         AntPathRequestMatcher("/actuator"),
                         AntPathRequestMatcher("/actuator/**"),
                         AntPathRequestMatcher("/login"),
-                        RegexRequestMatcher(OPEN_API_SCHEMA_PATTERN, HttpMethod.GET.name),
                         AntPathRequestMatcher("/error", HttpMethod.GET.name),
+                        AntPathRequestMatcher(OPEN_API_SCHEMA_PATTERN, HttpMethod.GET.name),
                     )
                 )
             )

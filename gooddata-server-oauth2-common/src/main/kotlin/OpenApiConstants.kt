@@ -15,4 +15,4 @@
  */
 package com.gooddata.oauth2.server.common
 
-const val OPEN_API_SCHEMA_PATTERN = """^/api/(v\d+/)?schemas/"""
+const val OPEN_API_SCHEMA_PATTERN = """/api/{version:v\d+}/schemas/*"""

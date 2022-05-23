@@ -193,8 +193,8 @@ class ServerOAuth2AutoConfiguration {
                         PathPatternParserServerWebExchangeMatcher("/actuator"),
                         PathPatternParserServerWebExchangeMatcher("/actuator/**"),
                         PathPatternParserServerWebExchangeMatcher("/login"),
-                        RegexServerWebExchangeMatcher(OPEN_API_SCHEMA_PATTERN.toRegex(), HttpMethod.GET),
                         PathPatternParserServerWebExchangeMatcher("/error", HttpMethod.GET),
+                        PathPatternParserServerWebExchangeMatcher(OPEN_API_SCHEMA_PATTERN, HttpMethod.GET),
                     )
                 ).matches(it)
             }

@@ -26,6 +26,7 @@ import com.gooddata.oauth2.server.common.CookieServiceProperties
 import com.gooddata.oauth2.server.common.CorsConfigurations
 import com.gooddata.oauth2.server.common.HostBasedClientRegistrationRepositoryProperties
 import com.gooddata.oauth2.server.common.JwkCache
+import com.gooddata.oauth2.server.common.OPEN_API_SCHEMA_PATTERN
 import com.gooddata.oauth2.server.common.OrganizationCorsConfigurationSource
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfigureBefore
@@ -151,8 +152,8 @@ class OAuth2AutoConfiguration(
                         AntPathRequestMatcher("/actuator"),
                         AntPathRequestMatcher("/actuator/**"),
                         AntPathRequestMatcher("/login"),
-                        AntPathRequestMatcher("/api/schemas/*", HttpMethod.GET.name),
                         AntPathRequestMatcher("/error", HttpMethod.GET.name),
+                        AntPathRequestMatcher(OPEN_API_SCHEMA_PATTERN, HttpMethod.GET.name),
                     )
                 )
             )
