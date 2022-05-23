@@ -24,15 +24,16 @@ import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfigureBefore
 import org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter
 import org.springframework.security.config.web.servlet.invoke
 import org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository
 import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationFilter
+import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.access.ExceptionTranslationFilter
 import org.springframework.security.web.authentication.logout.CompositeLogoutHandler
 import org.springframework.security.web.authentication.logout.LogoutFilter
@@ -48,7 +49,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
     AppLoginProperties::class,
 )
 @AutoConfigureBefore(OAuth2ClientAutoConfiguration::class)
-class OAuth2ConfigurerAdapter(
+class OAuth2SecurityConfiguration(
     private val authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>,
     private val userContextHolder: ObjectProvider<UserContextHolder>,
     private val globalCorsConfigurations: CorsConfigurations?,
@@ -58,10 +59,11 @@ class OAuth2ConfigurerAdapter(
     private val securityContextRepository: SecurityContextRepository,
     private val clientRegistrationRepository: ClientRegistrationRepository,
     private val organizationCorsConfigurationSource: OrganizationCorsConfigurationSource,
-) : WebSecurityConfigurerAdapter() {
+) {
 
     @Suppress("LongMethod")
-    override fun configure(http: HttpSecurity) {
+    @Bean
+    fun filterChain(http: HttpSecurity): SecurityFilterChain {
         val cookieRequestCache = CookieRequestCache(cookieService)
         val oAuth2AuthorizedClientRepository = authorizedClientRepository
         val hostBasedAuthEntryPoint = HostBasedAuthenticationEntryPoint(cookieRequestCache)
@@ -147,5 +149,6 @@ class OAuth2ConfigurerAdapter(
                 )
             }
         }
+        return http.build()
     }
 }
