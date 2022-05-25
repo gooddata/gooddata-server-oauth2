@@ -75,14 +75,42 @@ interface AuthenticationStoreClient {
     suspend fun getCookieSecurityProperties(organizationId: String): CookieSecurityProperties
 }
 
+/**
+ * Represents the single organization stored in the persistent storage and having its hostname and own specific OAuth
+ * settings.
+ *
+ * @property id the ID of this organization within the persistent storage
+ * @property oauthIssuerLocation the location URL of the OAuth issuer
+ * @property oauthClientId the identifier of the application registered in the OAuth issuer
+ * @property oauthClientSecret the secret of the application registered in the OAuth issuer
+ * @property allowedOrigins the list of hosts (origins) for which
+ * * the successful application login is allowed to redirect
+ * * the CORS requests are allowed
+ * @property oauthIssuerId the ID of the OAuth issuer. This value is used as suffix for OAuth callback (redirect) URL.
+ * If not defined (`null` value), the standard callback URL is used. Defaults to `null`.
+ * * callback URL with this value: `<hostUrl>/<action>/oauth2/code/<oauthIssuerId>`
+ * * standard callback URL: `<hostUrl>/<action>/oauth2/code/<registrationId>` (see
+ * [org.springframework.security.oauth2.client.registration.ClientRegistration])
+ *
+ * @see AuthenticationStoreClient
+ */
 data class Organization(
     val id: String,
     val oauthIssuerLocation: String? = null,
     val oauthClientId: String? = null,
     val oauthClientSecret: String? = null,
     val allowedOrigins: List<String>? = null,
+    val oauthIssuerId: String? = null,
 )
 
+/**
+ * Represents authenticated end-user (principal) stored in the persistent storage.
+ *
+ * @property id the ID of this end-user within the persistent storage
+ * @property lastLogoutAllTimestamp timestamp, when this end-user hit "Logout From All Sessions" last time
+ *
+ * @see AuthenticationStoreClient
+ */
 data class User(
     val id: String,
     val lastLogoutAllTimestamp: Instant? = null,

@@ -24,6 +24,8 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import strikt.api.expect
+import strikt.api.expectThat
+import strikt.assertions.endsWith
 import strikt.assertions.isEqualTo
 
 internal class AuthenticationUtilsTest {
@@ -86,6 +88,23 @@ internal class AuthenticationUtilsTest {
                 get { registrationId }.isEqualTo(REGISTRATION_ID)
                 get { clientId }.isEqualTo(CLIENT_ID)
             }
+        }
+    }
+
+    @Test
+    fun `build client registration with custom redirect uri`() {
+        val customIssuerId = "someCustomIssuerId"
+        organization = Organization(
+            id = ORGANIZATION_ID,
+            oauthClientId = CLIENT_ID,
+            oauthIssuerLocation = mockOidcIssuer(),
+            oauthIssuerId = customIssuerId,
+        )
+
+        expectThat(buildClientRegistration(REGISTRATION_ID, organization, properties, clientRegistrationBuilderCache)) {
+            get { registrationId }.isEqualTo(REGISTRATION_ID)
+            get { clientId }.isEqualTo(CLIENT_ID)
+            get { redirectUri }.endsWith(customIssuerId)
         }
     }
 
