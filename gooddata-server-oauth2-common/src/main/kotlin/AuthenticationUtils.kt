@@ -25,6 +25,19 @@ import org.springframework.security.oauth2.server.resource.BearerTokenAuthentica
 import java.time.Instant
 
 /**
+ * Constants for OAuth type authentication which are not directly available in the Spring Security.
+ */
+object OAuthConstants {
+    /**
+     * Base URL path with placeholders (`{baseUrl}`, `{action}`) for the OAuth redirect URL (`redirect_uri`).
+     *
+     * @see org.springframework.security.config.oauth2.client.CommonOAuth2Provider
+     * @see ClientRegistration
+     */
+    const val REDIRECT_URL_BASE = "{baseUrl}/{action}/oauth2/code/"
+}
+
+/**
  * Builds [ClientRegistration] from [Organization] retrieved from [AuthenticationStoreClient].
  *
  * @param registrationId registration ID to be used
@@ -43,12 +56,26 @@ fun buildClientRegistration(
         clientRegistrationBuilderCache.get(organization.oauthIssuerLocation) {
             ClientRegistrations
                 .fromIssuerLocation(organization.oauthIssuerLocation)
-        }.registrationId(registrationId)
+        }
+            .registrationId(registrationId)
+            .withRedirectUri(organization.oauthIssuerId)
     } else {
         ClientRegistration
             .withRegistrationId(registrationId)
             .withDexConfig(properties)
     }.withIssuerConfig(organization).build()
+
+/**
+ * Adds the redirect URL to this receiver in the case the [oauthIssuerId] is defined, otherwise the default value
+ * for this receiver is used.
+ *
+ * @receiver the [ClientRegistration] builder
+ * @param oauthIssuerId the OAuth Issuer ID, can be `null`
+ * @return updated receiver
+ */
+private fun ClientRegistration.Builder.withRedirectUri(oauthIssuerId: String?) = if (oauthIssuerId != null) {
+    redirectUri("${OAuthConstants.REDIRECT_URL_BASE}/$oauthIssuerId")
+} else this
 
 /**
  * Adds the OIDC issuer configuration to this receiver.
