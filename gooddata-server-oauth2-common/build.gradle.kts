@@ -42,14 +42,14 @@ dependencies {
     api("io.netty:netty-codec-http")
     api("org.springframework:spring-web")
     api("org.springframework.boot:spring-boot")
-    api("org.springframework.security:spring-security-oauth2-client")
-    api("org.springframework.security:spring-security-oauth2-resource-server")
+    api("org.springframework.security:spring-security-oauth2-client:5.6.2")
+    api("org.springframework.security:spring-security-oauth2-resource-server:5.6.2")
 
     implementation("com.google.crypto.tink:tink:${tinkVersion}")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${kotlinCoroutinesVersion}")
     implementation("io.github.microutils:kotlin-logging:${kotlinLoggingVersion}")
-    implementation("org.springframework.security:spring-security-oauth2-jose")
+    implementation("org.springframework.security:spring-security-oauth2-jose:5.6.2")
     implementation("com.github.ben-manes.caffeine:caffeine:3.0.3")
 
     testImplementation("io.strikt:strikt-core")
