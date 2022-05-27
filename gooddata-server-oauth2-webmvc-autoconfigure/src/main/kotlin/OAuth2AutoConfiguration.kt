@@ -22,6 +22,7 @@ import com.gooddata.oauth2.server.common.HostBasedClientRegistrationRepositoryPr
 import com.gooddata.oauth2.server.common.CookieSerializer
 import com.gooddata.oauth2.server.common.ClientRegistrationBuilderCache
 import com.gooddata.oauth2.server.common.CaffeineClientRegistrationCache
+import com.gooddata.oauth2.server.common.CaffeineJwkCache
 import com.gooddata.oauth2.server.common.JwkCache
 import com.gooddata.oauth2.server.common.OrganizationCorsConfigurationSource
 import org.springframework.beans.factory.ObjectProvider
