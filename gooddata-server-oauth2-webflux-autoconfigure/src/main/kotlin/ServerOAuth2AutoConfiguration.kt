@@ -37,13 +37,21 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpMethod
+import org.springframework.security.authentication.DelegatingReactiveAuthenticationManager
+import org.springframework.security.authentication.ReactiveAuthenticationManager
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder
 import org.springframework.security.config.web.server.ServerHttpSecurity
 import org.springframework.security.config.web.server.invoke
+import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper
+import org.springframework.security.oauth2.client.authentication.OAuth2LoginReactiveAuthenticationManager
+import org.springframework.security.oauth2.client.endpoint.WebClientReactiveAuthorizationCodeTokenResponseClient
+import org.springframework.security.oauth2.client.oidc.authentication.OidcAuthorizationCodeReactiveAuthenticationManager
+import org.springframework.security.oauth2.client.oidc.userinfo.OidcReactiveOAuth2UserService
 import org.springframework.security.oauth2.client.oidc.web.server.logout.OidcClientInitiatedServerLogoutSuccessHandler
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository
+import org.springframework.security.oauth2.client.userinfo.DefaultReactiveOAuth2UserService
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizedClientRepository
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoderFactory
 import org.springframework.security.web.server.SecurityWebFilterChain
@@ -56,6 +64,7 @@ import org.springframework.security.web.server.util.matcher.NegatedServerWebExch
 import org.springframework.security.web.server.util.matcher.OrServerWebExchangeMatcher
 import org.springframework.security.web.server.util.matcher.PathPatternParserServerWebExchangeMatcher
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers.pathMatchers
+import org.springframework.util.ClassUtils
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource
 import org.springframework.web.reactive.config.EnableWebFlux
 import java.net.URI
@@ -168,6 +177,8 @@ class ServerOAuth2AutoConfiguration {
         appLoginProperties: AppLoginProperties,
         userContextHolder: ObjectProvider<UserContextHolder<*>>,
         compositeCorsConfigurationSource: CompositeCorsConfigurationSource,
+        grantedAuthoritiesMapper: ObjectProvider<GrantedAuthoritiesMapper>,
+        jwtDecoderFactory: ObjectProvider<ReactiveJwtDecoderFactory<ClientRegistration>>,
     ): SecurityWebFilterChain {
         val cookieServerRequestCache = CookieServerRequestCache(cookieService)
         val hostBasedAuthEntryPoint = HostBasedServerAuthenticationEntryPoint(cookieServerRequestCache)
@@ -177,7 +188,9 @@ class ServerOAuth2AutoConfiguration {
             },
             ServerLogoutHandler { exchange, authentication ->
                 oauth2ClientRepository.removeAuthorizedClient(
-                    exchange.exchange.request.uri.host, authentication, exchange.exchange
+                    exchange.exchange.request.uri.host,
+                    authentication,
+                    exchange.exchange
                 )
             }
         )
@@ -214,6 +227,7 @@ class ServerOAuth2AutoConfiguration {
                 authorizationRequestRepository = CookieServerAuthorizationRequestRepository(cookieService)
                 authorizedClientRepository = oauth2ClientRepository
                 authenticationFailureHandler = ServerOAuth2FailureHandler()
+                authenticationManager = createLoginAuthManager(grantedAuthoritiesMapper, jwtDecoderFactory)
             }
             exceptionHandling {
                 authenticationEntryPoint = hostBasedAuthEntryPoint
@@ -262,5 +276,47 @@ class ServerOAuth2AutoConfiguration {
             }
             oauth2Client {}
         }
+    }
+
+    private fun accessTokenResponseClient(): WebClientReactiveAuthorizationCodeTokenResponseClient {
+        val accessTokenResponseClient = WebClientReactiveAuthorizationCodeTokenResponseClient()
+        val bodyExtractor = SafeOAuth2AccessTokenResponseBodyExtractor()
+        accessTokenResponseClient.setBodyExtractor(bodyExtractor)
+        return accessTokenResponseClient
+    }
+
+    /**
+     * Original:
+     * [org.springframework.security.config.web.server.ServerHttpSecurity.OAuth2LoginSpec.createDefault]
+     */
+    private fun createLoginAuthManager(
+        grantedAuthoritiesMapper: ObjectProvider<GrantedAuthoritiesMapper>,
+        jwtDecoderFactory: ObjectProvider<ReactiveJwtDecoderFactory<ClientRegistration>>,
+    ): ReactiveAuthenticationManager {
+        val accessTokenResponseClient = accessTokenResponseClient()
+        val oauth2UserService = DefaultReactiveOAuth2UserService()
+        val oauth2Manager = OAuth2LoginReactiveAuthenticationManager(accessTokenResponseClient, oauth2UserService)
+        val authoritiesMapper = grantedAuthoritiesMapper.ifAvailable
+        if (authoritiesMapper != null) {
+            oauth2Manager.setAuthoritiesMapper(authoritiesMapper)
+        }
+        val oidcAuthenticationProviderEnabled = ClassUtils.isPresent(
+            "org.springframework.security.oauth2.jwt.JwtDecoder",
+            this.javaClass.classLoader
+        )
+        if (!oidcAuthenticationProviderEnabled) {
+            return oauth2Manager
+        }
+        val oidc = OidcAuthorizationCodeReactiveAuthenticationManager(
+            accessTokenResponseClient,
+            OidcReactiveOAuth2UserService()
+        )
+        jwtDecoderFactory.ifAvailable?.let {
+            oidc.setJwtDecoderFactory(it)
+        }
+        if (authoritiesMapper != null) {
+            oidc.setAuthoritiesMapper(authoritiesMapper)
+        }
+        return DelegatingReactiveAuthenticationManager(oidc, oauth2Manager)
     }
 }
