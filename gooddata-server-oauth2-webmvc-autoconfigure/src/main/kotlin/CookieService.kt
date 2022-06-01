@@ -25,6 +25,7 @@ import java.time.Duration
 import javax.servlet.http.Cookie
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
+import org.springframework.security.web.context.HttpRequestResponseHolder
 
 private val logger = KotlinLogging.logger {}
 
@@ -61,6 +62,14 @@ class CookieService(
     fun invalidateCookie(request: HttpServletRequest, response: HttpServletResponse, name: String) {
         val cookie = createResponseCookie(request, name, null, Duration.ZERO)
         response.addCookie(cookie)
+    }
+
+    /**
+     * Invalidates response cookie with given name - e.g. stores cookie with given name to response
+     * and sets its maxAge to 0.
+     */
+    fun invalidateCookie(requestResponseHolder: HttpRequestResponseHolder, name: String) {
+        invalidateCookie(requestResponseHolder.request, requestResponseHolder.response, name)
     }
 
     private fun createResponseCookie(
