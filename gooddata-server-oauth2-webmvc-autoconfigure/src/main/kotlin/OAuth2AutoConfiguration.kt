@@ -41,6 +41,7 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository
 import org.springframework.security.oauth2.jwt.JwtDecoderFactory
 import org.springframework.security.web.context.SecurityContextRepository
+import org.springframework.web.client.RestTemplate
 import javax.servlet.Filter
 
 @Configuration
@@ -106,9 +107,10 @@ class OAuth2AutoConfiguration {
         CookieSecurityContextRepository(clientRegistrationRepository, cookieService, jwtDecoderFactory)
 
     @Bean
-    fun jwtDecoderFactory(jwkCache: JwkCache): JwtDecoderFactory<ClientRegistration> = JwkCachingDecoderFactory(
-        jwkCache
-    )
+    fun jwtDecoderFactory(
+        jwkCache: JwkCache,
+        restOperations: RestTemplate
+    ): JwtDecoderFactory<ClientRegistration> = JwkCachingDecoderFactory(jwkCache, null, restOperations)
 
     @ConditionalOnMissingBean(JwkCache::class)
     @Bean

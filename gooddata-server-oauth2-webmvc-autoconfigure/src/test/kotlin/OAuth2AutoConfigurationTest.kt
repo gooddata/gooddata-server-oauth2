@@ -26,10 +26,24 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository
 import org.springframework.test.context.TestPropertySource
 import org.springframework.test.context.junit.jupiter.SpringExtension
+import org.springframework.web.client.RestTemplate
 import strikt.api.expectThat
+import strikt.assertions.isEqualTo
 import strikt.assertions.isNotNull
+import kotlin.reflect.KProperty1
+import kotlin.reflect.full.memberProperties
+import kotlin.reflect.jvm.isAccessible
 
-@TestPropertySource(properties = ["spring.application.name=test"])
+private const val TEST_READ_TIMEOUT = 10
+private const val TEST_CONNECT_TIMEOUT = 20
+
+@TestPropertySource(
+    properties = [
+        "spring.application.name=test",
+        "spring.security.oauth2.client.http.readTimeoutMillis=$TEST_READ_TIMEOUT",
+        "spring.security.oauth2.client.http.connectTimeoutMillis=$TEST_CONNECT_TIMEOUT"
+    ]
+)
 @ExtendWith(SpringExtension::class)
 @EnableAutoConfiguration
 @AutoConfigureWebMvc
@@ -44,6 +58,9 @@ internal class OAuth2AutoConfigurationTest {
     @Autowired
     var clientRegistrationRepository: ClientRegistrationRepository? = null
 
+    @Autowired
+    var restTemplate: RestTemplate? = null
+
     @MockkBean
     lateinit var authenticationStoreClient: AuthenticationStoreClient
 
@@ -55,5 +72,23 @@ internal class OAuth2AutoConfigurationTest {
         expectThat(cookieService).isNotNull()
         expectThat(authorizedClientRepository).isNotNull()
         expectThat(clientRegistrationRepository).isNotNull()
+        expectThat(restTemplate).isNotNull()
+    }
+
+    @Test
+    fun `restTemplate has proper timeouts set`() {
+        val requestFactory = restTemplate?.requestFactory!!
+
+        val readTimeout: Int = getFieldValue("readTimeout", requestFactory)
+        expectThat(readTimeout).isEqualTo(TEST_READ_TIMEOUT)
+        val connectTimeout: Int = getFieldValue("connectTimeout", requestFactory)
+        expectThat(connectTimeout).isEqualTo(TEST_CONNECT_TIMEOUT)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T, R : Any> getFieldValue(fieldName: String, instance: R): T {
+        val field = instance::class.memberProperties.find { it.name == fieldName } as KProperty1<R, *>
+        field.isAccessible = true
+        return field.get(instance) as T
     }
 }

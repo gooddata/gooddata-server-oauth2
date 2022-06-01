@@ -24,12 +24,20 @@ import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Import
 import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.web.servlet.invoke
+import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient
+import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest
+import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest
 import org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository
+import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest
+import org.springframework.security.oauth2.client.userinfo.OAuth2UserService
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository
+import org.springframework.security.oauth2.core.oidc.user.OidcUser
+import org.springframework.security.oauth2.core.user.OAuth2User
 import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationFilter
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.access.ExceptionTranslationFilter
@@ -46,6 +54,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 @EnableConfigurationProperties(
     AppLoginProperties::class,
 )
+@Import(CommunicationClientsConfiguration::class)
 class OAuth2SecurityConfiguration {
 
     @Suppress("LongMethod", "LongParameterList")
@@ -61,6 +70,9 @@ class OAuth2SecurityConfiguration {
         securityContextRepository: SecurityContextRepository,
         clientRegistrationRepository: ClientRegistrationRepository,
         organizationCorsConfigurationSource: OrganizationCorsConfigurationSource,
+        oauth2UserService: OAuth2UserService<OAuth2UserRequest, OAuth2User>,
+        customOidcUserService: OAuth2UserService<OidcUserRequest, OidcUser>,
+        authCodeAccessTokenResponseClient: OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest>,
     ): SecurityFilterChain {
         val cookieRequestCache = CookieRequestCache(cookieService)
         val hostBasedAuthEntryPoint = HostBasedAuthenticationEntryPoint(cookieRequestCache)
@@ -99,6 +111,13 @@ class OAuth2SecurityConfiguration {
                         setRequestCache(cookieRequestCache)
                     }
                 authenticationFailureHandler = OAuth2FailureHandler()
+                userInfoEndpoint {
+                    userService = oauth2UserService
+                    oidcUserService = customOidcUserService
+                }
+                tokenEndpoint {
+                    accessTokenResponseClient = authCodeAccessTokenResponseClient
+                }
             }
             exceptionHandling {
                 authenticationEntryPoint = hostBasedAuthEntryPoint
