@@ -19,21 +19,40 @@ import com.gooddata.oauth2.server.common.AuthenticationStoreClient
 import com.gooddata.oauth2.server.common.CaffeineJwkCache
 import com.gooddata.oauth2.server.common.JwkCache
 import com.ninjasquad.springmockk.MockkBean
+import io.netty.channel.ChannelOption
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebFlux
+import org.springframework.http.client.reactive.ClientHttpConnector
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizedClientRepository
 import org.springframework.security.web.server.SecurityWebFilterChain
 import org.springframework.test.context.TestPropertySource
 import org.springframework.test.context.junit.jupiter.SpringExtension
+import org.springframework.web.client.RestTemplate
+import org.springframework.web.reactive.function.client.ExchangeFunction
+import org.springframework.web.reactive.function.client.WebClient
+import reactor.netty.http.client.HttpClient
 import strikt.api.expectThat
 import strikt.assertions.isA
+import strikt.assertions.isEqualTo
 import strikt.assertions.isNotNull
+import kotlin.reflect.KProperty1
+import kotlin.reflect.full.memberProperties
+import kotlin.reflect.jvm.isAccessible
 
-@TestPropertySource(properties = ["spring.application.name=test"])
+private const val TEST_READ_TIMEOUT = 10
+private const val TEST_CONNECT_TIMEOUT = 20
+
+@TestPropertySource(
+    properties = [
+        "spring.application.name=test",
+        "spring.security.oauth2.client.http.readTimeoutMillis=$TEST_READ_TIMEOUT",
+        "spring.security.oauth2.client.http.connectTimeoutMillis=$TEST_CONNECT_TIMEOUT"
+    ]
+)
 @ExtendWith(SpringExtension::class)
 @EnableAutoConfiguration
 @AutoConfigureWebFlux
@@ -54,6 +73,12 @@ internal abstract class ServerOAuth2AutoConfigurationTest {
     @Autowired
     var jwkCache: JwkCache? = null
 
+    @Autowired
+    var restTemplate: RestTemplate? = null
+
+    @Autowired
+    var webClient: WebClient? = null
+
     @MockkBean
     lateinit var authenticationStoreClient: AuthenticationStoreClient
 
@@ -66,9 +91,38 @@ internal abstract class ServerOAuth2AutoConfigurationTest {
         expectThat(authorizedClientRepository).isNotNull()
         expectThat(clientRegistrationRepository).isNotNull()
         expectThat(springSecurityFilterChain).isNotNull()
+        expectThat(restTemplate).isNotNull()
+    }
+
+    @Test
+    fun `proper http timeouts are set`() {
+        // restTemplate
+        val requestFactory = restTemplate?.requestFactory!!
+
+        val readTimeout: Int = getFieldValue("readTimeout", requestFactory)
+        expectThat(readTimeout).isEqualTo(TEST_READ_TIMEOUT)
+        val connectTimeout: Int = getFieldValue("connectTimeout", requestFactory)
+        expectThat(connectTimeout).isEqualTo(TEST_CONNECT_TIMEOUT)
+
+        // webClient
+        val exFunc: ExchangeFunction = getFieldValue("exchangeFunction", webClient!!)
+        val connector: ClientHttpConnector = getFieldValue("connector", exFunc)
+        val httpClient: HttpClient = getFieldValue("httpClient", connector)
+
+        expectThat(httpClient.configuration().responseTimeout()?.toMillis()).isEqualTo(TEST_READ_TIMEOUT.toLong())
+        expectThat(httpClient.configuration().options()[ChannelOption.CONNECT_TIMEOUT_MILLIS]).isEqualTo(
+            TEST_CONNECT_TIMEOUT
+        )
     }
 
     abstract fun checkCache()
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T, R : Any> getFieldValue(fieldName: String, instance: R): T {
+        val field = instance::class.memberProperties.find { it.name == fieldName } as KProperty1<R, *>
+        field.isAccessible = true
+        return field.get(instance) as T
+    }
 }
 
 internal class ProvidedCustomCacheServerOAuth2AutoConfigurationTest : ServerOAuth2AutoConfigurationTest() {

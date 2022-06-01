@@ -36,6 +36,7 @@ import org.springframework.boot.autoconfigure.security.oauth2.client.reactive.Re
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Import
 import org.springframework.http.HttpMethod
 import org.springframework.security.authentication.DelegatingReactiveAuthenticationManager
 import org.springframework.security.authentication.ReactiveAuthenticationManager
@@ -45,14 +46,18 @@ import org.springframework.security.config.web.server.ServerHttpSecurity
 import org.springframework.security.config.web.server.invoke
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper
 import org.springframework.security.oauth2.client.authentication.OAuth2LoginReactiveAuthenticationManager
-import org.springframework.security.oauth2.client.endpoint.WebClientReactiveAuthorizationCodeTokenResponseClient
+import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest
+import org.springframework.security.oauth2.client.endpoint.ReactiveOAuth2AccessTokenResponseClient
 import org.springframework.security.oauth2.client.oidc.authentication.OidcAuthorizationCodeReactiveAuthenticationManager
-import org.springframework.security.oauth2.client.oidc.userinfo.OidcReactiveOAuth2UserService
+import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest
 import org.springframework.security.oauth2.client.oidc.web.server.logout.OidcClientInitiatedServerLogoutSuccessHandler
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository
-import org.springframework.security.oauth2.client.userinfo.DefaultReactiveOAuth2UserService
+import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest
+import org.springframework.security.oauth2.client.userinfo.ReactiveOAuth2UserService
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizedClientRepository
+import org.springframework.security.oauth2.core.oidc.user.OidcUser
+import org.springframework.security.oauth2.core.user.OAuth2User
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoderFactory
 import org.springframework.security.web.server.SecurityWebFilterChain
 import org.springframework.security.web.server.authentication.logout.DelegatingServerLogoutHandler
@@ -65,6 +70,7 @@ import org.springframework.security.web.server.util.matcher.OrServerWebExchangeM
 import org.springframework.security.web.server.util.matcher.PathPatternParserServerWebExchangeMatcher
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers.pathMatchers
 import org.springframework.util.ClassUtils
+import org.springframework.web.client.RestTemplate
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource
 import org.springframework.web.reactive.config.EnableWebFlux
 import java.net.URI
@@ -78,6 +84,7 @@ import java.net.URI
 )
 @AutoConfigureBefore(ReactiveOAuth2ClientAutoConfiguration::class)
 @ConditionalOnClass(EnableWebFlux::class)
+@Import(ReactiveCommunicationClientsConfiguration::class)
 class ServerOAuth2AutoConfiguration {
 
     /**
@@ -137,8 +144,11 @@ class ServerOAuth2AutoConfiguration {
         CookieServerSecurityContextRepository(clientRegistrationRepository, cookieService, reactiveDecoderFactory)
 
     @Bean
-    fun reactiveJwtDecoderFactory(jwkCache: JwkCache): ReactiveJwtDecoderFactory<ClientRegistration> =
-        JwkCachingReactiveDecoderFactory(jwkCache)
+    fun reactiveJwtDecoderFactory(
+        jwkCache: JwkCache,
+        restTemplate: RestTemplate
+    ): ReactiveJwtDecoderFactory<ClientRegistration> =
+        JwkCachingReactiveDecoderFactory(jwkCache, null, restTemplate)
 
     @ConditionalOnMissingBean(JwkCache::class)
     @Bean
@@ -179,6 +189,7 @@ class ServerOAuth2AutoConfiguration {
         compositeCorsConfigurationSource: CompositeCorsConfigurationSource,
         grantedAuthoritiesMapper: ObjectProvider<GrantedAuthoritiesMapper>,
         jwtDecoderFactory: ObjectProvider<ReactiveJwtDecoderFactory<ClientRegistration>>,
+        loginAuthManager: ReactiveAuthenticationManager,
     ): SecurityWebFilterChain {
         val cookieServerRequestCache = CookieServerRequestCache(cookieService)
         val hostBasedAuthEntryPoint = HostBasedServerAuthenticationEntryPoint(cookieServerRequestCache)
@@ -227,7 +238,7 @@ class ServerOAuth2AutoConfiguration {
                 authorizationRequestRepository = CookieServerAuthorizationRequestRepository(cookieService)
                 authorizedClientRepository = oauth2ClientRepository
                 authenticationFailureHandler = ServerOAuth2FailureHandler()
-                authenticationManager = createLoginAuthManager(grantedAuthoritiesMapper, jwtDecoderFactory)
+                authenticationManager = loginAuthManager
             }
             exceptionHandling {
                 authenticationEntryPoint = hostBasedAuthEntryPoint
@@ -278,24 +289,20 @@ class ServerOAuth2AutoConfiguration {
         }
     }
 
-    private fun accessTokenResponseClient(): WebClientReactiveAuthorizationCodeTokenResponseClient {
-        val accessTokenResponseClient = WebClientReactiveAuthorizationCodeTokenResponseClient()
-        val bodyExtractor = SafeOAuth2AccessTokenResponseBodyExtractor()
-        accessTokenResponseClient.setBodyExtractor(bodyExtractor)
-        return accessTokenResponseClient
-    }
-
     /**
      * Original:
      * [org.springframework.security.config.web.server.ServerHttpSecurity.OAuth2LoginSpec.createDefault]
      */
-    private fun createLoginAuthManager(
+    @Bean
+    fun loginAuthManager(
         grantedAuthoritiesMapper: ObjectProvider<GrantedAuthoritiesMapper>,
         jwtDecoderFactory: ObjectProvider<ReactiveJwtDecoderFactory<ClientRegistration>>,
+        authCodeAccessTokenResponseClient: ReactiveOAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest>,
+        oauth2UserService: ReactiveOAuth2UserService<OAuth2UserRequest, OAuth2User>,
+        oidcUserService: ReactiveOAuth2UserService<OidcUserRequest, OidcUser>
     ): ReactiveAuthenticationManager {
-        val accessTokenResponseClient = accessTokenResponseClient()
-        val oauth2UserService = DefaultReactiveOAuth2UserService()
-        val oauth2Manager = OAuth2LoginReactiveAuthenticationManager(accessTokenResponseClient, oauth2UserService)
+        val oauth2Manager =
+            OAuth2LoginReactiveAuthenticationManager(authCodeAccessTokenResponseClient, oauth2UserService)
         val authoritiesMapper = grantedAuthoritiesMapper.ifAvailable
         if (authoritiesMapper != null) {
             oauth2Manager.setAuthoritiesMapper(authoritiesMapper)
@@ -308,8 +315,8 @@ class ServerOAuth2AutoConfiguration {
             return oauth2Manager
         }
         val oidc = OidcAuthorizationCodeReactiveAuthenticationManager(
-            accessTokenResponseClient,
-            OidcReactiveOAuth2UserService()
+            authCodeAccessTokenResponseClient,
+            oidcUserService
         )
         jwtDecoderFactory.ifAvailable?.let {
             oidc.setJwtDecoderFactory(it)

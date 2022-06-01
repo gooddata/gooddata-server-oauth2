@@ -63,4 +63,5 @@ dependencies {
     testImplementation("com.google.crypto.tink:tink:${tinkVersion}")
     testImplementation("com.github.tomakehurst:wiremock:${wiremockVersion}")
     testImplementation("io.projectreactor:reactor-tools")
+    testImplementation("org.jetbrains.kotlin:kotlin-reflect")
 }
