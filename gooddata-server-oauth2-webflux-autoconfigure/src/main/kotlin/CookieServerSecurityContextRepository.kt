@@ -66,17 +66,16 @@ class CookieServerSecurityContextRepository(
 
     override fun load(exchange: ServerWebExchange): Mono<SecurityContext> {
         return Mono.just(exchange)
-            .flatMap {
-                cookieService.decodeCookie(
-                    it.request,
+            .flatMap { webExchange ->
+                cookieService.decodeCookie<OAuth2AuthenticationToken>(
+                    webExchange.request,
                     SPRING_SEC_SECURITY_CONTEXT,
                     mapper,
-                    OAuth2AuthenticationToken::class.java,
                 )
             }
-            .flatMap {
+            .flatMap { oauthToken ->
                 // find registration based on its ID
-                clientRegistrationRepository.findByRegistrationId(it.authorizedClientRegistrationId)
+                clientRegistrationRepository.findByRegistrationId(oauthToken.authorizedClientRegistrationId)
                     .flatMap { registration ->
                         jwtDecoderFactory.createDecoder(registration)
                             // decode JWT token from JSON
@@ -86,11 +85,11 @@ class CookieServerSecurityContextRepository(
                                 Mono.empty()
                             }
                             .map { jwt -> OidcIdToken(jwt.tokenValue, jwt.issuedAt, jwt.expiresAt, jwt.claims) }
-                            .map { token ->
+                            .map { oidcToken ->
                                 OAuth2AuthenticationToken(
                                     DefaultOidcUser(
-                                        it.principal.authorities,
-                                        token,
+                                        oauthToken.principal.authorities,
+                                        oidcToken,
                                         registration.providerDetails.userInfoEndpoint.userNameAttributeName
                                     ),
                                     emptyList(), // it is not stored in JSON anyway
@@ -99,6 +98,6 @@ class CookieServerSecurityContextRepository(
                             }
                     }
             }
-            .map { SecurityContextImpl(it) }
+            .map { oauthToken -> SecurityContextImpl(oauthToken) }
     }
 }

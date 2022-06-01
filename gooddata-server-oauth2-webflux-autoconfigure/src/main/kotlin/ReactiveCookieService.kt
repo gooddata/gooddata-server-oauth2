@@ -73,10 +73,12 @@ class ReactiveCookieService(
             .path(request.path.contextPath().value() + "/")
             .maxAge(age)
             .httpOnly(true)
-            .secure("https".equals(request.uri.scheme, ignoreCase = true))
+            .secure(request.isHttps())
             .sameSite(properties.sameSite.name)
             .build()
     }
+
+    private fun ServerHttpRequest.isHttps() = "https".equals(uri.scheme, ignoreCase = true)
 
     /**
      * This method takes request from this exchange, loads first cookie of given name and performs base64 decode.
@@ -86,9 +88,9 @@ class ReactiveCookieService(
         name: String
     ): Mono<String> {
         return Mono.justOrEmpty(request.cookies.getFirst(name))
-            .map { cookieSerializer.decodeCookie(request.uri.host, it.value) }
-            .onErrorResume(IllegalArgumentException::class.java) {
-                logger.warn(it) { "Cookie cannot be decoded" }
+            .map { cookie -> cookieSerializer.decodeCookie(request.uri.host, cookie.value) }
+            .onErrorResume(IllegalArgumentException::class.java) { exception ->
+                logger.warn(exception) { "Cookie cannot be decoded" }
                 Mono.empty()
             }
     }
@@ -97,16 +99,26 @@ class ReactiveCookieService(
      * This method takes request from this exchange, loads first cookie of given name and performs base64 decode.
      * Finally it uses provided [ObjectMapper] to parse stored JSON.
      */
-    internal fun <T> decodeCookie(
+    internal inline fun <reified T> decodeCookie(
+        request: ServerHttpRequest,
+        name: String,
+        mapper: ObjectMapper,
+    ): Mono<T> = decodeCookie(request, name, mapper, T::class.java)
+
+    /**
+     * This method takes request from this exchange, loads first cookie of given name and performs base64 decode.
+     * Finally it uses provided [ObjectMapper] to parse stored JSON.
+     */
+    private fun <T> decodeCookie(
         request: ServerHttpRequest,
         name: String,
         mapper: ObjectMapper,
         valueType: Class<T>,
     ): Mono<T> {
         return decodeCookie(request, name)
-            .map { mapper.readValue(it, valueType) }
-            .onErrorResume(JsonProcessingException::class.java) {
-                logger.warn(it) { "Cookie cannot be parsed" }
+            .map { cookieValue -> mapper.readValue(cookieValue, valueType) }
+            .onErrorResume(JsonProcessingException::class.java) { exception ->
+                logger.warn(exception) { "Cookie cannot be parsed" }
                 Mono.empty()
             }
     }
