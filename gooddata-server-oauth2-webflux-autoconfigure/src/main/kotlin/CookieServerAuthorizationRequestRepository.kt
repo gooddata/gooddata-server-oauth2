@@ -36,12 +36,11 @@ class CookieServerAuthorizationRequestRepository(
 
     override fun loadAuthorizationRequest(exchange: ServerWebExchange): Mono<OAuth2AuthorizationRequest> {
         return Mono.just(exchange)
-            .flatMap {
-                cookieService.decodeCookie(
-                    it.request,
+            .flatMap { webExchange ->
+                cookieService.decodeCookie<OAuth2AuthorizationRequest>(
+                    webExchange.request,
                     SPRING_SEC_OAUTH2_AUTHZ_RQ,
                     mapper,
-                    OAuth2AuthorizationRequest::class.java
                 )
             }
     }
@@ -51,9 +50,11 @@ class CookieServerAuthorizationRequestRepository(
         exchange: ServerWebExchange
     ): Mono<Void> {
         return Mono.just(exchange)
-            .doOnNext {
+            .doOnNext { webExchange ->
                 cookieService.createCookie(
-                    it, SPRING_SEC_OAUTH2_AUTHZ_RQ, mapper.writeValueAsString(authorizationRequest)
+                    webExchange,
+                    SPRING_SEC_OAUTH2_AUTHZ_RQ,
+                    mapper.writeValueAsString(authorizationRequest)
                 )
             }
             .then()

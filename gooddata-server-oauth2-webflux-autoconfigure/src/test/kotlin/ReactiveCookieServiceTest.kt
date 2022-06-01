@@ -144,9 +144,7 @@ internal class ReactiveCookieServiceTest {
             mapOf(COOKIE_NAME to listOf(HttpCookie(COOKIE_NAME, encodedValue)))
         )
 
-        val value = cookieService.decodeCookie(
-            exchange.request, COOKIE_NAME, mapper, OAuth2AuthorizationRequest::class.java
-        )
+        val value = cookieService.decodeCookie<OAuth2AuthorizationRequest>(exchange.request, COOKIE_NAME, mapper)
 
         expectThat(value.blockOptional()) {
             get(Optional<OAuth2AuthorizationRequest>::isEmpty).isTrue()
@@ -160,9 +158,7 @@ internal class ReactiveCookieServiceTest {
             mapOf(COOKIE_NAME to listOf(HttpCookie(COOKIE_NAME, cookieSerializer.encodeCookie(HOSTNAME, body))))
         )
 
-        val value = cookieService.decodeCookie(
-            exchange.request, COOKIE_NAME, mapper, OAuth2AuthorizationRequest::class.java
-        )
+        val value = cookieService.decodeCookie<OAuth2AuthorizationRequest>(exchange.request, COOKIE_NAME, mapper)
 
         expectThat(value.blockOptional()) {
             get(Optional<OAuth2AuthorizationRequest>::isPresent).isTrue()
