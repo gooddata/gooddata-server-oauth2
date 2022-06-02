@@ -16,7 +16,10 @@
 package com.gooddata.oauth2.server.servlet
 
 import com.gooddata.oauth2.server.common.SPRING_SEC_SECURITY_CONTEXT
+import com.gooddata.oauth2.server.common.CookieDecodeException
+import com.gooddata.oauth2.server.common.SPRING_SEC_OAUTH2_AUTHZ_CLIENT
 import com.gooddata.oauth2.server.common.jackson.mapper
+import com.gooddata.oauth2.server.common.logException
 import mu.KotlinLogging
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextHolder
@@ -64,13 +67,11 @@ class CookieSecurityContextRepository(
             jwtDecoderFactory.createDecoder(registration)
                 // decode JWT token from JSON
                 .decode((decoded.principal as OidcUser).idToken.tokenValue)
-        } catch (e: JwtException) {
-            val message = "Stored JWT token cannot be decoded: ${e.message}"
-            when (logger.isDebugEnabled) {
-                true -> logger.debug(e) { message }
-                false -> logger.info { message }
-            }
-            return SecurityContextHolder.createEmptyContext()
+        } catch (exception: JwtException) {
+            logger.logException(exception)
+            cookieService.invalidateCookie(requestResponseHolder, SPRING_SEC_OAUTH2_AUTHZ_CLIENT)
+            cookieService.invalidateCookie(requestResponseHolder, SPRING_SEC_SECURITY_CONTEXT)
+            throw CookieDecodeException("JWT from cookie decoding error", exception)
         }
         val oidc = OidcIdToken(jwt.tokenValue, jwt.issuedAt, jwt.expiresAt, jwt.claims)
         val token = OAuth2AuthenticationToken(
