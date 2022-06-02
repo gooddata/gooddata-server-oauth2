@@ -46,23 +46,23 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 @EnableConfigurationProperties(
     AppLoginProperties::class,
 )
-class OAuth2SecurityConfiguration(
-    private val authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>,
-    private val userContextHolder: ObjectProvider<UserContextHolder>,
-    private val globalCorsConfigurations: CorsConfigurations?,
-    private val appLoginProperties: AppLoginProperties,
-    private val cookieService: CookieService,
-    private val authorizedClientRepository: OAuth2AuthorizedClientRepository,
-    private val securityContextRepository: SecurityContextRepository,
-    private val clientRegistrationRepository: ClientRegistrationRepository,
-    private val organizationCorsConfigurationSource: OrganizationCorsConfigurationSource,
-) {
+class OAuth2SecurityConfiguration {
 
-    @Suppress("LongMethod")
+    @Suppress("LongMethod", "LongParameterList")
     @Bean
-    fun filterChain(http: HttpSecurity): SecurityFilterChain {
+    fun filterChain(
+        http: HttpSecurity,
+        authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>,
+        userContextHolder: ObjectProvider<UserContextHolder>,
+        globalCorsConfigurations: ObjectProvider<CorsConfigurations>,
+        appLoginProperties: AppLoginProperties,
+        cookieService: CookieService,
+        oAuth2AuthorizedClientRepository: OAuth2AuthorizedClientRepository,
+        securityContextRepository: SecurityContextRepository,
+        clientRegistrationRepository: ClientRegistrationRepository,
+        organizationCorsConfigurationSource: OrganizationCorsConfigurationSource,
+    ): SecurityFilterChain {
         val cookieRequestCache = CookieRequestCache(cookieService)
-        val oAuth2AuthorizedClientRepository = authorizedClientRepository
         val hostBasedAuthEntryPoint = HostBasedAuthenticationEntryPoint(cookieRequestCache)
         val logoutHandler = CompositeLogoutHandler(
             SecurityContextClearingLogoutHandler(securityContextRepository),
@@ -137,8 +137,10 @@ class OAuth2SecurityConfiguration(
             cors {
                 this.configurationSource = CompositeCorsConfigurationSource(
                     UrlBasedCorsConfigurationSource().apply {
-                        globalCorsConfigurations?.configurations?.forEach { (pattern, config) ->
-                            registerCorsConfiguration(pattern, config)
+                        globalCorsConfigurations.ifAvailable {
+                            it.configurations.forEach { (pattern, config) ->
+                                registerCorsConfiguration(pattern, config)
+                            }
                         }
                     },
                     organizationCorsConfigurationSource,
