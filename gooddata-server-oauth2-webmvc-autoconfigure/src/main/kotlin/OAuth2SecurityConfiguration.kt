@@ -93,7 +93,6 @@ class OAuth2SecurityConfiguration(
                         AntPathRequestMatcher("/actuator"),
                         AntPathRequestMatcher("/actuator/**"),
                         AntPathRequestMatcher("/login"),
-                        AntPathRequestMatcher("/api/schemas/*", HttpMethod.GET.name),
                         AntPathRequestMatcher("/error", HttpMethod.GET.name),
                         AntPathRequestMatcher(OPEN_API_SCHEMA_PATTERN, HttpMethod.GET.name),
                     )
