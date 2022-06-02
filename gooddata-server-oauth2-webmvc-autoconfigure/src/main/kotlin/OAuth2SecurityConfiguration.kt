@@ -21,13 +21,9 @@ import com.gooddata.oauth2.server.common.CorsConfigurations
 import com.gooddata.oauth2.server.common.OPEN_API_SCHEMA_PATTERN
 import com.gooddata.oauth2.server.common.OrganizationCorsConfigurationSource
 import org.springframework.beans.factory.ObjectProvider
-import org.springframework.boot.autoconfigure.AutoConfigureBefore
-import org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.core.Ordered
-import org.springframework.core.annotation.Order
 import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.web.servlet.invoke
@@ -50,32 +46,23 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 @EnableConfigurationProperties(
     AppLoginProperties::class,
 )
-@AutoConfigureBefore(OAuth2ClientAutoConfiguration::class)
-class OAuth2SecurityConfiguration(
-    private val authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>,
-    private val userContextHolder: ObjectProvider<UserContextHolder>,
-    private val globalCorsConfigurations: CorsConfigurations?,
-    private val appLoginProperties: AppLoginProperties,
-    private val cookieService: CookieService,
-    private val authorizedClientRepository: OAuth2AuthorizedClientRepository,
-    private val securityContextRepository: SecurityContextRepository,
-    private val clientRegistrationRepository: ClientRegistrationRepository,
-    private val organizationCorsConfigurationSource: OrganizationCorsConfigurationSource,
-) {
+class OAuth2SecurityConfiguration {
 
-    /**
-     * Workaround - @Order(Ordered.HIGHEST_PRECEDENCE)
-     * This bean needs to be initialized before "managementSecurityFilterChain" from spring-security, otherwise
-     * the defaults overwrite the definitions specified here. This is possibly a bug in spring-security,
-     * as ConditionalOnDefaultWebSecurity annotation should prevent the default securityFilterChain from
-     * being registered if there is a custom one, but the default bean gets registered anyway.
-     */
-    @Suppress("LongMethod")
+    @Suppress("LongMethod", "LongParameterList")
     @Bean
-    @Order(Ordered.HIGHEST_PRECEDENCE)
-    fun filterChain(http: HttpSecurity): SecurityFilterChain {
+    fun filterChain(
+        http: HttpSecurity,
+        authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>,
+        userContextHolder: ObjectProvider<UserContextHolder>,
+        globalCorsConfigurations: ObjectProvider<CorsConfigurations>,
+        appLoginProperties: AppLoginProperties,
+        cookieService: CookieService,
+        oAuth2AuthorizedClientRepository: OAuth2AuthorizedClientRepository,
+        securityContextRepository: SecurityContextRepository,
+        clientRegistrationRepository: ClientRegistrationRepository,
+        organizationCorsConfigurationSource: OrganizationCorsConfigurationSource,
+    ): SecurityFilterChain {
         val cookieRequestCache = CookieRequestCache(cookieService)
-        val oAuth2AuthorizedClientRepository = authorizedClientRepository
         val hostBasedAuthEntryPoint = HostBasedAuthenticationEntryPoint(cookieRequestCache)
         val logoutHandler = CompositeLogoutHandler(
             SecurityContextClearingLogoutHandler(securityContextRepository),
@@ -93,7 +80,6 @@ class OAuth2SecurityConfiguration(
                         AntPathRequestMatcher("/actuator"),
                         AntPathRequestMatcher("/actuator/**"),
                         AntPathRequestMatcher("/login"),
-                        AntPathRequestMatcher("/api/schemas/*", HttpMethod.GET.name),
                         AntPathRequestMatcher("/error", HttpMethod.GET.name),
                         AntPathRequestMatcher(OPEN_API_SCHEMA_PATTERN, HttpMethod.GET.name),
                     )
@@ -151,8 +137,10 @@ class OAuth2SecurityConfiguration(
             cors {
                 this.configurationSource = CompositeCorsConfigurationSource(
                     UrlBasedCorsConfigurationSource().apply {
-                        globalCorsConfigurations?.configurations?.forEach { (pattern, config) ->
-                            registerCorsConfiguration(pattern, config)
+                        globalCorsConfigurations.ifAvailable {
+                            it.configurations.forEach { (pattern, config) ->
+                                registerCorsConfiguration(pattern, config)
+                            }
                         }
                     },
                     organizationCorsConfigurationSource,
