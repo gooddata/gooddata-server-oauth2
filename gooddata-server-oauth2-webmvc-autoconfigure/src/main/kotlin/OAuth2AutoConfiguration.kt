@@ -117,6 +117,6 @@ class OAuth2AutoConfiguration {
 
     @Bean
     fun organizationCorsConfigurationSource(
-        authenticationStoreClient: AuthenticationStoreClient
-    ) = OrganizationCorsConfigurationSource(authenticationStoreClient)
+        authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>
+    ) = OrganizationCorsConfigurationSource(authenticationStoreClient.`object`)
 }
