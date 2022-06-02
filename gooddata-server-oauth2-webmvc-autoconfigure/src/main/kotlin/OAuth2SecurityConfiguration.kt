@@ -21,13 +21,9 @@ import com.gooddata.oauth2.server.common.CorsConfigurations
 import com.gooddata.oauth2.server.common.OPEN_API_SCHEMA_PATTERN
 import com.gooddata.oauth2.server.common.OrganizationCorsConfigurationSource
 import org.springframework.beans.factory.ObjectProvider
-import org.springframework.boot.autoconfigure.AutoConfigureBefore
-import org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.core.Ordered
-import org.springframework.core.annotation.Order
 import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.web.servlet.invoke
@@ -50,7 +46,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 @EnableConfigurationProperties(
     AppLoginProperties::class,
 )
-@AutoConfigureBefore(OAuth2ClientAutoConfiguration::class)
 class OAuth2SecurityConfiguration(
     private val authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>,
     private val userContextHolder: ObjectProvider<UserContextHolder>,
@@ -63,16 +58,8 @@ class OAuth2SecurityConfiguration(
     private val organizationCorsConfigurationSource: OrganizationCorsConfigurationSource,
 ) {
 
-    /**
-     * Workaround - @Order(Ordered.HIGHEST_PRECEDENCE)
-     * This bean needs to be initialized before "managementSecurityFilterChain" from spring-security, otherwise
-     * the defaults overwrite the definitions specified here. This is possibly a bug in spring-security,
-     * as ConditionalOnDefaultWebSecurity annotation should prevent the default securityFilterChain from
-     * being registered if there is a custom one, but the default bean gets registered anyway.
-     */
     @Suppress("LongMethod")
     @Bean
-    @Order(Ordered.HIGHEST_PRECEDENCE)
     fun filterChain(http: HttpSecurity): SecurityFilterChain {
         val cookieRequestCache = CookieRequestCache(cookieService)
         val oAuth2AuthorizedClientRepository = authorizedClientRepository

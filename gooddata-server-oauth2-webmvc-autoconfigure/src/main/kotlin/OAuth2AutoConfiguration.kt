@@ -26,8 +26,11 @@ import com.gooddata.oauth2.server.common.CaffeineJwkCache
 import com.gooddata.oauth2.server.common.JwkCache
 import com.gooddata.oauth2.server.common.OrganizationCorsConfigurationSource
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.boot.autoconfigure.AutoConfigureBefore
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration
+import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -47,6 +50,7 @@ import javax.servlet.Filter
     CachingProperties::class
 )
 @ConditionalOnClass(Filter::class)
+@AutoConfigureBefore(OAuth2ClientAutoConfiguration::class, SecurityAutoConfiguration::class)
 @Import(OAuth2SecurityConfiguration::class)
 class OAuth2AutoConfiguration {
     /**
