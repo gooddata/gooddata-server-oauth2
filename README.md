@@ -171,6 +171,12 @@ At first global settings are tried and if none match then per-organization is tr
 * **spring.security.oauth2.client.cache.clientRegistrationExpireAfterWriteMinutes**
     * Time in minutes after write after which is value expired in client registration cache
     * defaults to 60 minutes
+* **spring.security.oauth2.client.http.readTimeoutMillis**
+    * A timeout for receiving some response to a request to Oauth2 authorization server. (in milliseconds)
+    * defaults to 5000
+* **spring.security.oauth2.client.http.connectTimeoutMillis**
+    * A timeout for establishing a TCP connection with Oauth2 authorization server. (in milliseconds)
+    * defaults to 30000
 
 ## Updating dependencies
 

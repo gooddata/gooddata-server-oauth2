@@ -28,6 +28,8 @@ import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.security.oauth2.jwt.JwtDecoderFactory
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
+import org.springframework.web.client.RestOperations
+import org.springframework.web.client.RestTemplate
 
 /**
  * [JwkCachingDecoderFactory.createDecoder] creates everytime new instance of [NimbusJwtDecoder] to avoid any underlying
@@ -49,7 +51,8 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
  */
 class JwkCachingDecoderFactory(
     private val jwkCache: JwkCache,
-    private val jwtValidatorFactory: ((ClientRegistration) -> OAuth2TokenValidator<Jwt>)? = null
+    private val jwtValidatorFactory: ((ClientRegistration) -> OAuth2TokenValidator<Jwt>)? = null,
+    private val restOperations: RestOperations = RestTemplate()
 ) : JwtDecoderFactory<ClientRegistration> {
 
     /**
@@ -71,6 +74,7 @@ class JwkCachingDecoderFactory(
             jwsKeySelector = JWSVerificationKeySelector(
                 JWSAlgorithm.RS256,
                 SimpleRemoteJwkSource(
+                    restOperations = restOperations,
                     jwkSetUri = jwkSetUri,
                     jwkCache = jwkCache
                 )

@@ -30,6 +30,8 @@ import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoderFactory
+import org.springframework.web.client.RestOperations
+import org.springframework.web.client.RestTemplate
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
@@ -54,7 +56,8 @@ import reactor.kotlin.core.publisher.toMono
  */
 class JwkCachingReactiveDecoderFactory(
     private val jwkCache: JwkCache,
-    private val jwtValidatorFactory: ((ClientRegistration) -> OAuth2TokenValidator<Jwt>)? = null
+    private val jwtValidatorFactory: ((ClientRegistration) -> OAuth2TokenValidator<Jwt>)? = null,
+    private val restOperations: RestOperations = RestTemplate(),
 ) : ReactiveJwtDecoderFactory<ClientRegistration> {
 
     /**
@@ -78,13 +81,14 @@ class JwkCachingReactiveDecoderFactory(
             }
         }.apply {
             if (jwtValidatorFactory != null) {
-                setJwtValidator(jwtValidatorFactory?.invoke(context))
+                setJwtValidator(jwtValidatorFactory.invoke(context))
             }
         }
     }
 
     private fun getJwkSet(jwkSetUri: String): Mono<JWKSet> = SimpleRemoteJwkSource(
+        restOperations = restOperations,
         jwkSetUri = jwkSetUri,
-        jwkCache = jwkCache
+        jwkCache = jwkCache,
     ).get().toMono()
 }
