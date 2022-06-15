@@ -36,4 +36,7 @@ data class CookieSecurityProperties(
      * Configured interval between rotations of encryption key [keySet]
      */
     val rotationInterval: Duration,
-)
+) {
+    val validTo: Instant
+        get() = lastRotation.plus(rotationInterval)
+}

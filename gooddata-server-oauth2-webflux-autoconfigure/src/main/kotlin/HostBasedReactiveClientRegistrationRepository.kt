@@ -30,7 +30,7 @@ import reactor.core.publisher.Mono
  * Client registrations are identified by request's hostname.
  */
 class HostBasedReactiveClientRegistrationRepository(
-    private val client: AuthenticationStoreClient,
+    private val authenticationStoreClient: AuthenticationStoreClient,
     private val properties: HostBasedClientRegistrationRepositoryProperties,
     private val clientRegistrationBuilderCache: ClientRegistrationBuilderCache,
 ) : ReactiveClientRegistrationRepository {
@@ -38,10 +38,10 @@ class HostBasedReactiveClientRegistrationRepository(
     override fun findByRegistrationId(registrationId: String): Mono<ClientRegistration> = mono(Dispatchers.Unconfined) {
         buildClientRegistration(
             // we store hostname in registrationId
-            registrationId,
-            client.getOrganizationByHostname(registrationId),
-            properties,
-            clientRegistrationBuilderCache
+            registrationId = registrationId,
+            organization = authenticationStoreClient.getOrganizationByHostname(registrationId),
+            properties = properties,
+            clientRegistrationBuilderCache = clientRegistrationBuilderCache
         )
     }
 }

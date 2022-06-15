@@ -122,7 +122,6 @@ class UserContextWebFilter(
         block: suspend () -> T,
     ): T {
         val reactorContext = userContextHolder.setContext(organization.id, user.id, name)
-
         return withContext(reactorContext + MDCContext()) {
             block()
         }

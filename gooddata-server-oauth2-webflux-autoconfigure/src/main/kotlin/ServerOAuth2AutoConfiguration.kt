@@ -43,6 +43,7 @@ import org.springframework.security.authentication.ReactiveAuthenticationManager
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder
 import org.springframework.security.config.web.server.ServerHttpSecurity
+import org.springframework.security.config.web.server.ServerHttpSecurityDsl
 import org.springframework.security.config.web.server.invoke
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper
 import org.springframework.security.oauth2.client.authentication.OAuth2LoginReactiveAuthenticationManager
@@ -97,10 +98,10 @@ class ServerOAuth2AutoConfiguration {
     @Bean
     fun cookieSerializer(
         cookieServiceProperties: CookieServiceProperties,
-        client: ObjectProvider<AuthenticationStoreClient>,
+        authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>,
     ) = CookieSerializer(
         cookieServiceProperties,
-        client.`object`
+        authenticationStoreClient.`object`
     )
 
     @Bean
@@ -178,12 +179,12 @@ class ServerOAuth2AutoConfiguration {
     @Bean
     @Suppress("LongParameterList", "LongMethod")
     fun springSecurityFilterChain(
-        http: ServerHttpSecurity,
+        serverHttpSecurity: ServerHttpSecurity,
         oauth2ClientRepository: ServerOAuth2AuthorizedClientRepository,
         clientRegistrationRepository: ReactiveClientRegistrationRepository,
         cookieService: ReactiveCookieService,
         serverSecurityContextRepository: ServerSecurityContextRepository,
-        client: ObjectProvider<AuthenticationStoreClient>,
+        authenticationStoreClients: ObjectProvider<AuthenticationStoreClient>,
         appLoginProperties: AppLoginProperties,
         userContextHolder: ObjectProvider<UserContextHolder<*>>,
         compositeCorsConfigurationSource: CompositeCorsConfigurationSource,
@@ -210,8 +211,8 @@ class ServerOAuth2AutoConfiguration {
             setLogoutSuccessUrl(URI.create("/"))
         }
 
-        return (http.securityContextRepository(serverSecurityContextRepository)) {
-            securityMatcher {
+        return serverHttpSecurity.securityContextRepository(serverSecurityContextRepository).configure {
+            securityMatcher { serverWebExchange ->
                 NegatedServerWebExchangeMatcher(
                     OrServerWebExchangeMatcher(
                         PathPatternParserServerWebExchangeMatcher("/actuator"),
@@ -220,19 +221,23 @@ class ServerOAuth2AutoConfiguration {
                         PathPatternParserServerWebExchangeMatcher("/error", HttpMethod.GET),
                         PathPatternParserServerWebExchangeMatcher(OPEN_API_SCHEMA_PATTERN, HttpMethod.GET),
                     )
-                ).matches(it)
+                ).matches(serverWebExchange)
+            }
+            cors {
+                this@cors.configurationSource = compositeCorsConfigurationSource
             }
             csrf {
                 disable()
             }
             headers {
-                contentTypeOptions {}
-                cache {}
+                contentTypeOptions { }
+                cache { }
                 frameOptions { disable() }
-                hsts {}
+                hsts { }
             }
             oauth2ResourceServer {
-                authenticationManagerResolver = BearerTokenReactiveAuthenticationManagerResolver(client.`object`)
+                authenticationManagerResolver =
+                    BearerTokenReactiveAuthenticationManagerResolver(authenticationStoreClients.`object`)
             }
             oauth2Login {
                 authorizationRequestRepository = CookieServerAuthorizationRequestRepository(cookieService)
@@ -240,6 +245,7 @@ class ServerOAuth2AutoConfiguration {
                 authenticationFailureHandler = ServerOAuth2FailureHandler()
                 authenticationManager = loginAuthManager
             }
+            oauth2Client { }
             exceptionHandling {
                 authenticationEntryPoint = hostBasedAuthEntryPoint
             }
@@ -249,7 +255,6 @@ class ServerOAuth2AutoConfiguration {
             requestCache {
                 requestCache = cookieServerRequestCache
             }
-
             logout {
                 this.logoutSuccessHandler = logoutSuccessHandler
                 this.logoutHandler = logoutHandler
@@ -258,7 +263,7 @@ class ServerOAuth2AutoConfiguration {
             addFilterBefore(PostLogoutNotAllowedWebFilter(), SecurityWebFiltersOrder.LOGOUT)
             addFilterAfter(
                 UserContextWebFilter(
-                    client.`object`,
+                    authenticationStoreClients.`object`,
                     hostBasedAuthEntryPoint,
                     logoutHandler,
                     userContextHolder.`object`
@@ -271,7 +276,10 @@ class ServerOAuth2AutoConfiguration {
                     setLogoutHandler(
                         DelegatingServerLogoutHandler(
                             logoutHandler,
-                            LogoutAllServerLogoutHandler(client.`object`, userContextHolder.`object`),
+                            LogoutAllServerLogoutHandler(
+                                authenticationStoreClients.`object`,
+                                userContextHolder.`object`
+                            ),
                         )
                     )
                     setRequiresLogoutMatcher(pathMatchers(HttpMethod.GET, "/logout/all"))
@@ -279,13 +287,9 @@ class ServerOAuth2AutoConfiguration {
                 SecurityWebFiltersOrder.EXCEPTION_TRANSLATION
             )
             addFilterAfter(
-                AppLoginWebFilter(appLoginProperties, client.`object`),
+                AppLoginWebFilter(appLoginProperties, authenticationStoreClients.`object`),
                 SecurityWebFiltersOrder.AUTHORIZATION
             )
-            cors {
-                this.configurationSource = compositeCorsConfigurationSource
-            }
-            oauth2Client {}
         }
     }
 
@@ -327,3 +331,6 @@ class ServerOAuth2AutoConfiguration {
         return DelegatingReactiveAuthenticationManager(oidc, oauth2Manager)
     }
 }
+
+fun ServerHttpSecurity.configure(httpConfiguration: ServerHttpSecurityDsl.() -> Unit): SecurityWebFilterChain =
+    this.invoke(httpConfiguration)

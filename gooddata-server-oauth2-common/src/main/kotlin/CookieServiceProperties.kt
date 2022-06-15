@@ -20,6 +20,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.ConstructorBinding
 import org.springframework.boot.context.properties.bind.DefaultValue
 import java.time.Duration
+import java.time.Instant
 
 @ConstructorBinding
 @ConfigurationProperties(prefix = "spring.security.oauth2.client.cookies")
@@ -42,4 +43,6 @@ class CookieServiceProperties(
      */
     @DefaultValue("10m")
     val keySetCacheDuration: Duration,
-)
+) {
+    fun validTo(now: Instant): Instant = now + keySetCacheDuration
+}

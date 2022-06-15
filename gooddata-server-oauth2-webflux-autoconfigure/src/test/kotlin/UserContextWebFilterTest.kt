@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package com.gooddata.oauth2.server.reactive
 
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
@@ -52,7 +54,6 @@ internal class UserContextWebFilterTest {
 
     private val userContextHolder: UserContextHolder<*> = mockk()
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun `user context is stored`() {
         val idToken = OidcIdToken(
