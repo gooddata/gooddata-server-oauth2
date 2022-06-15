@@ -39,7 +39,7 @@ class CookieSerializer(
         val aead: Aead,
         val validTo: Instant,
     ) {
-        fun getValidAead(now: Instant): Aead? = if (isValid(now)) aead else null
+        fun getValidAead(now: Instant): Aead? = aead.takeIf { isValid(now) }
 
         private fun isValid(now: Instant) = validTo > now
     }
@@ -81,19 +81,19 @@ class CookieSerializer(
      */
     private fun getAead(hostname: Hostname): Aead {
         val now = Instant.now()
-        return getAeadFromCache(hostname, now) ?: resolveAead(hostname, now)
+        return getAeadFromCache(hostname, now) ?: resolveAndCacheAead(hostname, now)
     }
 
     private fun getAeadFromCache(hostname: Hostname, now: Instant): Aead? =
         aeadCache[hostname]?.let { aead -> aead.getValidAead(now) }
 
-    private fun resolveAead(hostname: Hostname, now: Instant): Aead {
+    private fun resolveAndCacheAead(hostname: Hostname, now: Instant): Aead {
         // process before compute() method for not blocking cache
         val cookieSecurityProperties = readCookieSecurityProperties(hostname)
         return aeadCache.compute(hostname) { _, _ ->
             AeadWithExpiration(
                 aead = cookieSecurityProperties.keySet.getPrimitive(Aead::class.java),
-                validTo = min(cookieSecurityProperties.validTo, cookieServiceProperties.validTo(now))
+                validTo = minOf(cookieSecurityProperties.validTo, cookieServiceProperties.validTo(now))
             )
         }!!.aead
     }
@@ -106,6 +106,4 @@ class CookieSerializer(
     private fun ByteArray.toBase64(): String = String(Base64.getEncoder().encode(this))
 
     private fun String.fromBase64(): ByteArray = Base64.getDecoder().decode(this.toByteArray())
-
-    private fun min(lhs: Instant, rhs: Instant): Instant = if (lhs < rhs) lhs else rhs
 }

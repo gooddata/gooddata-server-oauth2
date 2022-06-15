@@ -56,9 +56,15 @@ class CookieServerSecurityContextRepository(
             .filter { it.authentication is OAuth2AuthenticationToken }
             // we support only OidcUser
             .filter { it.authentication.principal is OidcUser }
-            .map {
+            .map { securityContext ->
                 cookieService.createCookie(
-                    exchange, SPRING_SEC_SECURITY_CONTEXT, mapper.writeValueAsString(it.authentication)
+                    exchange,
+                    SPRING_SEC_SECURITY_CONTEXT,
+                    mapper.writeValueAsString(securityContext.authentication)
+                )
+                logger.debugToken(
+                    "id_token",
+                    ((securityContext.authentication).principal as OidcUser).idToken.tokenValue
                 )
             }
             .switchIfEmpty {
