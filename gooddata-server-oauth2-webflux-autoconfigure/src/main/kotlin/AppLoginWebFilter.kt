@@ -48,6 +48,8 @@ class AppLoginWebFilter(
 
     private val logger = KotlinLogging.logger {}
 
+    private val redirectStrategy = DefaultServerRedirectStrategy()
+
     private val matcher = AndServerWebExchangeMatcher(
         ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, APP_LOGIN_PATH),
         ServerWebExchangeMatcher { serverWebExchange ->
@@ -60,6 +62,19 @@ class AppLoginWebFilter(
             }.switchIfEmpty(ServerWebExchangeMatcher.MatchResult.notMatch())
         }
     )
+
+    override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> = mono(Dispatchers.Unconfined) {
+        val redirectTo = matcher.matches(exchange)
+            .awaitOrNull()
+            ?.takeIf { it.isMatch }
+            ?.let { it.variables[REDIRECT_TO] as String }
+
+        if (redirectTo != null) {
+            redirectStrategy.sendRedirect(exchange, URI.create(redirectTo))
+        } else {
+            chain.filter(exchange).then(Mono.empty())
+        }.awaitOrNull()
+    }
 
     @Suppress("TooGenericExceptionCaught")
     private fun ServerWebExchange.redirectToOrNull(): URI? {
@@ -77,18 +92,9 @@ class AppLoginWebFilter(
         }
     }
 
-    private fun URI.normalizeToRedirectToPattern() =
-        UriComponentsBuilder.fromUri(this)
-            .replacePath(null)
-            .replaceQuery(null)
-            .fragment(null)
-            .build().toUri()
-
     private suspend fun canRedirect(redirectTo: URI, serverWebExchange: ServerWebExchange): Boolean {
         val uri = redirectTo.normalizeToRedirectToPattern()
-
         val organizationHost = serverWebExchange.request.uri.host
-
         val allow =
             uri.isAllowedGlobally() || redirectTo.isLocal() || uri.isAllowedForOrganization(organizationHost)
         if (!allow) {
@@ -96,6 +102,13 @@ class AppLoginWebFilter(
         }
         return allow
     }
+
+    private fun URI.normalizeToRedirectToPattern() =
+        UriComponentsBuilder.fromUri(this)
+            .replacePath(null)
+            .replaceQuery(null)
+            .fragment(null)
+            .build().toUri()
 
     private suspend fun URI.isAllowedForOrganization(organizationHost: String): Boolean {
         val allowedOrigins = authenticationStoreClient
@@ -109,21 +122,6 @@ class AppLoginWebFilter(
     private fun URI.isAllowedGlobally() = this == properties.allowRedirect
 
     private fun URI.isLocal() = normalizeToRedirectToPattern() == EMPTY_URI && path.startsWith("/")
-
-    private val redirectStrategy = DefaultServerRedirectStrategy()
-
-    override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> = mono(Dispatchers.Unconfined) {
-        val redirectTo = matcher.matches(exchange)
-            .awaitOrNull()
-            ?.takeIf { it.isMatch }
-            ?.let { it.variables[REDIRECT_TO] as String }
-
-        if (redirectTo != null) {
-            redirectStrategy.sendRedirect(exchange, URI.create(redirectTo))
-        } else {
-            chain.filter(exchange).then(Mono.empty())
-        }.awaitOrNull()
-    }
 
     companion object {
         const val APP_LOGIN_PATH = "/appLogin"

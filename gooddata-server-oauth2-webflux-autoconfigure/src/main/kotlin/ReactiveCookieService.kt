@@ -30,7 +30,7 @@ import java.time.Duration
  * `ReactiveCookieService` is responsible for creation, storing and invalidation of HTTP cookies with respect
  * to configuration defined in [CookieServiceProperties].
  *
- * Cookies are base64 encoded to avoid any problems with special characters.
+ * Cookies are Base64 encoded to avoid any problems with special characters.
  */
 class ReactiveCookieService(
     private val properties: CookieServiceProperties,
@@ -45,6 +45,7 @@ class ReactiveCookieService(
      * Param `value` is base64 encoded.
      */
     fun createCookie(exchange: ServerWebExchange, name: String, value: String) {
+        logger.debugCookie(name, value)
         val cookie = createResponseCookie(
             exchange.request,
             name,
@@ -59,6 +60,7 @@ class ReactiveCookieService(
      * and sets its maxAge to 0.
      */
     fun invalidateCookie(exchange: ServerWebExchange, name: String) {
+        logger.debug { "Invalidate cookie name=$name" }
         val cookie = createResponseCookie(exchange.request, name, null, Duration.ZERO)
         exchange.response.addCookie(cookie)
     }

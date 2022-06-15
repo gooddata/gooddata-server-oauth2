@@ -54,8 +54,7 @@ fun buildClientRegistration(
 ): ClientRegistration =
     if (organization.oauthIssuerLocation != null) {
         clientRegistrationBuilderCache.get(organization.oauthIssuerLocation) {
-            ClientRegistrations
-                .fromIssuerLocation(organization.oauthIssuerLocation)
+            ClientRegistrations.fromIssuerLocation(organization.oauthIssuerLocation)
         }
             .registrationId(registrationId)
             .withRedirectUri(organization.oauthIssuerId)
@@ -105,7 +104,7 @@ private fun ClientRegistration.Builder.withDexConfig(
     .authorizationUri("${properties.remoteAddress}/dex/auth")
     .tokenUri("${properties.localAddress}/dex/token")
     .userInfoUri("${properties.localAddress}/dex/userinfo")
-    .userInfoAuthenticationMethod(AuthenticationMethod("header"))
+    .userInfoAuthenticationMethod(AuthenticationMethod.HEADER)
     .jwkSetUri("${properties.localAddress}/dex/keys")
 
 /**
@@ -132,21 +131,22 @@ suspend fun userContextAuthenticationToken(
  * has been issued before stored date `null` user is returned and flag indicating that authentication flow is to be
  * restarted.
  *
- * @param client authentication client
- * @param auth OAuth2 authentication token
+ * @param authenticationStoreClient authentication client
+ * @param authenticationToken OAuth2 authentication token
  * @return user context
  *
  */
 suspend fun getUserContextForAuthenticationToken(
-    client: AuthenticationStoreClient,
-    auth: OAuth2AuthenticationToken,
+    authenticationStoreClient: AuthenticationStoreClient,
+    authenticationToken: OAuth2AuthenticationToken,
 ): UserContext {
-    val organization = client.getOrganizationByHostname(auth.authorizedClientRegistrationId)
-    return client.getUserByAuthenticationId(
+    val organization =
+        authenticationStoreClient.getOrganizationByHostname(authenticationToken.authorizedClientRegistrationId)
+    return authenticationStoreClient.getUserByAuthenticationId(
         organization.id,
-        auth.principal.attributes[IdTokenClaimNames.SUB] as String
+        authenticationToken.principal.attributes[IdTokenClaimNames.SUB] as String
     )?.let { user ->
-        val tokenIssuedAtTime = auth.principal.attributes[IdTokenClaimNames.IAT] as Instant
+        val tokenIssuedAtTime = authenticationToken.principal.attributes[IdTokenClaimNames.IAT] as Instant
         val lastLogoutAllTimestamp = user.lastLogoutAllTimestamp
         val isValid = lastLogoutAllTimestamp == null || tokenIssuedAtTime.isAfter(lastLogoutAllTimestamp)
         if (isValid) {

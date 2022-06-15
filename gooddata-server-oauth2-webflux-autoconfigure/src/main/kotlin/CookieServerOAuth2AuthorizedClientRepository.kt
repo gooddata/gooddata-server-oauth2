@@ -19,6 +19,7 @@ import com.gooddata.oauth2.server.common.SPRING_SEC_OAUTH2_AUTHZ_CLIENT
 import com.gooddata.oauth2.server.common.jackson.SimplifiedOAuth2AuthorizedClient
 import com.gooddata.oauth2.server.common.jackson.mapper
 import com.gooddata.oauth2.server.common.jackson.toSimplified
+import mu.KotlinLogging
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository
@@ -40,6 +41,8 @@ class CookieServerOAuth2AuthorizedClientRepository(
     private val clientRegistrationRepository: ReactiveClientRegistrationRepository,
     private val cookieService: ReactiveCookieService
 ) : ServerOAuth2AuthorizedClientRepository {
+
+    private val logger = KotlinLogging.logger {}
 
     override fun <T : OAuth2AuthorizedClient> loadAuthorizedClient(
         clientRegistrationId: String,
@@ -76,10 +79,13 @@ class CookieServerOAuth2AuthorizedClientRepository(
         exchange: ServerWebExchange
     ): Mono<Void> {
         return Mono.just(exchange)
-            .doOnNext {
+            .doOnNext { serverWebExchange ->
                 cookieService.createCookie(
-                    it, SPRING_SEC_OAUTH2_AUTHZ_CLIENT, mapper.writeValueAsString(authorizedClient.toSimplified())
+                    serverWebExchange,
+                    SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
+                    mapper.writeValueAsString(authorizedClient.toSimplified())
                 )
+                logger.debugToken("access_token", authorizedClient.accessToken.tokenValue)
             }
             .then()
     }

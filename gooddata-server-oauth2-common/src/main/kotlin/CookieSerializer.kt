@@ -23,6 +23,8 @@ import java.time.Instant
 import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
 
+private typealias Hostname = String
+
 /**
  * Class for converting internal string serialization of cookie to external string serialization and back.
  * It currently does two things:
@@ -33,71 +35,39 @@ class CookieSerializer(
     private val cookieServiceProperties: CookieServiceProperties,
     private val client: AuthenticationStoreClient,
 ) {
-    data class AeadCache(
+    private data class AeadWithExpiration(
         val aead: Aead,
         val validTo: Instant,
-    )
+    ) {
+        fun getValidAead(now: Instant): Aead? = aead.takeIf { isValid(now) }
 
-    val aeadCache = ConcurrentHashMap<String, AeadCache>()
+        private fun isValid(now: Instant) = validTo > now
+    }
+
+    private val aeadCache = ConcurrentHashMap<Hostname, AeadWithExpiration>()
 
     init {
         AeadConfig.register()
     }
 
     /**
-     * Get [Aead] from cache (if still valid) or from [AuthenticationStoreClient].
-     */
-    private fun getAead(hostname: String): Aead {
-        val aead = aeadCache[hostname]
-
-        return if (aead == null || aead.validTo.isBefore(Instant.now())) {
-            synchronized(aeadCache) {
-                val synchronizedAead = aeadCache[hostname]
-                if (synchronizedAead == null || synchronizedAead.validTo.isBefore(Instant.now())) {
-                    val newProperties = runBlocking {
-                        val organization = client.getOrganizationByHostname(hostname)
-                        client.getCookieSecurityProperties(organization.id)
-                    }
-                    val propertiesValidity = newProperties.lastRotation.plus(newProperties.rotationInterval)
-                    val cacheValidity = Instant.now().plus(cookieServiceProperties.keySetCacheDuration)
-                    val validity = if (propertiesValidity.isBefore(cacheValidity)) {
-                        propertiesValidity
-                    } else {
-                        cacheValidity
-                    }
-                    val newAead = AeadCache(
-                        newProperties.keySet.getPrimitive(Aead::class.java),
-                        validity
-                    )
-                    aeadCache[hostname] = newAead
-                    newAead.aead
-                } else {
-                    synchronizedAead.aead
-                }
-            }
-        } else {
-            aead.aead
-        }
-    }
-
-    /**
      * Convert cookie from internal string serialization to external string serialization.
      */
-    fun encodeCookie(hostname: String, internalCookie: String): String {
+    fun encodeCookie(hostname: Hostname, internalCookie: String): String {
         val aead = getAead(hostname)
         val encryptedCookie = aead.encrypt(internalCookie.toByteArray(), null)
-        return String(Base64.getEncoder().encode(encryptedCookie))
+        return encryptedCookie.toBase64()
     }
 
     /**
      * Convert cookie from external string serialization to internal string serialization.
-     * If cookie is malformed or can not be authenticated, than it throws 'IllegalArgumentException'.
+     * If cookie is malformed or can not be authenticated, then it throws 'IllegalArgumentException'.
      *
      * @throws IllegalArgumentException when decryption fails
      */
-    fun decodeCookie(hostname: String, externalCookie: String): String {
-        val encryptedCookie = Base64.getDecoder().decode(externalCookie.toByteArray())
+    fun decodeCookie(hostname: Hostname, externalCookie: String): String {
         val aead = getAead(hostname)
+        val encryptedCookie = externalCookie.fromBase64()
         val internalCookie = try {
             aead.decrypt(encryptedCookie, null)
         } catch (_: GeneralSecurityException) {
@@ -105,4 +75,35 @@ class CookieSerializer(
         }
         return String(internalCookie)
     }
+
+    /**
+     * Get [Aead] from cache (if still valid) or from [AuthenticationStoreClient].
+     */
+    private fun getAead(hostname: Hostname): Aead {
+        val now = Instant.now()
+        return getAeadFromCache(hostname, now) ?: resolveAndCacheAead(hostname, now)
+    }
+
+    private fun getAeadFromCache(hostname: Hostname, now: Instant): Aead? =
+        aeadCache[hostname]?.let { aead -> aead.getValidAead(now) }
+
+    private fun resolveAndCacheAead(hostname: Hostname, now: Instant): Aead {
+        // process before compute() method for not blocking cache
+        val cookieSecurityProperties = readCookieSecurityProperties(hostname)
+        return aeadCache.compute(hostname) { _, _ ->
+            AeadWithExpiration(
+                aead = cookieSecurityProperties.keySet.getPrimitive(Aead::class.java),
+                validTo = minOf(cookieSecurityProperties.validTo, cookieServiceProperties.validTo(now))
+            )
+        }!!.aead
+    }
+
+    private fun readCookieSecurityProperties(hostname: Hostname) = runBlocking {
+        val organization = client.getOrganizationByHostname(hostname)
+        client.getCookieSecurityProperties(organization.id)
+    }
+
+    private fun ByteArray.toBase64(): String = String(Base64.getEncoder().encode(this))
+
+    private fun String.fromBase64(): ByteArray = Base64.getDecoder().decode(this.toByteArray())
 }
