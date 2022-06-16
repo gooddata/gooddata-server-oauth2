@@ -63,6 +63,7 @@ class CookieServerSecurityContextRepository(
                     mapper.writeValueAsString(securityContext.authentication)
                 )
                 logger.debugToken(
+                    SPRING_SEC_SECURITY_CONTEXT,
                     "id_token",
                     ((securityContext.authentication).principal as OidcUser).idToken.tokenValue
                 )

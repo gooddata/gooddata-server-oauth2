@@ -45,7 +45,6 @@ class ReactiveCookieService(
      * Param `value` is base64 encoded.
      */
     fun createCookie(exchange: ServerWebExchange, name: String, value: String) {
-        logger.debugCookie(name, value)
         val cookie = createResponseCookie(
             exchange.request,
             name,
