@@ -15,21 +15,20 @@
  */
 package com.gooddata.oauth2.server.reactive
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ObjectNode
 import mu.KLogger
 import java.util.Base64
 
-/**
- * Log cookie name and value
- */
-fun KLogger.debugCookie(name: String, value: String) {
-    debug { "cookie_name=$name cookie_value=${value.simplify()}" }
-}
+private val SENSITIVE_KEYS = listOf("cid", "jti", "kid", "uid")
+private const val REMOVE_CHARS_COUNT = 6
+private val SUFFIX = "***"
 
 /**
  * Log JWT token stored in cookie
  */
-fun KLogger.debugToken(name: String, token: String) {
-    debug { "token_name=$name ${tokenDetails(token)}" }
+fun KLogger.debugToken(cookieName: String, tokenType: String, tokenValue: String) {
+    debug { "cookie_name=$cookieName token_type=$tokenType ${tokenDetails(tokenValue)}" }
 }
 
 /**
@@ -37,9 +36,25 @@ fun KLogger.debugToken(name: String, token: String) {
  */
 private fun tokenDetails(token: String): String {
     val parts = token.split('.')
-    val headers = parts[0].fromBase64().simplify()
-    val claims = parts[1].fromBase64().simplify()
-    return "token_headers=$headers token_claims=$claims"
+    val headers = maskSensitiveValues(parts[0].fromBase64())
+    val claims = maskSensitiveValues(parts[1].fromBase64())
+    return "token_headers=${headers.simplify()} token_claims=${claims.simplify()}"
+}
+
+/**
+ * Replace last characters of sensitive values by dots
+ */
+internal fun maskSensitiveValues(tokenJson: String): String {
+    val objectMapper = ObjectMapper()
+    val token: ObjectNode = objectMapper.readTree(tokenJson).deepCopy()
+    SENSITIVE_KEYS.forEach { sensitiveKey ->
+        if (token.has(sensitiveKey)) {
+            val value = token.get(sensitiveKey).asText()
+            val safeValue = value.dropLast(REMOVE_CHARS_COUNT).plus(SUFFIX)
+            token.put(sensitiveKey, safeValue)
+        }
+    }
+    return token.toString()
 }
 
 /**

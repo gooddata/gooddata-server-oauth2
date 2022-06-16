@@ -85,7 +85,11 @@ class CookieServerOAuth2AuthorizedClientRepository(
                     SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
                     mapper.writeValueAsString(authorizedClient.toSimplified())
                 )
-                logger.debugToken("access_token", authorizedClient.accessToken.tokenValue)
+                logger.debugToken(
+                    SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
+                    "access_token",
+                    authorizedClient.accessToken.tokenValue
+                )
             }
             .then()
     }
