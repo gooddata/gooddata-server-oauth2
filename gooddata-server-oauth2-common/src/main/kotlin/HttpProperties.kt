@@ -40,13 +40,23 @@ class HttpProperties(
      */
     @DefaultValue("30000")
     val connectTimeoutMillis: Int,
+
+    /**
+     * A time after which an unused TCP connection is closed.
+     * Necessary because AWS NAT gateway resets connections that are idle for more than 350 seconds.
+     */
+    @DefaultValue("300000")
+    val connectionIdleTimeoutMillis: Int
 ) {
     init {
         check(readTimeoutMillis > 0) {
-            "The value of the property spring.security.oauth2.client.http.readTimeoutMillis should be positive"
+            "The value of the property spring.security.oauth2.client.http.readTimeoutMillis must be positive"
         }
         check(connectTimeoutMillis > 0) {
-            "The value of the property spring.security.oauth2.client.http.connectTimeoutMillis should be positive"
+            "The value of the property spring.security.oauth2.client.http.connectTimeoutMillis must be positive"
+        }
+        check(connectionIdleTimeoutMillis > 0) {
+            "The value of the property spring.security.oauth2.client.http.connectionIdleTimeoutMillis must be positive"
         }
     }
 }
