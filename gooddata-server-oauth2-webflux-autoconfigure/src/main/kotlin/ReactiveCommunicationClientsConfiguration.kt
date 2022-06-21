@@ -38,7 +38,12 @@ import org.springframework.security.oauth2.core.user.OAuth2User
 import org.springframework.web.client.RestTemplate
 import org.springframework.web.reactive.function.client.WebClient
 import reactor.netty.http.client.HttpClient
+import reactor.netty.resources.ConnectionProvider
+import reactor.netty.resources.ConnectionProvider.DEFAULT_POOL_ACQUIRE_TIMEOUT
 import java.time.Duration
+
+private const val DEFAULT_MAX_CONNECTIONS = 500
+private const val CUSTOM_CONNECTION_PROVIDER_NAME = "gdc-connection-provider"
 
 /**
  * Configuration of clients communicating with Oauth2 auth server HTTP endpoints
@@ -49,11 +54,25 @@ class ReactiveCommunicationClientsConfiguration(private val httpProperties: Http
 
     @Bean
     fun customWebClient(): WebClient {
-        val httpClient = HttpClient.create()
+        val httpClient = HttpClient.create(connectionProvider())
             .responseTimeout(Duration.ofMillis(httpProperties.readTimeoutMillis.toLong()))
             .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, httpProperties.connectTimeoutMillis)
         return WebClient.builder()
             .clientConnector(ReactorClientHttpConnector(httpClient))
+            .build()
+    }
+
+    /**
+     * taken from reactor.netty.resources.ConnectionProvider.create(java.lang.String, int)
+     */
+    private fun connectionProvider(): ConnectionProvider {
+        return ConnectionProvider.builder(CUSTOM_CONNECTION_PROVIDER_NAME)
+            .maxConnections(DEFAULT_MAX_CONNECTIONS)
+            .pendingAcquireTimeout(Duration.ofMillis(DEFAULT_POOL_ACQUIRE_TIMEOUT))
+            // we don't want netty to retry with another connection from the pool when the idle timout is reached
+            // see https://github.com/reactor/reactor-netty/issues/564#issuecomment-576244256
+            .lifo()
+            .maxIdleTime(Duration.ofMillis(httpProperties.connectionIdleTimeoutMillis.toLong()))
             .build()
     }
 

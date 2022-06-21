@@ -35,22 +35,27 @@ import org.springframework.web.client.RestTemplate
 import org.springframework.web.reactive.function.client.ExchangeFunction
 import org.springframework.web.reactive.function.client.WebClient
 import reactor.netty.http.client.HttpClient
+import reactor.netty.resources.ConnectionProvider
+import reactor.netty.resources.ConnectionProvider.Builder
 import strikt.api.expectThat
 import strikt.assertions.isA
 import strikt.assertions.isEqualTo
 import strikt.assertions.isNotNull
+import java.time.Duration
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.isAccessible
 
 private const val TEST_READ_TIMEOUT = 10
 private const val TEST_CONNECT_TIMEOUT = 20
+private const val TEST_IDLE_TIMEOUT = 300
 
 @TestPropertySource(
     properties = [
         "spring.application.name=test",
         "spring.security.oauth2.client.http.readTimeoutMillis=$TEST_READ_TIMEOUT",
-        "spring.security.oauth2.client.http.connectTimeoutMillis=$TEST_CONNECT_TIMEOUT"
+        "spring.security.oauth2.client.http.connectTimeoutMillis=$TEST_CONNECT_TIMEOUT",
+        "spring.security.oauth2.client.http.connectionIdleTimeoutMillis=$TEST_IDLE_TIMEOUT",
     ]
 )
 @ExtendWith(SpringExtension::class)
@@ -108,11 +113,16 @@ internal abstract class ServerOAuth2AutoConfigurationTest {
         val exFunc: ExchangeFunction = getFieldValue("exchangeFunction", webClient!!)
         val connector: ClientHttpConnector = getFieldValue("connector", exFunc)
         val httpClient: HttpClient = getFieldValue("httpClient", connector)
+        val connectionProvider: ConnectionProvider =
+            getFieldValue("http1ConnectionProvider", httpClient.configuration().connectionProvider())
+        val builder: Builder = connectionProvider.mutate()!!
+        val maxIdleTime: Duration = getFieldValue("maxIdleTime", builder)
 
         expectThat(httpClient.configuration().responseTimeout()?.toMillis()).isEqualTo(TEST_READ_TIMEOUT.toLong())
         expectThat(httpClient.configuration().options()[ChannelOption.CONNECT_TIMEOUT_MILLIS]).isEqualTo(
             TEST_CONNECT_TIMEOUT
         )
+        expectThat(maxIdleTime.toMillis()).isEqualTo(TEST_IDLE_TIMEOUT.toLong())
     }
 
     abstract fun checkCache()
