@@ -18,6 +18,7 @@ package com.gooddata.oauth2.server.servlet
 import com.gooddata.oauth2.server.common.SPRING_SEC_SECURITY_CONTEXT
 import com.gooddata.oauth2.server.common.CookieDecodeException
 import com.gooddata.oauth2.server.common.SPRING_SEC_OAUTH2_AUTHZ_CLIENT
+import com.gooddata.oauth2.server.common.debugToken
 import com.gooddata.oauth2.server.common.jackson.mapper
 import com.gooddata.oauth2.server.common.logException
 import mu.KotlinLogging
@@ -93,6 +94,11 @@ class CookieSecurityContextRepository(
         } else {
             cookieService.createCookie(
                 request, response, SPRING_SEC_SECURITY_CONTEXT, mapper.writeValueAsString(context.authentication)
+            )
+            logger.debugToken(
+                SPRING_SEC_SECURITY_CONTEXT,
+                "id_token",
+                ((context.authentication).principal as OidcUser).idToken.tokenValue
             )
         }
     }
