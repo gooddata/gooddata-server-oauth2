@@ -16,9 +16,11 @@
 package com.gooddata.oauth2.server.reactive
 
 import com.gooddata.oauth2.server.common.SPRING_SEC_OAUTH2_AUTHZ_CLIENT
+import com.gooddata.oauth2.server.common.debugToken
 import com.gooddata.oauth2.server.common.jackson.SimplifiedOAuth2AuthorizedClient
 import com.gooddata.oauth2.server.common.jackson.mapper
 import com.gooddata.oauth2.server.common.jackson.toSimplified
+import java.time.Instant
 import mu.KotlinLogging
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient
@@ -50,26 +52,30 @@ class CookieServerOAuth2AuthorizedClientRepository(
         exchange: ServerWebExchange
     ): Mono<T> {
         return Mono.just(exchange)
-            .flatMap {
+            .flatMap { serverWebExchange ->
                 cookieService.decodeCookie<SimplifiedOAuth2AuthorizedClient>(
-                    it.request,
+                    serverWebExchange.request,
                     SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
                     mapper,
                 )
             }
-            .doOnNext {
+            .doOnNext { simplifiedAuthorizedClient ->
                 // verify that loaded OAuth2AuthorizedClient uses provided clientRegistrationId
-                val stored = it.registrationId
-                if (stored != clientRegistrationId) {
+                val storedRegistrationId = simplifiedAuthorizedClient.registrationId
+                if (storedRegistrationId != clientRegistrationId) {
                     throw IllegalStateException(
-                        "Stored registrationId $stored does not correspond to expected $clientRegistrationId"
+                        "Stored registrationId $storedRegistrationId " +
+                            "does not correspond to expected $clientRegistrationId"
                     )
                 }
+                simplifiedAuthorizedClient.accessToken.expiresAt!! > Instant.now()!!
             }
-            .flatMap { it.toOAuth2AuthorizedClient(clientRegistrationRepository) }
-            .map {
+            .flatMap { simplifiedAuthorizedClient ->
+                simplifiedAuthorizedClient.toOAuth2AuthorizedClient(clientRegistrationRepository)
+            }
+            .map { authorizedClient ->
                 @Suppress("UNCHECKED_CAST")
-                it as T
+                authorizedClient as T
             }
     }
 
@@ -90,6 +96,13 @@ class CookieServerOAuth2AuthorizedClientRepository(
                     "access_token",
                     authorizedClient.accessToken.tokenValue
                 )
+                authorizedClient.refreshToken?.let { refreshToken ->
+                    logger.debugToken(
+                        SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
+                        "refresh_token",
+                        refreshToken.tokenValue
+                    )
+                }
             }
             .then()
     }
@@ -100,13 +113,18 @@ class CookieServerOAuth2AuthorizedClientRepository(
         exchange: ServerWebExchange
     ): Mono<Void> {
         return Mono.just(exchange)
-            .doOnNext { cookieService.invalidateCookie(it, SPRING_SEC_OAUTH2_AUTHZ_CLIENT) }
+            .doOnNext { serverWebExchange ->
+                cookieService.invalidateCookie(serverWebExchange, SPRING_SEC_OAUTH2_AUTHZ_CLIENT)
+            }
             .then()
     }
 
     private fun SimplifiedOAuth2AuthorizedClient.toOAuth2AuthorizedClient(
         clientRegistrationRepository: ReactiveClientRegistrationRepository
     ): Mono<OAuth2AuthorizedClient> =
-        clientRegistrationRepository.findByRegistrationId(registrationId)
-            .map { OAuth2AuthorizedClient(it, principalName, accessToken, refreshToken) }
+        clientRegistrationRepository
+            .findByRegistrationId(registrationId)
+            .map { clientRegistration ->
+                OAuth2AuthorizedClient(clientRegistration, principalName, accessToken, refreshToken)
+            }
 }

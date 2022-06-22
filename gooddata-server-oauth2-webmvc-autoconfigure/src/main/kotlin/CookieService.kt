@@ -60,6 +60,7 @@ class CookieService(
      * and sets its maxAge to 0.
      */
     fun invalidateCookie(request: HttpServletRequest, response: HttpServletResponse, name: String) {
+        logger.debug { "Invalidate cookie name=$name" }
         val cookie = createResponseCookie(request, name, null, Duration.ZERO)
         response.addCookie(cookie)
     }

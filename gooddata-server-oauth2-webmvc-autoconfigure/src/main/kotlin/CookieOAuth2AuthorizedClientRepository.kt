@@ -16,9 +16,11 @@
 package com.gooddata.oauth2.server.servlet
 
 import com.gooddata.oauth2.server.common.SPRING_SEC_OAUTH2_AUTHZ_CLIENT
+import com.gooddata.oauth2.server.common.debugToken
 import com.gooddata.oauth2.server.common.jackson.SimplifiedOAuth2AuthorizedClient
 import com.gooddata.oauth2.server.common.jackson.mapper
 import com.gooddata.oauth2.server.common.jackson.toSimplified
+import mu.KotlinLogging
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository
@@ -40,6 +42,8 @@ class CookieOAuth2AuthorizedClientRepository(
     private val clientRegistrationRepository: ClientRegistrationRepository,
     private val cookieService: CookieService,
 ) : OAuth2AuthorizedClientRepository {
+
+    private val logger = KotlinLogging.logger {}
 
     override fun <T : OAuth2AuthorizedClient> loadAuthorizedClient(
         clientRegistrationId: String,
@@ -77,6 +81,18 @@ class CookieOAuth2AuthorizedClientRepository(
             SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
             mapper.writeValueAsString(authorizedClient.toSimplified())
         )
+        logger.debugToken(
+            SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
+            "access_token",
+            authorizedClient.accessToken.tokenValue
+        )
+        authorizedClient.refreshToken?.let { refreshToken ->
+            logger.debugToken(
+                SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
+                "refresh_token",
+                refreshToken.tokenValue
+            )
+        }
     }
 
     override fun removeAuthorizedClient(

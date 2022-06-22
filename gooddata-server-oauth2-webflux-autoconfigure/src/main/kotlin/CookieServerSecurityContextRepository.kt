@@ -18,6 +18,7 @@ package com.gooddata.oauth2.server.reactive
 import com.gooddata.oauth2.server.common.SPRING_SEC_SECURITY_CONTEXT
 import com.gooddata.oauth2.server.common.CookieDecodeException
 import com.gooddata.oauth2.server.common.SPRING_SEC_OAUTH2_AUTHZ_CLIENT
+import com.gooddata.oauth2.server.common.debugToken
 import com.gooddata.oauth2.server.common.jackson.mapper
 import com.gooddata.oauth2.server.common.logException
 import mu.KotlinLogging
@@ -65,7 +66,7 @@ class CookieServerSecurityContextRepository(
                 logger.debugToken(
                     SPRING_SEC_SECURITY_CONTEXT,
                     "id_token",
-                    ((securityContext.authentication).principal as OidcUser).idToken.tokenValue
+                    (securityContext.authentication.principal as OidcUser).idToken.tokenValue
                 )
             }
             .switchIfEmpty {
