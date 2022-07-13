@@ -50,7 +50,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${kotlinCoroutinesVersion}")
     implementation("io.github.microutils:kotlin-logging:${kotlinLoggingVersion}")
     implementation("org.springframework.security:spring-security-oauth2-jose:5.6.2")
-    implementation("com.github.ben-manes.caffeine:caffeine:3.0.3")
+    implementation("com.github.ben-manes.caffeine:caffeine:3.1.1")
 
     testImplementation("io.strikt:strikt-core")
     testImplementation("net.javacrumbs.json-unit:json-unit:${jsonUnitVersion}")
