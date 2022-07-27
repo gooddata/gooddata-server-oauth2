@@ -28,7 +28,6 @@ tasks {
 }
 
 dependencies {
-    val detektFormattingVersion: String by project
     val jsonUnitVersion: String by project
     val kotlinCoroutinesVersion: String by project
     val kotlinLoggingVersion: String by project
@@ -38,8 +37,6 @@ dependencies {
     val wiremockVersion: String by project
 
     api(project(":gooddata-server-oauth2-common"))
-
-    detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:${detektFormattingVersion}")
 
     api("javax.servlet:javax.servlet-api")
     api("org.springframework.boot:spring-boot-starter-web")

@@ -81,8 +81,10 @@ subprojects {
 
     dependencies {
         val striktVersion: String by project
+        val detektFormattingVersion: String by project
 
         testImplementation(platform("io.strikt:strikt-bom:${striktVersion}"))
+        detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:${detektFormattingVersion}")
     }
 
     java {
