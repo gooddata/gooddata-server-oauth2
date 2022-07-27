@@ -21,20 +21,18 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import pl.allegro.tech.build.axion.release.domain.TagNameSerializationConfig
 
 plugins {
-    val kotlinVersion = "1.6.21"
-
-    kotlin("jvm") version kotlinVersion
-    kotlin("plugin.spring") version kotlinVersion apply false
+    kotlin("jvm")
+    kotlin("plugin.spring") apply false
 
     idea
     `maven-publish`
 
-    id("com.adarshr.test-logger") version "2.1.1"
-    id("io.gitlab.arturbosch.detekt") version "1.14.2"
-    id("io.spring.dependency-management") version "1.0.11.RELEASE"
-    id("org.datlowe.maven-publish-auth") version "2.0.2" apply false
-    id("org.springframework.boot") version "2.6.9" apply false
-    id("pl.allegro.tech.build.axion-release") version "1.13.1"
+    id("com.adarshr.test-logger")
+    id("io.gitlab.arturbosch.detekt")
+    id("io.spring.dependency-management")
+    id("org.datlowe.maven-publish-auth") apply false
+    id("org.springframework.boot") apply false
+    id("pl.allegro.tech.build.axion-release")
 }
 
 scmVersion {
@@ -81,10 +79,10 @@ subprojects {
 
     dependencies {
         val striktVersion: String by project
-        val detektFormattingVersion: String by project
+        val detektVersion: String by project
 
         testImplementation(platform("io.strikt:strikt-bom:${striktVersion}"))
-        detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:${detektFormattingVersion}")
+        detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:${detektVersion}")
     }
 
     java {

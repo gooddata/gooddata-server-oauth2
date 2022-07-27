@@ -21,6 +21,24 @@
 
 rootProject.name = "gooddata-server-oauth2"
 
+pluginManagement {
+    plugins {
+        val kotlinVersion: String by settings
+        val detektVersion: String by settings
+        val springBootVersion: String by settings
+
+        kotlin("jvm") version kotlinVersion
+        kotlin("plugin.spring") version kotlinVersion
+
+        id("com.adarshr.test-logger") version "2.1.1"
+        id("io.gitlab.arturbosch.detekt") version detektVersion
+        id("io.spring.dependency-management") version "1.0.11.RELEASE"
+        id("org.datlowe.maven-publish-auth") version "2.0.2"
+        id("org.springframework.boot") version springBootVersion
+        id("pl.allegro.tech.build.axion-release") version "1.13.1"
+    }
+}
+
 include("gooddata-server-oauth2-common")
 include("gooddata-server-oauth2-test")
 include("gooddata-server-oauth2-webflux-autoconfigure")
