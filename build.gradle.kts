@@ -111,8 +111,7 @@ subprojects {
     }
 
     detekt {
-        toolVersion = "1.14.2"
-        input = files(
+        source = files(
             "src/main/kotlin",
             "src/test/kotlin"
         )
