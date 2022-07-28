@@ -28,15 +28,12 @@ tasks {
 }
 
 dependencies {
-    val detektFormattingVersion: String by project
     val jsonUnitVersion: String by project
     val tinkVersion: String by project
     val kotlinCoroutinesVersion: String by project
     val mockkVersion: String by project
     val kotlinLoggingVersion: String by project
     val wiremockVersion: String by project
-
-    detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:${detektFormattingVersion}")
 
     api("com.fasterxml.jackson.core:jackson-databind")
     api("io.netty:netty-codec-http")

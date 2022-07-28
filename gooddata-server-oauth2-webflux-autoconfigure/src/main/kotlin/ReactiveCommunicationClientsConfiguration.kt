@@ -94,10 +94,10 @@ class ReactiveCommunicationClientsConfiguration(private val httpProperties: Http
     @Bean
     fun authCodeAccessTokenResponseClient(webClient: WebClient):
         ReactiveOAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> =
-            WebClientReactiveAuthorizationCodeTokenResponseClient().apply {
-                setWebClient(webClient)
-                setBodyExtractor(SafeOAuth2AccessTokenResponseBodyExtractor())
-            }
+        WebClientReactiveAuthorizationCodeTokenResponseClient().apply {
+            setWebClient(webClient)
+            setBodyExtractor(SafeOAuth2AccessTokenResponseBodyExtractor())
+        }
 
     @Bean
     fun oauth2UserService(webClient: WebClient): ReactiveOAuth2UserService<OAuth2UserRequest, OAuth2User> =

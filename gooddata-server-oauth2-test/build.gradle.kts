@@ -28,15 +28,12 @@ tasks {
 }
 
 dependencies {
-    val detektFormattingVersion: String by project
     val mockkVersion: String by project
     val tinkVersion: String by project
 
     testImplementation(project(":gooddata-server-oauth2-common"))
     testImplementation(project(":gooddata-server-oauth2-webflux-autoconfigure"))
     testImplementation(project(":gooddata-server-oauth2-webmvc-autoconfigure"))
-
-    detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:${detektFormattingVersion}")
 
     testImplementation("io.mockk:mockk:${mockkVersion}")
     testImplementation("io.strikt:strikt-core")
