@@ -18,7 +18,6 @@
  */
 
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import pl.allegro.tech.build.axion.release.domain.TagNameSerializationConfig
 
 plugins {
     kotlin("jvm")
@@ -36,9 +35,9 @@ plugins {
 }
 
 scmVersion {
-    tag(closureOf<TagNameSerializationConfig> {
+    tag {
         prefix = "${project.name}-"
-    })
+    }
 }
 
 project.version = scmVersion.version
