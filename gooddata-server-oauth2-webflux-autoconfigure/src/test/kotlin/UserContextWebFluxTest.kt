@@ -25,6 +25,7 @@ import com.gooddata.oauth2.server.common.User
 import com.google.crypto.tink.CleartextKeysetHandle
 import com.google.crypto.tink.JsonKeysetReader
 import com.ninjasquad.springmockk.MockkBean
+import com.ninjasquad.springmockk.SpykBean
 import io.mockk.coEvery
 import io.mockk.every
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -43,6 +44,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.context.SecurityContextImpl
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
+import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository
 import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
 import org.springframework.security.oauth2.core.oidc.OidcIdToken
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser
@@ -66,6 +68,7 @@ import kotlin.coroutines.coroutineContext
 class UserContextWebFluxTest(
     @Autowired private val webClient: WebTestClient,
     @Autowired private val serverSecurityContextRepository: ServerSecurityContextRepository,
+    @Autowired private val clientRegistrationRepository: ReactiveClientRegistrationRepository,
     @Autowired private val authenticationStoreClient: AuthenticationStoreClient,
     @Autowired private val cookieSerializer: CookieSerializer,
 ) {
@@ -108,10 +111,8 @@ class UserContextWebFluxTest(
             .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken))
             .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient))
             .exchange()
-            .expectStatus()
-            .isOk
-            .expectBody<String>()
-            .isEqualTo("sub <userTestId@organizationTestId>")
+            .expectStatus().isOk
+            .expectBody<String>().isEqualTo("sub <userTestId@organizationTestId>")
     }
 
     @Test
@@ -134,8 +135,7 @@ class UserContextWebFluxTest(
             .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken))
             .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient))
             .exchange()
-            .expectStatus()
-            .isFound
+            .expectStatus().isFound
             .expectHeader().location("/api/profile")
     }
 
@@ -163,8 +163,7 @@ class UserContextWebFluxTest(
             .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken))
             .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient))
             .exchange()
-            .expectStatus()
-            .isFound
+            .expectStatus().isFound
             .expectHeader().location("https://localhost:8443/api/profile")
     }
 
@@ -174,8 +173,7 @@ class UserContextWebFluxTest(
 
         webClient.get().uri("http://localhost/")
             .exchange()
-            .expectStatus()
-            .isFound
+            .expectStatus().isFound
             .expectHeader().location("/oauth2/authorization/localhost")
             .expectCookie().exists("SPRING_REDIRECT_URI")
     }
@@ -186,8 +184,7 @@ class UserContextWebFluxTest(
 
         webClient.get().uri("http://localhost/appLogin?redirectTo=/api/profile")
             .exchange()
-            .expectStatus()
-            .isFound
+            .expectStatus().isFound
             .expectHeader().location("/oauth2/authorization/localhost")
             .expectCookie().exists("SPRING_REDIRECT_URI")
     }
@@ -199,11 +196,9 @@ class UserContextWebFluxTest(
         webClient.get().uri("http://localhost/")
             .header("X-Requested-With", "XMLHttpRequest")
             .exchange()
-            .expectStatus()
-            .isUnauthorized
+            .expectStatus().isUnauthorized
             .expectHeader().doesNotExist("Location")
-            .expectBody<String>()
-            .isEqualTo("/appLogin")
+            .expectBody<String>().isEqualTo("/appLogin")
     }
 
     @Test
@@ -292,8 +287,7 @@ class UserContextWebFluxTest(
             .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken))
             .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient))
             .exchange()
-            .expectStatus()
-            .isFound
+            .expectStatus().isFound
             .expectHeader().location("/oauth2/authorization/localhost")
             .expectCookie().doesNotExist(SPRING_SEC_SECURITY_CONTEXT)
             .expectCookie().valueEquals(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, "")
@@ -310,10 +304,8 @@ class UserContextWebFluxTest(
         webClient.get().uri("http://localhost/")
             .header("Authorization", "Bearer supersecuretoken")
             .exchange()
-            .expectStatus()
-            .isOk
-            .expectBody<String>()
-            .isEqualTo("null <userTestId@organizationTestId>")
+            .expectStatus().isOk
+            .expectBody<String>().isEqualTo("null <userTestId@organizationTestId>")
     }
 
     @Test
@@ -324,8 +316,7 @@ class UserContextWebFluxTest(
         webClient.get().uri("http://localhost/")
             .header("Authorization", "Bearer supersecuretoken")
             .exchange()
-            .expectStatus()
-            .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR)
+            .expectStatus().isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR)
             .expectBody()
             .jsonPath("path").isEqualTo("/")
             .jsonPath("status").isEqualTo("500")
@@ -364,8 +355,7 @@ class UserContextWebFluxTest(
         webClient.get().uri("http://localhost/")
             .header("Authorization", "Bearer supersecuretoken")
             .exchange()
-            .expectStatus()
-            .isUnauthorized
+            .expectStatus().isUnauthorized
             .expectHeader()
             .valueEquals(
                 "WWW-Authenticate",
@@ -382,8 +372,7 @@ class UserContextWebFluxTest(
 
         webClient.get().uri("http://localhost/oauth2/authorization/localhost")
             .exchange()
-            .expectStatus()
-            .isFound
+            .expectStatus().isFound
             .expectHeader().valueMatches(
                 "Location",
                 "http:\\/\\/localhost:3000\\/dex\\/auth\\?response_type=code&client_id=clientId&" +
@@ -417,8 +406,7 @@ class UserContextWebFluxTest(
 
         webClient.get().uri("http://localhost/oauth2/authorization/localhost")
             .exchange()
-            .expectStatus()
-            .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR)
+            .expectStatus().isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR)
             .expectBody()
             .jsonPath("path").isEqualTo("/oauth2/authorization/localhost")
             .jsonPath("status").isEqualTo("500")
@@ -432,11 +420,11 @@ class UserContextWebFluxTest(
     fun `filter redirects logout without cookies`() {
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
         every { serverSecurityContextRepository.save(any(), null) } returns Mono.empty()
+        every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.empty()
 
         webClient.get().uri("http://localhost/logout")
             .exchange()
-            .expectStatus()
-            .isFound
+            .expectStatus().isFound
             .expectHeader().location("/")
             .expectCookie().exists("SPRING_REDIRECT_URI")
     }
@@ -445,10 +433,11 @@ class UserContextWebFluxTest(
     fun `filter redirects logout with cookies`() {
         everyValidSecurityContext()
         every { serverSecurityContextRepository.save(any(), null) } returns Mono.empty()
+        every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.empty()
         everyValidOrganization()
-        coEvery { authenticationStoreClient.getUserByAuthenticationId("organizationTestId", "sub") } returns User(
-            "userTestId",
-        )
+        coEvery {
+            authenticationStoreClient.getUserByAuthenticationId("organizationTestId", "sub")
+        } returns User("userTestId")
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
@@ -456,8 +445,7 @@ class UserContextWebFluxTest(
             .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken))
             .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient))
             .exchange()
-            .expectStatus()
-            .isFound
+            .expectStatus().isFound
             .expectHeader().location("/")
             .expectCookie().exists("SPRING_REDIRECT_URI")
     }
@@ -469,8 +457,7 @@ class UserContextWebFluxTest(
 
         webClient.post().uri("http://localhost/logout")
             .exchange()
-            .expectStatus()
-            .isEqualTo(HttpStatus.METHOD_NOT_ALLOWED)
+            .expectStatus().isEqualTo(HttpStatus.METHOD_NOT_ALLOWED)
             .expectCookie().exists("SPRING_REDIRECT_URI")
     }
 
@@ -481,8 +468,7 @@ class UserContextWebFluxTest(
 
         webClient.post().uri("http://localhost/logout/all")
             .exchange()
-            .expectStatus()
-            .isEqualTo(HttpStatus.METHOD_NOT_ALLOWED)
+            .expectStatus().isEqualTo(HttpStatus.METHOD_NOT_ALLOWED)
             .expectCookie().exists("SPRING_REDIRECT_URI")
     }
 
@@ -523,6 +509,9 @@ class UserContextWebFluxTest(
     class Config {
         @MockkBean
         lateinit var serverSecurityContextRepository: ServerSecurityContextRepository
+
+        @SpykBean
+        lateinit var clientRegistrationRepository: ReactiveClientRegistrationRepository
 
         @MockkBean
         lateinit var authenticationStoreClient: AuthenticationStoreClient

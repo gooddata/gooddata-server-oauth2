@@ -63,8 +63,6 @@ import org.springframework.security.oauth2.jwt.ReactiveJwtDecoderFactory
 import org.springframework.security.web.server.SecurityWebFilterChain
 import org.springframework.security.web.server.authentication.logout.DelegatingServerLogoutHandler
 import org.springframework.security.web.server.authentication.logout.LogoutWebFilter
-import org.springframework.security.web.server.authentication.logout.SecurityContextServerLogoutHandler
-import org.springframework.security.web.server.authentication.logout.ServerLogoutHandler
 import org.springframework.security.web.server.context.ServerSecurityContextRepository
 import org.springframework.security.web.server.util.matcher.NegatedServerWebExchangeMatcher
 import org.springframework.security.web.server.util.matcher.OrServerWebExchangeMatcher
@@ -194,22 +192,21 @@ class ServerOAuth2AutoConfiguration {
     ): SecurityWebFilterChain {
         val cookieServerRequestCache = CookieServerRequestCache(cookieService)
         val hostBasedAuthEntryPoint = HostBasedServerAuthenticationEntryPoint(cookieServerRequestCache)
+
         val logoutHandler = DelegatingServerLogoutHandler(
-            SecurityContextServerLogoutHandler().apply {
-                setSecurityContextRepository(serverSecurityContextRepository)
-            },
-            ServerLogoutHandler { exchange, authentication ->
-                oauth2ClientRepository.removeAuthorizedClient(
-                    exchange.exchange.request.uri.host,
-                    authentication,
-                    exchange.exchange
-                )
-            }
+            SecurityContextRepositoryLogoutHandler(serverSecurityContextRepository),
+            ClientRepositoryLogoutHandler(oauth2ClientRepository),
         )
-        val logoutSuccessHandler = OidcClientInitiatedServerLogoutSuccessHandler(clientRegistrationRepository).apply {
-            setPostLogoutRedirectUri("{baseUrl}")
-            setLogoutSuccessUrl(URI.create("/"))
-        }
+
+        val logoutSuccessHandler = DelegatingServerLogoutSuccessHandler(
+            // Order of handlers is important!
+            OidcClientInitiatedServerLogoutSuccessHandler(clientRegistrationRepository).apply {
+                setPostLogoutRedirectUri("{baseUrl}")
+                setLogoutSuccessUrl(URI.create("/"))
+            },
+            // Keep Auth0 handler as last one
+            Auth0LogoutHandler(clientRegistrationRepository),
+        )
 
         return serverHttpSecurity.securityContextRepository(serverSecurityContextRepository).configure {
             securityMatcher { serverWebExchange ->
