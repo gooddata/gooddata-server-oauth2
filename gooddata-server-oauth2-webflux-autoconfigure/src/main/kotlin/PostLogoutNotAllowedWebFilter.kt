@@ -15,8 +15,6 @@
  */
 package com.gooddata.oauth2.server.reactive
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.reactor.mono
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers
@@ -33,16 +31,16 @@ class PostLogoutNotAllowedWebFilter : WebFilter {
 
     private val postLogoutMatcher = ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST, "/logout", "/logout/all")
 
-    override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> = mono(Dispatchers.Unconfined) {
+    override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> =
         postLogoutMatcher.matches(exchange)
-            .awaitOrNull()
-            ?.takeIf { it.isMatch }
-            ?.let {
-                throw ResponseStatusException(
-                    HttpStatus.METHOD_NOT_ALLOWED,
-                    "POST method is not allowed on ${exchange.request.path}"
+            .filter { it.isMatch }
+            .flatMap<Void> {
+                Mono.error(
+                    ResponseStatusException(
+                        HttpStatus.METHOD_NOT_ALLOWED,
+                        "POST method is not allowed on ${exchange.request.path}"
+                    )
                 )
             }
-            ?: chain.filter(exchange).then(Mono.empty<Void>()).awaitOrNull()
-    }
+            .switchIfEmpty(chain.filter(exchange))
 }

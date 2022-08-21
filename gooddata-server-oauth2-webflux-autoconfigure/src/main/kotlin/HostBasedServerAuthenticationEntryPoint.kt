@@ -15,8 +15,7 @@
  */
 package com.gooddata.oauth2.server.reactive
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.reactor.mono
+import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.security.core.AuthenticationException
 import org.springframework.security.web.server.DefaultServerRedirectStrategy
 import org.springframework.security.web.server.ServerAuthenticationEntryPoint
@@ -40,17 +39,15 @@ class HostBasedServerAuthenticationEntryPoint(
     private val xmlHttpRequestServerRedirectStrategy = XMLHttpRequestServerRedirectStrategy()
 
     override fun commence(exchange: ServerWebExchange, e: AuthenticationException?): Mono<Void> =
-        mono(Dispatchers.Unconfined) {
-            if (exchange.isAjaxCall()) {
-                val uri = URI.create(AppLoginWebFilter.APP_LOGIN_PATH)
-                xmlHttpRequestServerRedirectStrategy.sendRedirect(exchange, uri)
-            } else {
-                val uri = URI.create("/oauth2/authorization/${exchange.request.uri.host}")
-                requestCache
-                    .saveRequest(exchange)
-                    .then(redirectStrategy.sendRedirect(exchange, uri))
-            }.awaitOrNull()
+        if (exchange.request.isAjaxCall()) {
+            val uri = URI.create(AppLoginWebFilter.APP_LOGIN_PATH)
+            xmlHttpRequestServerRedirectStrategy.sendRedirect(exchange, uri)
+        } else {
+            val uri = URI.create("/oauth2/authorization/${exchange.request.uri.host}")
+            requestCache
+                .saveRequest(exchange)
+                .then(redirectStrategy.sendRedirect(exchange, uri))
         }
 
-    private fun ServerWebExchange.isAjaxCall() = this.request.headers["X-Requested-With"]?.first() == "XMLHttpRequest"
+    private fun ServerHttpRequest.isAjaxCall() = headers["X-Requested-With"]?.first() == "XMLHttpRequest"
 }

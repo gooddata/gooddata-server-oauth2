@@ -15,8 +15,8 @@
  */
 package com.gooddata.oauth2.server.reactive
 
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.reactor.ReactorContext
+import reactor.util.context.Context
+import reactor.util.context.ContextView
 
 /**
  * Interface defining contract for storing and accessing current authenticated user context. Client is responsible for
@@ -24,19 +24,17 @@ import kotlinx.coroutines.reactor.ReactorContext
  *
  * Created context is passed as a coroutine context to subsequent filter calls.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
 interface UserContextHolder<UserContextT : AuthenticationUserContext> {
 
     /**
      * Gets currently available authenticated user context.
      */
-    suspend fun getContext(): UserContextT?
+    fun getUserContext(context: ContextView): UserContextT?
 
     /**
-     * Sets and stores provided information as a new authenticated user context and returns it in a form of coroutine
-     * context element.
+     * Add user context to Reactor Context and return new value
      */
-    suspend fun setContext(organizationId: String, userId: String, userName: String?): ReactorContext
+    fun addUserContext(context: Context, organizationId: String, userId: String, userName: String?): Context
 }
 
 /**

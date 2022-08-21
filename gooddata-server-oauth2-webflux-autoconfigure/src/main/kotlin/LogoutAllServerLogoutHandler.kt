@@ -33,10 +33,12 @@ class LogoutAllServerLogoutHandler(
 ) : ServerLogoutHandler {
 
     override fun logout(exchange: WebFilterExchange, authentication: Authentication): Mono<Void> =
-        mono(Dispatchers.Unconfined) {
-            userContextHolder.getContext()
-                ?.let {
-                    client.logoutAll(it.userId, it.organizationId)
-                }
-        }.then()
+        Mono.deferContextual { context ->
+            mono(Dispatchers.Unconfined) {
+                userContextHolder.getUserContext(context)
+                    ?.let {
+                        client.logoutAll(it.userId, it.organizationId)
+                    }
+            }.then()
+        }
 }

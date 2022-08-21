@@ -79,7 +79,7 @@ internal class UserContextWebFilterTest {
         coEvery { client.getUserByAuthenticationId("organizationId", "sub") } returns User(
             "userId",
         )
-        coEvery { userContextHolder.setContext(any(), any(), any()) } returns ReactorContext(Context.empty())
+        coEvery { userContextHolder.addUserContext(any(), any(), any()) } returns ReactorContext(Context.empty())
 
         val webFilterChain = mockk<WebFilterChain> {
             every { filter(any()) } returns Mono.empty()
@@ -94,7 +94,7 @@ internal class UserContextWebFilterTest {
         verify { serverLogoutHandler wasNot called }
         verify { authenticationEntryPoint wasNot called }
         verify(exactly = 1) { webFilterChain.filter(any()) }
-        coVerify(exactly = 1) { userContextHolder.setContext("organizationId", "userId", "sub") }
+        coVerify(exactly = 1) { userContextHolder.addUserContext("organizationId", "userId", "sub") }
     }
 
     @Test
@@ -143,7 +143,7 @@ internal class UserContextWebFilterTest {
 
     @Test
     fun `bearer context is stored`() {
-        coEvery { userContextHolder.setContext(any(), any(), any()) } returns ReactorContext(Context.empty())
+        coEvery { userContextHolder.addUserContext(any(), any(), any()) } returns ReactorContext(Context.empty())
 
         val context = SecurityContextImpl(
             UserContextAuthenticationToken(
@@ -163,6 +163,6 @@ internal class UserContextWebFilterTest {
             .block()
 
         verify(exactly = 1) { webFilterChain.filter(any()) }
-        coVerify(exactly = 1) { userContextHolder.setContext("organizationId", "userId", null) }
+        coVerify(exactly = 1) { userContextHolder.addUserContext("organizationId", "userId", null) }
     }
 }

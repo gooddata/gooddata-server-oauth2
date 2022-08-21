@@ -17,7 +17,6 @@ package com.gooddata.oauth2.server.reactive
 
 import com.gooddata.oauth2.server.common.AppLoginProperties
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
 import org.springframework.http.HttpMethod
@@ -63,18 +62,17 @@ class AppLoginWebFilter(
         }
     )
 
-    override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> = mono(Dispatchers.Unconfined) {
-        val redirectTo = matcher.matches(exchange)
-            .awaitOrNull()
-            ?.takeIf { it.isMatch }
-            ?.let { it.variables[REDIRECT_TO] as String }
-
-        if (redirectTo != null) {
-            redirectStrategy.sendRedirect(exchange, URI.create(redirectTo))
-        } else {
-            chain.filter(exchange).then(Mono.empty())
-        }.awaitOrNull()
-    }
+    override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> =
+        matcher.matches(exchange)
+            .filter { matchResult -> matchResult.isMatch }
+            .map { matchResult -> matchResult.variables[REDIRECT_TO] as String }
+            .flatMap { redirectTo ->
+                if (redirectTo != null) {
+                    redirectStrategy.sendRedirect(exchange, URI.create(redirectTo))
+                } else {
+                    chain.filter(exchange)
+                }
+            }
 
     @Suppress("TooGenericExceptionCaught")
     private fun ServerWebExchange.redirectToOrNull(): URI? {

@@ -20,15 +20,8 @@ import com.gooddata.oauth2.server.common.Organization
 import com.gooddata.oauth2.server.common.User
 import com.gooddata.oauth2.server.common.UserContextAuthenticationToken
 import com.gooddata.oauth2.server.common.getUserContextForAuthenticationToken
-import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.reactor.ReactorContext
 import kotlinx.coroutines.reactor.mono
-import kotlinx.coroutines.slf4j.MDCContext
-import kotlinx.coroutines.withContext
 import mu.KotlinLogging
-import org.slf4j.event.Level
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
@@ -64,116 +57,55 @@ class UserContextWebFilter(
 
     private val logger = KotlinLogging.logger {}
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> =
-        mono(Dispatchers.Unconfined + CoroutineName("userContextWebFilter")) {
-            val authOption = Option(Level.WARN, { "ReactorContext is not a part of coroutineContext" }) {
-                coroutineContext[ReactorContext]?.context
-            }.map(
-                Level.DEBUG,
-                { "Security context is not set, probably accessing unauthenticated resource" }
-            ) { context ->
-                context.getOrDefault<Mono<SecurityContext>>(SecurityContext::class.java, null)
-            }.map(Level.WARN, { "Security cannot be retrieved" }) { context ->
-                context.awaitOrNull()?.authentication
-            }
-
-            when (authOption) {
-                is Option.Present -> when (val auth = authOption.value) {
+        Mono.deferContextual { context ->
+            val securityContext = context.getOrEmpty<SecurityContext>(SecurityContext::class.java)
+            Mono.just(securityContext)
+        }.flatMap { securityContextOption ->
+            securityContextOption.map { securityContext ->
+                when (val auth = securityContext.authentication) {
                     is OAuth2AuthenticationToken -> processAuthenticationToken(auth, exchange, chain)
-                    is UserContextAuthenticationToken -> withUserContext(auth.organization, auth.user, null) {
-                        chain.filter(exchange).awaitOrNull()
+                    is UserContextAuthenticationToken -> {
+                        chain.filter(exchange).withUserContext(auth.organization.id, auth.user.id, null)
                     }
-                    else -> logAndContinue(exchange, chain, Level.WARN) {
-                        "Security context contains unexpected authentication ${auth::class}"
+
+                    else -> {
+                        logger.warn { "Security context contains unexpected authentication ${auth::class}" }
+                        chain.filter(exchange)
                     }
                 }
-                is Option.Empty -> logAndContinue(exchange, chain, authOption.logLevel, authOption.message)
+            }.orElseGet {
+                logger.debug("Security context is not set, probably accessing unauthenticated resource")
+                chain.filter(exchange)
             }
         }
 
-    private suspend fun processAuthenticationToken(
+    private fun processAuthenticationToken(
         auth: OAuth2AuthenticationToken,
         exchange: ServerWebExchange,
         chain: WebFilterChain,
-    ): Void? {
-        val userContext = getUserContextForAuthenticationToken(client, auth)
-
-        return if (userContext.user == null) {
-            logger.info { "Session was logged out" }
-            serverLogoutHandler.logout(WebFilterExchange(exchange, chain), auth).awaitOrNull()
-            if (userContext.restartAuthentication) {
-                authenticationEntryPoint.commence(exchange, null).awaitOrNull()
-            } else {
-                throw ResponseStatusException(HttpStatus.NOT_FOUND, "User is not registered")
-            }
-        } else {
-            withUserContext(userContext.organization, userContext.user!!, auth.name) {
-                chain.filter(exchange).awaitOrNull()
-            }
-        }
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    private suspend fun <T> withUserContext(
-        organization: Organization,
-        user: User,
-        name: String?,
-        block: suspend () -> T,
-    ): T {
-        val reactorContext = userContextHolder.setContext(organization.id, user.id, name)
-        return withContext(reactorContext + MDCContext()) {
-            block()
-        }
-    }
-
-    private suspend fun logAndContinue(
-        exchange: ServerWebExchange,
-        chain: WebFilterChain,
-        logLevel: Level,
-        message: () -> String,
-    ): Void? {
-        when (logLevel) {
-            Level.ERROR -> logger.error(message)
-            Level.WARN -> logger.warn(message)
-            Level.INFO -> logger.info(message)
-            Level.DEBUG -> logger.debug(message)
-            Level.TRACE -> logger.trace(message)
-        }
-        return chain.filter(exchange).awaitOrNull()
-    }
-
-    sealed class Option<T> {
-
-        @Suppress("UNCHECKED_CAST")
-        suspend fun <U> map(
-            logLevel: Level,
-            message: () -> String,
-            mapper: suspend (T) -> U?,
-        ): Option<U> = when (this) {
-            is Present -> Option(logLevel, message) {
-                mapper(this.value)
-            }
-            is Empty -> this as Empty<U>
-        }
-
-        companion object {
-            suspend operator fun <T> invoke(
-                logLevel: Level,
-                message: () -> String,
-                block: suspend () -> T?,
-            ): Option<T> {
-                val value = block()
-                return if (value != null) {
-                    Present(value)
+    ): Mono<Void> =
+        mono { getUserContextForAuthenticationToken(client, auth) }
+            .flatMap { userContext ->
+                if (userContext.user == null) {
+                    logger.info { "Session was logged out" }
+                    serverLogoutHandler.logout(WebFilterExchange(exchange, chain), auth)
+                        .flatMap {
+                            if (userContext.restartAuthentication) {
+                                authenticationEntryPoint.commence(exchange, null)
+                            } else {
+                                Mono.error(ResponseStatusException(HttpStatus.NOT_FOUND, "User is not registered"))
+                            }
+                        }
                 } else {
-                    Empty(logLevel, message)
+                    chain
+                        .filter(exchange)
+                        .withUserContext(userContext.organization.id, userContext.user!!.id, auth.name)
                 }
             }
+
+    private fun Mono<Void>.withUserContext(organizationId: String, userId: String, userName: String?): Mono<Void> =
+        contextWrite { context ->
+            userContextHolder.addUserContext(context, organizationId, userId, userName)
         }
-
-        data class Present<T>(val value: T) : Option<T>()
-
-        data class Empty<T>(val logLevel: Level, val message: () -> String) : Option<T>()
-    }
 }

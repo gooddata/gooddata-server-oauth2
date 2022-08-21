@@ -40,6 +40,7 @@ import org.springframework.context.annotation.Import
 import org.springframework.http.HttpMethod
 import org.springframework.security.authentication.DelegatingReactiveAuthenticationManager
 import org.springframework.security.authentication.ReactiveAuthenticationManager
+import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder
 import org.springframework.security.config.web.server.ServerHttpSecurity
@@ -94,6 +95,14 @@ class ServerOAuth2AutoConfiguration {
      */
     @EnableWebFluxSecurity
     class EnabledSecurity
+
+    protected fun configure(http: HttpSecurity) {
+        http
+            .headers()
+            .xssProtection()
+            .and()
+            .contentSecurityPolicy("form-action 'self'")
+    }
 
     @Bean
     fun cookieSerializer(
