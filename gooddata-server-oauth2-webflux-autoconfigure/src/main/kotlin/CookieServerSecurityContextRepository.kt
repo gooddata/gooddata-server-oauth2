@@ -70,10 +70,15 @@ class CookieServerSecurityContextRepository(
                 )
             }
             .switchIfEmpty {
-                Mono.fromRunnable { cookieService.invalidateCookie(exchange, SPRING_SEC_SECURITY_CONTEXT) }
+                // when content == null or filters don't match
+                logger.debug { "Delete security context" }
+                Mono.just(deleteSecurityContext(exchange))
             }
             .then()
     }
+
+    private fun deleteSecurityContext(exchange: ServerWebExchange) =
+        cookieService.invalidateCookie(exchange, SPRING_SEC_SECURITY_CONTEXT)
 
     override fun load(exchange: ServerWebExchange): Mono<SecurityContext> {
         return Mono.just(exchange)

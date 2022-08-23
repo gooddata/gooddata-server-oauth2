@@ -26,4 +26,4 @@ import reactor.core.publisher.Mono
  *
  * @see [kotlinx.coroutines.reactive.awaitSingle]
  */
-suspend fun <T> Mono<T>.awaitOrNull(): T? = this.awaitFirstOrNull()
+suspend fun <T> Mono<T>.awaitOrNull(): T? = awaitFirstOrNull()
