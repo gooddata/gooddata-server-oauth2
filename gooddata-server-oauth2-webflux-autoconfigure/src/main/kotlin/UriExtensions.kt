@@ -19,4 +19,4 @@ fun URI.baseUrl(): URI = UriComponentsBuilder.newInstance().scheme(scheme).host(
 /**
  * Check if URI is Auth0 issuer
  */
-fun URI.isAuth0(): Boolean = host.lowercase().endsWith("auth0.com")
+fun URI.isAuth0(): Boolean = host?.lowercase()?.endsWith("auth0.com") ?: false
