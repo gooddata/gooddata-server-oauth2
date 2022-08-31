@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 GoodData Corporation
+ * Copyright 2022 GoodData Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ package com.gooddata.oauth2.server.reactive
 
 import com.gooddata.oauth2.server.common.AppLoginProperties
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
 import org.springframework.http.HttpMethod
@@ -30,6 +29,7 @@ import org.springframework.web.server.WebFilter
 import org.springframework.web.server.WebFilterChain
 import org.springframework.web.util.UriComponentsBuilder
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.switchIfEmpty
 import java.net.URI
 
 /**
@@ -40,67 +40,83 @@ import java.net.URI
  * against allowed origin from properties.
  *
  * This [WebFilter] is in place mainly to allow JS apps to benefit from server-side OIDC authentication.
+ *
+ * _NOTE_: this filter is called only when the session is already authenticated
  */
-class AppLoginWebFilter(
-    private val properties: AppLoginProperties,
-    private val authenticationStoreClient: AuthenticationStoreClient
-) : WebFilter {
-
-    private val logger = KotlinLogging.logger {}
+class AppLoginWebFilter(private val appLoginRedirectProcessor: AppLoginRedirectProcessor) : WebFilter {
 
     private val redirectStrategy = DefaultServerRedirectStrategy()
 
-    private val matcher = AndServerWebExchangeMatcher(
-        ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, APP_LOGIN_PATH),
+    override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> =
+        appLoginRedirectProcessor.process(
+            exchange,
+            { redirectUri -> redirectStrategy.sendRedirect(exchange, URI.create(redirectUri)) },
+            { chain.filter(exchange) }
+        )
+}
+
+class AppLoginRedirectProcessor(
+    private val properties: AppLoginProperties,
+    private val authenticationStoreClient: AuthenticationStoreClient,
+) {
+    private val logger = KotlinLogging.logger {}
+
+    private val appLoginMatcher = AndServerWebExchangeMatcher(
+        ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, AppLoginUri.PATH),
         ServerWebExchangeMatcher { serverWebExchange ->
-            mono {
-                serverWebExchange
-                    .redirectToOrNull()
-                    ?.takeIf { redirectTo -> canRedirect(redirectTo, serverWebExchange) }
-            }.flatMap { redirectTo ->
-                ServerWebExchangeMatcher.MatchResult.match(mapOf(REDIRECT_TO to redirectTo.toASCIIString()))
-            }.switchIfEmpty(ServerWebExchangeMatcher.MatchResult.notMatch())
+            serverWebExchange.redirectToOrEmpty()
+                .filterWhen { redirectTo -> canRedirect(redirectTo, serverWebExchange) }
+                .flatMap { redirectTo ->
+                    ServerWebExchangeMatcher.MatchResult.match(
+                        mapOf(AppLoginUri.REDIRECT_TO to redirectTo.toASCIIString())
+                    )
+                }
+                .switchIfEmpty(ServerWebExchangeMatcher.MatchResult.notMatch())
         }
     )
 
-    override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> = mono(Dispatchers.Unconfined) {
-        val redirectTo = matcher.matches(exchange)
-            .awaitOrNull()
-            ?.takeIf { it.isMatch }
-            ?.let { it.variables[REDIRECT_TO] as String }
+    fun process(
+        exchange: ServerWebExchange,
+        process: (String) -> Mono<Void>,
+        default: () -> Mono<Void>,
+    ): Mono<Void> = appLoginMatcher.matches(exchange)
+        .filter { matchResult -> matchResult.isMatch }
+        // we cannot use the flatMap here because the process returns the empty Mono
+        .map { matchResult ->
+            val redirectUri = matchResult.variables[AppLoginUri.REDIRECT_TO] as String
+            process.invoke(redirectUri)
+        }
+        // we need to use the deferred Mono here (used extension function internally uses it for the wrapping)
+        .switchIfEmpty { Mono.just(default.invoke()) }
+        // we need to subscribe to the underlying Mono to invoke sendRedirect or filter chain
+        .flatMap { it }
 
-        if (redirectTo != null) {
-            redirectStrategy.sendRedirect(exchange, URI.create(redirectTo))
-        } else {
-            chain.filter(exchange).then(Mono.empty())
-        }.awaitOrNull()
-    }
-
-    @Suppress("TooGenericExceptionCaught")
-    private fun ServerWebExchange.redirectToOrNull(): URI? {
-        val redirectTo = this.request.queryParams[REDIRECT_TO]?.firstOrNull()
+    private fun ServerWebExchange.redirectToOrEmpty(): Mono<URI> {
+        val redirectTo = request.queryParams[AppLoginUri.REDIRECT_TO]?.firstOrNull()
         return if (redirectTo == null) {
-            logger.trace { "Query param \"$REDIRECT_TO\" not found" }
-            null
+            logger.trace { "Query param \"${AppLoginUri.REDIRECT_TO}\" not found" }
+            Mono.empty()
         } else {
-            try {
-                URI.create(redirectTo).normalize()
-            } catch (exception: Throwable) {
+            Mono.defer {
+                Mono.just(URI.create(redirectTo).normalize())
+            }.onErrorResume { exception ->
                 logger.debug { "URL normalization error: $exception" }
-                null
+                Mono.empty()
             }
         }
     }
 
-    private suspend fun canRedirect(redirectTo: URI, serverWebExchange: ServerWebExchange): Boolean {
+    private fun canRedirect(redirectTo: URI, serverWebExchange: ServerWebExchange): Mono<Boolean> {
         val uri = redirectTo.normalizeToRedirectToPattern()
         val organizationHost = serverWebExchange.request.uri.host
-        val allow =
-            uri.isAllowedGlobally() || redirectTo.isLocal() || uri.isAllowedForOrganization(organizationHost)
-        if (!allow) {
-            logger.trace { "URI \"$uri\" can't be redirected" }
-        }
-        return allow
+        return Mono.just(true)
+            .filter { uri.isAllowedGlobally() || redirectTo.isLocal() }
+            .switchIfEmpty(uri.isAllowedForOrganization(organizationHost))
+            .doOnNext { canRedirect ->
+                if (!canRedirect) {
+                    logger.trace { "URI \"$uri\" can't be redirected" }
+                }
+            }
     }
 
     private fun URI.normalizeToRedirectToPattern() =
@@ -110,22 +126,22 @@ class AppLoginWebFilter(
             .fragment(null)
             .build().toUri()
 
-    private suspend fun URI.isAllowedForOrganization(organizationHost: String): Boolean {
-        val allowedOrigins = authenticationStoreClient
-            .getOrganizationByHostname(organizationHost)
-            .allowedOrigins
-            ?.map { URI(it) }
-
-        return allowedOrigins != null && allowedOrigins.any { this == it.normalizeToRedirectToPattern() }
-    }
+    private fun URI.isAllowedForOrganization(organizationHost: String): Mono<Boolean> =
+        mono { authenticationStoreClient.getOrganizationByHostname(organizationHost) }
+            .flatMap { organization -> Mono.justOrEmpty(organization.allowedOrigins?.map(::URI)) }
+            .map { allowedOrigins -> allowedOrigins.any { this == it.normalizeToRedirectToPattern() } }
+            .defaultIfEmpty(false)
 
     private fun URI.isAllowedGlobally() = this == properties.allowRedirect
 
     private fun URI.isLocal() = normalizeToRedirectToPattern() == EMPTY_URI && path.startsWith("/")
 
     companion object {
-        const val APP_LOGIN_PATH = "/appLogin"
-        internal const val REDIRECT_TO = "redirectTo"
         private val EMPTY_URI = URI.create("")
     }
+}
+
+object AppLoginUri {
+    const val PATH = "/appLogin"
+    internal const val REDIRECT_TO = "redirectTo"
 }

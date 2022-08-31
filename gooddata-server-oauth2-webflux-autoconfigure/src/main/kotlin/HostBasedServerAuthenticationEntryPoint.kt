@@ -42,7 +42,7 @@ class HostBasedServerAuthenticationEntryPoint(
     override fun commence(exchange: ServerWebExchange, e: AuthenticationException?): Mono<Void> =
         mono(Dispatchers.Unconfined) {
             if (exchange.isAjaxCall()) {
-                val uri = URI.create(AppLoginWebFilter.APP_LOGIN_PATH)
+                val uri = URI.create(AppLoginUri.PATH)
                 xmlHttpRequestServerRedirectStrategy.sendRedirect(exchange, uri)
             } else {
                 val uri = URI.create("/oauth2/authorization/${exchange.request.uri.host}")
