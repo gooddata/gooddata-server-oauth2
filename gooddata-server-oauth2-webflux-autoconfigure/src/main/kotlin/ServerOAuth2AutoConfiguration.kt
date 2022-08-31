@@ -194,8 +194,12 @@ class ServerOAuth2AutoConfiguration {
             appLoginProperties,
             authenticationStoreClients.`object`,
         )
-        val cookieServerRequestCache = CookieServerRequestCache(cookieService)
-        val hostBasedAuthEntryPoint = HostBasedServerAuthenticationEntryPoint(cookieServerRequestCache)
+        val serverRequestCache = DelegatingServerRequestCache(
+            CookieServerRequestCache(cookieService),
+            AppLoginCookieRequestCacheWriter(cookieService),
+            appLoginRedirectProcessor,
+        )
+        val hostBasedAuthEntryPoint = HostBasedServerAuthenticationEntryPoint(serverRequestCache)
 
         val logoutHandler = DelegatingServerLogoutHandler(
             SecurityContextRepositoryLogoutHandler(serverSecurityContextRepository),
@@ -254,7 +258,7 @@ class ServerOAuth2AutoConfiguration {
                 authorize(anyExchange, authenticated)
             }
             requestCache {
-                requestCache = cookieServerRequestCache
+                requestCache = serverRequestCache
             }
             logout {
                 this.logoutSuccessHandler = logoutSuccessHandler

@@ -17,6 +17,7 @@ package com.gooddata.oauth2.server.reactive
 
 import com.gooddata.oauth2.server.common.AppLoginProperties
 import com.gooddata.oauth2.server.common.AuthenticationStoreClient
+import com.gooddata.oauth2.server.common.SPRING_REDIRECT_URI
 import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
 import org.springframework.http.HttpMethod
@@ -55,39 +56,73 @@ class AppLoginWebFilter(private val appLoginRedirectProcessor: AppLoginRedirectP
         )
 }
 
+/**
+ * Processes [AppLoginUri.REDIRECT_TO] query param for a web request called against [AppLoginUri.PATH]. In the case
+ * that the request is not called against this path or does not fulfill [AppLoginUri.REDIRECT_TO] query param
+ * conditions, the processing is skipped and the default fallback is used.
+ */
 class AppLoginRedirectProcessor(
     private val properties: AppLoginProperties,
     private val authenticationStoreClient: AuthenticationStoreClient,
 ) {
     private val logger = KotlinLogging.logger {}
 
+    /**
+     * Matches exchanges with [AppLoginUri.REDIRECT_TO] query parameter fulfilling following rules:
+     * * Parameter value must be a valid URL string.
+     * * The URL is a relative path starting with `/` or its domain hostname is globally (via Spring configuration
+     *   properties) or organization-based (via [com.gooddata.oauth2.server.common.Organization.allowedOrigins]
+     *   configuration) allowed host.
+     *
+     * If the exchange matches, [ServerWebExchangeMatcher.MatchResult.match] containing the [AppLoginUri.REDIRECT_TO]
+     * variable with the value of the [AppLoginUri.REDIRECT_TO] parameter as URL decoded string is returned. Otherwise,
+     * the matcher returns [ServerWebExchangeMatcher.MatchResult.notMatch].
+     */
+    private val appLoginRedirectToMatcher = ServerWebExchangeMatcher { serverWebExchange ->
+        serverWebExchange.redirectToOrEmpty()
+            .filterWhen { redirectTo -> canRedirect(redirectTo, serverWebExchange) }
+            .flatMap { redirectTo ->
+                ServerWebExchangeMatcher.MatchResult.match(
+                    mapOf(AppLoginUri.REDIRECT_TO to redirectTo.toASCIIString())
+                )
+            }
+            .switchIfEmpty(ServerWebExchangeMatcher.MatchResult.notMatch())
+    }
+
+    /**
+     * Matches that the web request:
+     * * Is [HttpMethod.GET] for path [AppLoginUri.PATH]
+     * * Fulfills conditions defined by [appLoginRedirectToMatcher]
+     */
     private val appLoginMatcher = AndServerWebExchangeMatcher(
         ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, AppLoginUri.PATH),
-        ServerWebExchangeMatcher { serverWebExchange ->
-            serverWebExchange.redirectToOrEmpty()
-                .filterWhen { redirectTo -> canRedirect(redirectTo, serverWebExchange) }
-                .flatMap { redirectTo ->
-                    ServerWebExchangeMatcher.MatchResult.match(
-                        mapOf(AppLoginUri.REDIRECT_TO to redirectTo.toASCIIString())
-                    )
-                }
-                .switchIfEmpty(ServerWebExchangeMatcher.MatchResult.notMatch())
-        }
+        appLoginRedirectToMatcher
     )
 
+    /**
+     * Processes this [exchange] by applying a function and returns empty [Mono] producer. If the HTTP request matches
+     * the [appLoginMatcher], then its [AppLoginUri.REDIRECT_TO] query parameter value is processed
+     * by the [redirectToProcessor]. Otherwise, the [emptyRedirectToFallback] is used.
+     *
+     * @param exchange HTTP exchange containing request/response
+     * @param redirectToProcessor the function for processing [AppLoginUri.REDIRECT_TO] query parameter
+     * @param emptyRedirectToFallback the fallback function if the [AppLoginUri.REDIRECT_TO] could not be fetched from
+     * the [exchange]
+     * @return empty [Mono]
+     */
     fun process(
         exchange: ServerWebExchange,
-        process: (String) -> Mono<Void>,
-        default: () -> Mono<Void>,
+        redirectToProcessor: (String) -> Mono<Void>,
+        emptyRedirectToFallback: () -> Mono<Void>,
     ): Mono<Void> = appLoginMatcher.matches(exchange)
         .filter { matchResult -> matchResult.isMatch }
         // we cannot use the flatMap here because the process returns the empty Mono
         .map { matchResult ->
             val redirectUri = matchResult.variables[AppLoginUri.REDIRECT_TO] as String
-            process.invoke(redirectUri)
+            redirectToProcessor.invoke(redirectUri)
         }
         // we need to use the deferred Mono here (used extension function internally uses it for the wrapping)
-        .switchIfEmpty { Mono.just(default.invoke()) }
+        .switchIfEmpty { Mono.just(emptyRedirectToFallback.invoke()) }
         // we need to subscribe to the underlying Mono to invoke sendRedirect or filter chain
         .flatMap { it }
 
@@ -141,7 +176,26 @@ class AppLoginRedirectProcessor(
     }
 }
 
+/**
+ * Contains constants defining `appLogin` URL and its corresponding query parameter names.
+ */
 object AppLoginUri {
     const val PATH = "/appLogin"
     internal const val REDIRECT_TO = "redirectTo"
+}
+
+/**
+ * Writes "appLogin" requests into corresponding HTTP cookies.
+ */
+class AppLoginCookieRequestCacheWriter(private val cookieService: ReactiveCookieService) {
+    /**
+     * Saves the [redirectUri] from the [AppLoginUri.REDIRECT_TO] query parameter value into the [SPRING_REDIRECT_URI]
+     * HTTP response set-cookie.
+     *
+     * @param exchange the server HTTP exchange containing request/response
+     * @param redirectUri the value of the [AppLoginUri.REDIRECT_TO] query parameter
+     */
+    fun saveRequest(exchange: ServerWebExchange, redirectUri: String) {
+        cookieService.createCookie(exchange, SPRING_REDIRECT_URI, redirectUri)
+    }
 }
