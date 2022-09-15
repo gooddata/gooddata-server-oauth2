@@ -190,8 +190,16 @@ class ServerOAuth2AutoConfiguration {
         jwtDecoderFactory: ObjectProvider<ReactiveJwtDecoderFactory<ClientRegistration>>,
         loginAuthManager: ReactiveAuthenticationManager,
     ): SecurityWebFilterChain {
-        val cookieServerRequestCache = CookieServerRequestCache(cookieService)
-        val hostBasedAuthEntryPoint = HostBasedServerAuthenticationEntryPoint(cookieServerRequestCache)
+        val appLoginRedirectProcessor = AppLoginRedirectProcessor(
+            appLoginProperties,
+            authenticationStoreClients.`object`,
+        )
+        val serverRequestCache = DelegatingServerRequestCache(
+            CookieServerRequestCache(cookieService),
+            AppLoginCookieRequestCacheWriter(cookieService),
+            appLoginRedirectProcessor,
+        )
+        val hostBasedAuthEntryPoint = HostBasedServerAuthenticationEntryPoint(serverRequestCache)
 
         val logoutHandler = DelegatingServerLogoutHandler(
             SecurityContextRepositoryLogoutHandler(serverSecurityContextRepository),
@@ -250,7 +258,7 @@ class ServerOAuth2AutoConfiguration {
                 authorize(anyExchange, authenticated)
             }
             requestCache {
-                requestCache = cookieServerRequestCache
+                requestCache = serverRequestCache
             }
             logout {
                 this.logoutSuccessHandler = logoutSuccessHandler
@@ -284,7 +292,7 @@ class ServerOAuth2AutoConfiguration {
                 SecurityWebFiltersOrder.EXCEPTION_TRANSLATION
             )
             addFilterAfter(
-                AppLoginWebFilter(appLoginProperties, authenticationStoreClients.`object`),
+                AppLoginWebFilter(appLoginRedirectProcessor),
                 SecurityWebFiltersOrder.AUTHORIZATION
             )
         }
