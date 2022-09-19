@@ -40,6 +40,7 @@ import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.context.SecurityContextImpl
@@ -261,14 +262,12 @@ class UserContextWebFluxTest(
             .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", authenticationToken))
             .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie("localhost", authorizedClient))
             .exchange()
-            .expectStatus().isNotFound
-            .expectBody()
-            .jsonPath("path").isEqualTo("/")
-            .jsonPath("status").isEqualTo("404")
-            .jsonPath("error").isEqualTo("Not Found")
-            .jsonPath("message").doesNotExist()
-            .jsonPath("timestamp").exists()
-            .jsonPath("requestId").exists()
+            .expectStatus().isUnauthorized
+            .expectHeader().valueEquals(
+                HttpHeaders.WWW_AUTHENTICATE,
+                "type=\"userNotRegistered\", title=\"User is not registered in metadata\""
+            )
+            .expectBody().isEmpty
     }
 
     @Test
