@@ -45,7 +45,7 @@ dependencies {
     implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${kotlinCoroutinesVersion}")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-slf4j:${kotlinCoroutinesVersion}")
-    implementation("org.springframework.security:spring-security-oauth2-jose:5.6.2")
+    implementation("org.springframework.security:spring-security-oauth2-jose:5.7.3")
     implementation("org.springframework.security:spring-security-config:5.6.2")
 
     testImplementation("com.ninja-squad:springmockk:${springMockkVersion}")
