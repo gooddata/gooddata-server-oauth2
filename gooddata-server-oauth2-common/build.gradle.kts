@@ -39,7 +39,7 @@ dependencies {
     api("io.netty:netty-codec-http")
     api("org.springframework:spring-web")
     api("org.springframework.boot:spring-boot")
-    api("org.springframework.security:spring-security-oauth2-client:5.6.2")
+    api("org.springframework.security:spring-security-oauth2-client:5.7.3")
     api("org.springframework.security:spring-security-oauth2-resource-server:5.6.2")
 
     implementation("com.google.crypto.tink:tink:${tinkVersion}")
