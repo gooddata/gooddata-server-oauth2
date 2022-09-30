@@ -16,7 +16,6 @@
 package com.gooddata.oauth2.server.servlet
 
 import com.gooddata.oauth2.server.common.SPRING_SEC_SECURITY_CONTEXT
-import com.gooddata.oauth2.server.common.CookieDecodeException
 import com.gooddata.oauth2.server.common.SPRING_SEC_OAUTH2_AUTHZ_CLIENT
 import com.gooddata.oauth2.server.common.debugToken
 import com.gooddata.oauth2.server.common.jackson.mapper
@@ -64,28 +63,29 @@ class CookieSecurityContextRepository(
         // find registration based on its ID
         val registration = clientRegistrationRepository.findByRegistrationId(decoded.authorizedClientRegistrationId)
             ?: return SecurityContextHolder.createEmptyContext()
-        val jwt = try {
-            jwtDecoderFactory.createDecoder(registration)
+        return try {
+            val jwt = jwtDecoderFactory.createDecoder(registration)
                 // decode JWT token from JSON
                 .decode((decoded.principal as OidcUser).idToken.tokenValue)
+
+            val oidc = OidcIdToken(jwt.tokenValue, jwt.issuedAt, jwt.expiresAt, jwt.claims)
+            val token = OAuth2AuthenticationToken(
+                DefaultOidcUser(
+                    decoded.principal.authorities,
+                    oidc,
+                    registration.providerDetails.userInfoEndpoint.userNameAttributeName
+                ),
+                emptyList(), // it is not stored in JSON anyway
+                registration.registrationId
+            )
+
+            SecurityContextImpl(token)
         } catch (exception: JwtException) {
             logger.logException(exception)
             cookieService.invalidateCookie(requestResponseHolder, SPRING_SEC_OAUTH2_AUTHZ_CLIENT)
             cookieService.invalidateCookie(requestResponseHolder, SPRING_SEC_SECURITY_CONTEXT)
-            throw CookieDecodeException("JWT from cookie decoding error", exception)
+            SecurityContextImpl(InvalidOAuth2Token(INVALID_JWT_ERROR_TYPE, exception.message.orEmpty()))
         }
-        val oidc = OidcIdToken(jwt.tokenValue, jwt.issuedAt, jwt.expiresAt, jwt.claims)
-        val token = OAuth2AuthenticationToken(
-            DefaultOidcUser(
-                decoded.principal.authorities,
-                oidc,
-                registration.providerDetails.userInfoEndpoint.userNameAttributeName
-            ),
-            emptyList(), // it is not stored in JSON anyway
-            registration.registrationId
-        )
-
-        return SecurityContextImpl(token)
     }
 
     override fun saveContext(context: SecurityContext, request: HttpServletRequest, response: HttpServletResponse) {
@@ -110,5 +110,9 @@ class CookieSecurityContextRepository(
             mapper,
             OAuth2AuthenticationToken::class.java
         ) != null
+    }
+
+    companion object {
+        private const val INVALID_JWT_ERROR_TYPE = "invalidJwt"
     }
 }
