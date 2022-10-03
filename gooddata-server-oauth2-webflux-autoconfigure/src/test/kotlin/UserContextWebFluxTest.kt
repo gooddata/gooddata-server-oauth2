@@ -265,7 +265,7 @@ class UserContextWebFluxTest(
             .expectStatus().isUnauthorized
             .expectHeader().valueEquals(
                 HttpHeaders.WWW_AUTHENTICATE,
-                "type=\"userNotRegistered\", title=\"User is not registered\""
+                "type=\"userNotRegistered\", title=\"User is not registered in metadata\""
             )
             .expectBody().isEmpty
     }

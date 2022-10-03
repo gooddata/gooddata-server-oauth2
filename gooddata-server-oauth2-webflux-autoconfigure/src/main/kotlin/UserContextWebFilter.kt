@@ -109,7 +109,7 @@ class UserContextWebFilter(
                     statusCode = HttpStatus.UNAUTHORIZED
                     headers.add(
                         HttpHeaders.WWW_AUTHENTICATE,
-                        "type=\"userNotRegistered\", title=\"User is not registered\""
+                        "type=\"userNotRegistered\", title=\"User is not registered in metadata\""
                     )
                 }
                 null
