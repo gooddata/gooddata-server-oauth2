@@ -23,13 +23,13 @@ import com.gooddata.oauth2.server.common.getUserContextForAuthenticationToken
 import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 import org.slf4j.event.Level
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.web.AuthenticationEntryPoint
 import org.springframework.security.web.authentication.logout.LogoutHandler
-import org.springframework.web.server.ResponseStatusException
 import javax.servlet.Filter
 import javax.servlet.FilterChain
 import javax.servlet.ServletRequest
@@ -99,7 +99,15 @@ class UserContextFilter(
             logoutHandler.logout(request, response, auth)
             if (restartAuthentication) {
                 authenticationEntryPoint.commence(request, response, null)
-            } else throw ResponseStatusException(HttpStatus.NOT_FOUND, "User is not registered")
+            } else {
+                response?.apply {
+                    status = HttpStatus.UNAUTHORIZED.value()
+                    addHeader(
+                        HttpHeaders.WWW_AUTHENTICATE,
+                        "type=\"userNotRegistered\", title=\"User is not registered\""
+                    )
+                }
+            }
         } else {
             withUserContext(organization, user, auth.name) {
                 chain.doFilter(request, response)
