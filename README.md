@@ -6,19 +6,15 @@ library that adds support for storing OAuth2 related session data to HTTP only c
 Library is forked from [https://github.com/spring-projects/spring-security](https://github.com/spring-projects/spring-security)
 to be able to reuse some internal classes and logic and stripped down to the minimum that is needed for the implementation.
 
+This Library is based on WebFlux [Spring Documentation](https://docs.spring.io/spring-framework/docs/current/reference/html/web-reactive.html)
+
 ## Usage in projects
 
 ### Configure Spring Boot Project
 
 **Add project dependency:**
-For WebFlux:
 ```
-implementation('com.gooddata.oauth2.server:gooddata-server-oauth2-webflux-starter')
-```
-
-For WebMVC:
-```
-implementation('com.gooddata.oauth2.server:gooddata-server-oauth2-webmvc-starter')
+implementation('com.gooddata.oauth2.server:gooddata-server-oauth2-starter')
 ```
 
 ### Using authentication entities
