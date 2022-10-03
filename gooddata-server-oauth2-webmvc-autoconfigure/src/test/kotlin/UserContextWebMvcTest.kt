@@ -243,11 +243,12 @@ class UserContextWebMvcTest(
             )
         }.andExpect {
             status {
-                isUnauthorized()
+                isNotFound()
+                reason("User is not registered")
             }
-            header {
-                doesNotExist("Location")
-                exists("WWW-Authenticate")
+            header { doesNotExist("Location") }
+            content {
+                string("")
             }
         }
     }

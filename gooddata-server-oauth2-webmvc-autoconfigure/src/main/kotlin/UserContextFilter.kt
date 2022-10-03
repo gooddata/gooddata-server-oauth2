@@ -30,6 +30,7 @@ import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.web.AuthenticationEntryPoint
 import org.springframework.security.web.authentication.logout.LogoutHandler
+import org.springframework.web.server.ResponseStatusException
 import javax.servlet.Filter
 import javax.servlet.FilterChain
 import javax.servlet.ServletRequest
@@ -100,9 +101,7 @@ class UserContextFilter(
             logoutHandler.logout(request, response, auth)
             if (restartAuthentication) {
                 authenticationEntryPoint.commence(request, response, null)
-            } else {
-                response?.reportAuthenticationError("userNotRegistered", "User is not registered")
-            }
+            } else throw ResponseStatusException(HttpStatus.NOT_FOUND, "User is not registered")
         } else {
             withUserContext(organization, user, auth.name) {
                 chain.doFilter(request, response)
