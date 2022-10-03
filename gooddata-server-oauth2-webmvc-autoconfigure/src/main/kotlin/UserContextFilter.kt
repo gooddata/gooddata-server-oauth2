@@ -76,6 +76,7 @@ class UserContextFilter(
                 is UserContextAuthenticationToken -> withUserContext(auth.organization, auth.user, null) {
                     chain.doFilter(request, response)
                 }
+                is InvalidOAuth2Token -> response?.reportAuthenticationError(auth.errorType, auth.errorMessage)
                 else -> logAndContinue(request, response, chain, Level.WARN) {
                     "Security context contains unexpected authentication ${auth::class}"
                 }
@@ -100,19 +101,18 @@ class UserContextFilter(
             if (restartAuthentication) {
                 authenticationEntryPoint.commence(request, response, null)
             } else {
-                response?.apply {
-                    status = HttpStatus.UNAUTHORIZED.value()
-                    addHeader(
-                        HttpHeaders.WWW_AUTHENTICATE,
-                        "type=\"userNotRegistered\", title=\"User is not registered\""
-                    )
-                }
+                response?.reportAuthenticationError("userNotRegistered", "User is not registered")
             }
         } else {
             withUserContext(organization, user, auth.name) {
                 chain.doFilter(request, response)
             }
         }
+    }
+
+    private fun HttpServletResponse.reportAuthenticationError(type: String, message: String) {
+        status = HttpStatus.UNAUTHORIZED.value()
+        addHeader(HttpHeaders.WWW_AUTHENTICATE, "type=\"$type\", title=\"$message\"")
     }
 
     private fun <T> withUserContext(
