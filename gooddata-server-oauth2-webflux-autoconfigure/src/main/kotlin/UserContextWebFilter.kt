@@ -29,13 +29,13 @@ import kotlinx.coroutines.slf4j.MDCContext
 import kotlinx.coroutines.withContext
 import mu.KotlinLogging
 import org.slf4j.event.Level
-import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.web.server.ServerAuthenticationEntryPoint
 import org.springframework.security.web.server.WebFilterExchange
 import org.springframework.security.web.server.authentication.logout.ServerLogoutHandler
+import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilter
 import org.springframework.web.server.WebFilterChain
@@ -105,14 +105,7 @@ class UserContextWebFilter(
             if (userContext.restartAuthentication) {
                 authenticationEntryPoint.commence(exchange, null).awaitOrNull()
             } else {
-                exchange.response.apply {
-                    statusCode = HttpStatus.UNAUTHORIZED
-                    headers.add(
-                        HttpHeaders.WWW_AUTHENTICATE,
-                        "type=\"userNotRegistered\", title=\"User is not registered\""
-                    )
-                }
-                null
+                throw ResponseStatusException(HttpStatus.NOT_FOUND, "User is not registered")
             }
         } else {
             withUserContext(userContext.organization, userContext.user!!, auth.name) {
