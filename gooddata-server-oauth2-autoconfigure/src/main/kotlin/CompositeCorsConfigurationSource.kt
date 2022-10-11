@@ -16,8 +16,6 @@
 
 package com.gooddata.oauth2.server
 
-import com.gooddata.oauth2.server.common.OrganizationCorsConfigurationSource
-import com.gooddata.oauth2.server.common.toCorsConfiguration
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.reactive.CorsConfigurationSource
 import org.springframework.web.server.ServerWebExchange

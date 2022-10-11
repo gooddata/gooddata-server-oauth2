@@ -17,8 +17,6 @@ package com.gooddata.oauth2.server
 
 import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.gooddata.oauth2.server.common.CookieSerializer
-import com.gooddata.oauth2.server.common.CookieServiceProperties
 import mu.KotlinLogging
 import org.springframework.http.ResponseCookie
 import org.springframework.http.server.reactive.ServerHttpRequest

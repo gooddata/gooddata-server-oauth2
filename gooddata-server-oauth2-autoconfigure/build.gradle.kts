@@ -36,29 +36,37 @@ dependencies {
     val tinkVersion: String by project
     val wiremockVersion: String by project
 
-    api(project(":gooddata-server-oauth2-common"))
-
+    api("com.fasterxml.jackson.core:jackson-databind")
+    api("io.netty:netty-codec-http")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-reactor:${kotlinCoroutinesVersion}")
+    api("org.springframework.boot:spring-boot")
     api("org.springframework.boot:spring-boot-starter-webflux")
+    api("org.springframework.security:spring-security-oauth2-client:5.6.2")
+    api("org.springframework.security:spring-security-oauth2-resource-server:5.6.2")
+    api("org.springframework:spring-web")
 
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
+    implementation("com.github.ben-manes.caffeine:caffeine:3.1.1")
+    implementation("com.google.crypto.tink:tink:${tinkVersion}")
     implementation("io.github.microutils:kotlin-logging:${kotlinLoggingVersion}")
     implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${kotlinCoroutinesVersion}")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-slf4j:${kotlinCoroutinesVersion}")
-    implementation("org.springframework.security:spring-security-oauth2-jose:5.6.2")
     implementation("org.springframework.security:spring-security-config:5.6.2")
+    implementation("org.springframework.security:spring-security-oauth2-jose:5.6.2")
 
+    testImplementation("com.github.tomakehurst:wiremock:${wiremockVersion}")
+    testImplementation("com.google.crypto.tink:tink:${tinkVersion}")
     testImplementation("com.ninja-squad:springmockk:${springMockkVersion}")
     testImplementation("io.mockk:mockk:${mockkVersion}")
+    testImplementation("io.projectreactor:reactor-tools")
     testImplementation("io.strikt:strikt-core")
     testImplementation("net.javacrumbs.json-unit:json-unit:${jsonUnitVersion}")
+    testImplementation("org.jetbrains.kotlin:kotlin-reflect")
     testImplementation("org.junit.jupiter:junit-jupiter")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(group="org.mockito", module="mockito-core")
         exclude(group="org.skyscreamer", module="jsonassert")
     }
-    testImplementation("com.google.crypto.tink:tink:${tinkVersion}")
-    testImplementation("com.github.tomakehurst:wiremock:${wiremockVersion}")
-    testImplementation("io.projectreactor:reactor-tools")
-    testImplementation("org.jetbrains.kotlin:kotlin-reflect")
 }

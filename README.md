@@ -21,7 +21,7 @@ implementation('com.gooddata.oauth2.server:gooddata-server-oauth2-starter')
 
 The authentication implemented by this library is dependent on authentication entities stored in the persistent storage
 of the resource server. For being able to fetch information from this persistent storage, the implementation should
-extend [AuthenticationStoreClient](gooddata-server-oauth2-common/src/main/kotlin/AuthenticationStoreClient.kt) interface
+extend [AuthenticationStoreClient](gooddata-server-oauth2-autoconfigure/src/main/kotlin/AuthenticationStoreClient.kt) interface
 and use related `Organization` (see [Multiple organizations support](#multiple-organizations-support)) and `User`
 entities.
 
@@ -101,7 +101,7 @@ See also [Using authentication entities](#using-authentication-entities) for add
 There's a possibility to share the same OIDC provider between multiple organizations and use the single static callback
 relative URI for the authentication response from the OIDC provider (see [HTTP endpoints](#http-endpoints)). This can be
 achieved by using hardcoded value in the `issuerId` property for each such organization (see the `Organization` entity
-in [AuthenticationStoreClient](gooddata-server-oauth2-common/src/main/kotlin/AuthenticationStoreClient.kt)). Such
+in [AuthenticationStoreClient](gooddata-server-oauth2-autoconfigure/src/main/kotlin/AuthenticationStoreClient.kt)). Such
 feature then can help to simplify the OIDC provider configuration (defining single callback URL vs. multiple ones).
 
 #### Example
@@ -128,8 +128,8 @@ support wildcards like `*`). This will match callback URLs for both organization
 
 Settings can be specified for whole application and per-organization.
 
-* Global - put `com.gooddata.oauth2.server.common.CorsConfigurations` bean to the application context
-* per-organization - update `com.gooddata.oauth2.server.common.Organization.allowedOrigins` with you allowed origins.
+* Global - put `com.gooddata.oauth2.server.CorsConfigurations` bean to the application context
+* per-organization - update `com.gooddata.oauth2.server.Organization.allowedOrigins` with you allowed origins.
   Format is `http[s]://host[:port]`.
 
 At first global settings are tried and if none match then per-organization is tried.

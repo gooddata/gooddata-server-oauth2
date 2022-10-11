@@ -15,7 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import com.gooddata.oauth2.server.common.JwkCache
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
 import org.junit.jupiter.api.Test

@@ -39,6 +39,5 @@ pluginManagement {
     }
 }
 
-include("gooddata-server-oauth2-common")
 include("gooddata-server-oauth2-autoconfigure")
 include("gooddata-server-oauth2-starter")

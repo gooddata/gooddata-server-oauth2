@@ -18,7 +18,6 @@
  */
 package com.gooddata.oauth2.server
 
-import com.gooddata.oauth2.server.common.SPRING_REDIRECT_URI
 import org.springframework.http.HttpMethod
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.security.web.server.savedrequest.ServerRequestCache

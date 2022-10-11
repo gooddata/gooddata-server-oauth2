@@ -15,7 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import com.gooddata.oauth2.server.common.removeIllegalCharacters
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.AuthenticationException

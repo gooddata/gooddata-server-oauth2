@@ -15,9 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import com.gooddata.oauth2.server.common.AppLoginProperties
-import com.gooddata.oauth2.server.common.AuthenticationStoreClient
-import com.gooddata.oauth2.server.common.Organization
 import io.mockk.Called
 import io.mockk.coEvery
 import io.mockk.every

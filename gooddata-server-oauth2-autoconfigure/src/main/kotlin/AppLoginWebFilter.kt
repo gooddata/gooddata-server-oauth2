@@ -15,9 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import com.gooddata.oauth2.server.common.AppLoginProperties
-import com.gooddata.oauth2.server.common.AuthenticationStoreClient
-import com.gooddata.oauth2.server.common.SPRING_REDIRECT_URI
 import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
 import org.springframework.http.HttpMethod
@@ -71,7 +68,7 @@ class AppLoginRedirectProcessor(
      * Matches exchanges with [AppLoginUri.REDIRECT_TO] query parameter fulfilling following rules:
      * * Parameter value must be a valid URL string.
      * * The URL is a relative path starting with `/` or its domain hostname is globally (via Spring configuration
-     *   properties) or organization-based (via [com.gooddata.oauth2.server.common.Organization.allowedOrigins]
+     *   properties) or organization-based (via [com.gooddata.oauth2.server.Organization.allowedOrigins]
      *   configuration) allowed host.
      *
      * If the exchange matches, [ServerWebExchangeMatcher.MatchResult.match] containing the [AppLoginUri.REDIRECT_TO]

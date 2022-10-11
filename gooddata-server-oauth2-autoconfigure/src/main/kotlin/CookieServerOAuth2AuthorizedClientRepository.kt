@@ -15,11 +15,9 @@
  */
 package com.gooddata.oauth2.server
 
-import com.gooddata.oauth2.server.common.SPRING_SEC_OAUTH2_AUTHZ_CLIENT
-import com.gooddata.oauth2.server.common.debugToken
-import com.gooddata.oauth2.server.common.jackson.SimplifiedOAuth2AuthorizedClient
-import com.gooddata.oauth2.server.common.jackson.mapper
-import com.gooddata.oauth2.server.common.jackson.toSimplified
+import com.gooddata.oauth2.server.jackson.SimplifiedOAuth2AuthorizedClient
+import com.gooddata.oauth2.server.jackson.mapper
+import com.gooddata.oauth2.server.jackson.toSimplified
 import java.time.Instant
 import mu.KotlinLogging
 import org.springframework.security.core.Authentication

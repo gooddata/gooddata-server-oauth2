@@ -20,13 +20,6 @@ import com.github.tomakehurst.wiremock.client.WireMock.aResponse
 import com.github.tomakehurst.wiremock.client.WireMock.get
 import com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
-import com.gooddata.oauth2.server.common.AuthenticationStoreClient
-import com.gooddata.oauth2.server.common.CaffeineJwkCache
-import com.gooddata.oauth2.server.common.CookieSecurityProperties
-import com.gooddata.oauth2.server.common.CookieSerializer
-import com.gooddata.oauth2.server.common.CookieServiceProperties
-import com.gooddata.oauth2.server.common.Organization
-import com.gooddata.oauth2.server.common.SPRING_SEC_SECURITY_CONTEXT
 import com.google.crypto.tink.CleartextKeysetHandle
 import com.google.crypto.tink.JsonKeysetReader
 import io.mockk.coEvery
@@ -219,7 +212,7 @@ internal class CookieServerSecurityContextRepositoryTest {
 
     @Test
     fun `should load context from cookie`() {
-        val body = resource("oauth2_authentication_token.json").readText()
+        val body = resource("oauth2_authentication_token_long.json").readText()
         every { exchange.request.uri } returns URI.create("http://localhost")
         every { exchange.request.cookies } returns toMultiValueMap(
             mapOf(

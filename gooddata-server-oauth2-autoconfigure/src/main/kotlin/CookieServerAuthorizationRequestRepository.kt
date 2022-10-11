@@ -15,8 +15,7 @@
  */
 package com.gooddata.oauth2.server
 
-import com.gooddata.oauth2.server.common.SPRING_SEC_OAUTH2_AUTHZ_RQ
-import com.gooddata.oauth2.server.common.jackson.mapper
+import com.gooddata.oauth2.server.jackson.mapper
 import org.springframework.security.oauth2.client.web.server.ServerAuthorizationRequestRepository
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest
 import org.springframework.web.server.ServerWebExchange

@@ -15,9 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import com.gooddata.oauth2.server.common.AuthenticationStoreClient
-import com.gooddata.oauth2.server.common.CaffeineJwkCache
-import com.gooddata.oauth2.server.common.JwkCache
 import com.ninjasquad.springmockk.MockkBean
 import io.netty.channel.ChannelOption
 import org.junit.jupiter.api.Test

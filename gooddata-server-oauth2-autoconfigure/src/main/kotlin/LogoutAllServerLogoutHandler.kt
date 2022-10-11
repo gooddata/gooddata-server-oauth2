@@ -15,7 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import com.gooddata.oauth2.server.common.AuthenticationStoreClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
 import org.springframework.security.core.Authentication

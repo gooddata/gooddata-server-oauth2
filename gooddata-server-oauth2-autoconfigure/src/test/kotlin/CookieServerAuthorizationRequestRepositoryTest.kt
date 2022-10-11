@@ -15,12 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import com.gooddata.oauth2.server.common.AuthenticationStoreClient
-import com.gooddata.oauth2.server.common.CookieSecurityProperties
-import com.gooddata.oauth2.server.common.CookieSerializer
-import com.gooddata.oauth2.server.common.CookieServiceProperties
-import com.gooddata.oauth2.server.common.Organization
-import com.gooddata.oauth2.server.common.SPRING_SEC_OAUTH2_AUTHZ_RQ
 import com.google.crypto.tink.CleartextKeysetHandle
 import com.google.crypto.tink.JsonKeysetReader
 import io.mockk.coEvery

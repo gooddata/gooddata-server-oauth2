@@ -15,19 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import com.gooddata.oauth2.server.common.AppLoginProperties
-import com.gooddata.oauth2.server.common.AuthenticationStoreClient
-import com.gooddata.oauth2.server.common.CachingProperties
-import com.gooddata.oauth2.server.common.CaffeineClientRegistrationCache
-import com.gooddata.oauth2.server.common.CaffeineJwkCache
-import com.gooddata.oauth2.server.common.ClientRegistrationBuilderCache
-import com.gooddata.oauth2.server.common.CookieSerializer
-import com.gooddata.oauth2.server.common.CookieServiceProperties
-import com.gooddata.oauth2.server.common.CorsConfigurations
-import com.gooddata.oauth2.server.common.HostBasedClientRegistrationRepositoryProperties
-import com.gooddata.oauth2.server.common.JwkCache
-import com.gooddata.oauth2.server.common.OPEN_API_SCHEMA_PATTERN
-import com.gooddata.oauth2.server.common.OrganizationCorsConfigurationSource
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfigureBefore
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass

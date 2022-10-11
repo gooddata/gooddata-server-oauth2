@@ -15,10 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import com.gooddata.oauth2.server.common.AuthenticationStoreClient
-import com.gooddata.oauth2.server.common.CaffeineClientRegistrationCache
-import com.gooddata.oauth2.server.common.HostBasedClientRegistrationRepositoryProperties
-import com.gooddata.oauth2.server.common.Organization
 import io.mockk.coEvery
 import io.mockk.mockk
 import org.junit.jupiter.api.Test

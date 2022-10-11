@@ -3,7 +3,6 @@
  */
 package com.gooddata.oauth2.server
 
-import com.gooddata.oauth2.server.common.removeIllegalCharacters
 import com.nimbusds.oauth2.sdk.AccessTokenResponse
 import com.nimbusds.oauth2.sdk.ErrorObject
 import com.nimbusds.oauth2.sdk.ParseException

@@ -15,10 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import com.gooddata.oauth2.server.common.AuthenticationStoreClient
-import com.gooddata.oauth2.server.common.ClientRegistrationBuilderCache
-import com.gooddata.oauth2.server.common.HostBasedClientRegistrationRepositoryProperties
-import com.gooddata.oauth2.server.common.buildClientRegistration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
 import org.springframework.security.oauth2.client.registration.ClientRegistration

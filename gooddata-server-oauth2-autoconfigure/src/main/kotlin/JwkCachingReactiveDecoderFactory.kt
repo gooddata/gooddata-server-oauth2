@@ -15,8 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import com.gooddata.oauth2.server.common.JwkCache
-import com.gooddata.oauth2.server.common.SimpleRemoteJwkSource
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.jwk.JWKSet
 import com.nimbusds.jose.jwk.source.JWKSecurityContextJWKSet

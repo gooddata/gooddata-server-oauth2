@@ -15,8 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import com.gooddata.oauth2.server.common.HttpProperties
-import com.gooddata.oauth2.server.common.SimpleRemoteJwkSource
 import io.netty.channel.ChannelOption
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean

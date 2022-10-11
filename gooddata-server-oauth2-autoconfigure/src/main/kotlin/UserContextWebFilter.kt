@@ -15,11 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import com.gooddata.oauth2.server.common.AuthenticationStoreClient
-import com.gooddata.oauth2.server.common.Organization
-import com.gooddata.oauth2.server.common.User
-import com.gooddata.oauth2.server.common.UserContextAuthenticationToken
-import com.gooddata.oauth2.server.common.getUserContextForAuthenticationToken
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
