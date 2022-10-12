@@ -39,9 +39,5 @@ pluginManagement {
     }
 }
 
-include("gooddata-server-oauth2-common")
-include("gooddata-server-oauth2-test")
-include("gooddata-server-oauth2-webflux-autoconfigure")
-include("gooddata-server-oauth2-webflux-starter")
-include("gooddata-server-oauth2-webmvc-autoconfigure")
-include("gooddata-server-oauth2-webmvc-starter")
+include("gooddata-server-oauth2-autoconfigure")
+include("gooddata-server-oauth2-starter")

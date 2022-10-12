@@ -1,2 +1,0 @@
-org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-  com.gooddata.oauth2.server.reactive.ServerOAuth2AutoConfiguration
