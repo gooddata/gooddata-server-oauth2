@@ -16,9 +16,14 @@ import java.net.URI
 /**
  * Realize logout if provider is Auth0
  * Inspired by https://auth0.com/docs/quickstart/webapp/java-spring-boot/01-login#add-logout-to-your-application
+ *
+ * @param clientRegistrationRepository the repository for client registrations
+ * @param auth0CustomDomain if defined, the Auth0 is white-labeled by the custom domain name different
+ * from the `*auth0.com`
  */
 class Auth0LogoutHandler(
-    private val clientRegistrationRepository: ReactiveClientRegistrationRepository
+    private val clientRegistrationRepository: ReactiveClientRegistrationRepository,
+    private val auth0CustomDomain: String?,
 ) : ServerLogoutHandler, ServerLogoutSuccessHandler {
 
     private val logger = KotlinLogging.logger {}
@@ -38,7 +43,7 @@ class Auth0LogoutHandler(
             .map { clientRegistration ->
                 Pair(clientRegistration, clientRegistration.issuer())
             }.filter { (_, issuer) ->
-                issuer.isAuth0()
+                issuer.isAuth0() || issuer.hasCustomDomain()
             }.map { (clientRegistration, issuer) ->
                 buildLogoutUrl(issuer, clientRegistration.clientId, request.uri.baseUrl())
             }.doOnNext { logoutUrl ->
@@ -46,6 +51,8 @@ class Auth0LogoutHandler(
             }
 
     private fun ClientRegistration.issuer(): URI = providerDetails.configurationMetadata["issuer"].toString().toUri()
+
+    private fun URI.hasCustomDomain(): Boolean = auth0CustomDomain != null && auth0CustomDomain == host
 
     private fun buildLogoutUrl(issuer: URI, clientId: String, returnTo: URI): URI =
         UriComponentsBuilder.fromHttpUrl("${issuer}v2/logout")
