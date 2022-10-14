@@ -16,6 +16,7 @@
 package com.gooddata.oauth2.server
 
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.AutoConfigureBefore
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -176,6 +177,10 @@ class ServerOAuth2AutoConfiguration {
         grantedAuthoritiesMapper: ObjectProvider<GrantedAuthoritiesMapper>,
         jwtDecoderFactory: ObjectProvider<ReactiveJwtDecoderFactory<ClientRegistration>>,
         loginAuthManager: ReactiveAuthenticationManager,
+        // TODO the property serves for a temporary hack.
+        //  So for now, we will keep this configuration property here.
+        //  Can be moved elsewhere or even removed in the following library release.
+        @Value("\${spring.security.oauth2.config.provider.auth0.customDomain:#{null}}") auth0CustomDomain: String?,
     ): SecurityWebFilterChain {
         val appLoginRedirectProcessor = AppLoginRedirectProcessor(
             appLoginProperties,
@@ -200,7 +205,7 @@ class ServerOAuth2AutoConfiguration {
                 setLogoutSuccessUrl(URI.create("/"))
             },
             // Keep Auth0 handler as last one
-            Auth0LogoutHandler(clientRegistrationRepository),
+            Auth0LogoutHandler(clientRegistrationRepository, auth0CustomDomain),
         )
 
         return serverHttpSecurity.securityContextRepository(serverSecurityContextRepository).configure {
