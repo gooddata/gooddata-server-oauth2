@@ -30,6 +30,11 @@ import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.util.MultiValueMapAdapter
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
+import strikt.api.expectCatching
+import strikt.api.expectThat
+import strikt.assertions.isA
+import strikt.assertions.isEqualTo
+import strikt.assertions.isFailure
 import java.net.URI
 
 @Suppress("ReactiveStreamsUnusedPublisher")
@@ -95,9 +100,13 @@ internal class AppLoginRedirectProcessorTest {
             )
         }
 
-        processor.process(exchange, processFun, defaultFun).block()
+        expectException(
+            { processor.process(exchange, processFun, defaultFun).block() },
+            "A redirection to the specified address not allowed."
+        )
+
         verify { processFun wasNot Called }
-        verify { defaultFun() }
+        verify { defaultFun() wasNot Called }
     }
 
     @ParameterizedTest
@@ -144,9 +153,13 @@ internal class AppLoginRedirectProcessorTest {
             )
         }
 
-        processor.process(exchange, processFun, defaultFun).block()
+        expectException(
+            { processor.process(exchange, processFun, defaultFun).block() },
+            "A redirection to the specified address not allowed."
+        )
+
         verify { processFun wasNot Called }
-        verify { defaultFun() }
+        verify { defaultFun() wasNot Called }
     }
 
     @Test
@@ -183,9 +196,13 @@ internal class AppLoginRedirectProcessorTest {
             every { queryParams } returns MultiValueMapAdapter(mapOf())
         }
 
-        processor.process(exchange, processFun, defaultFun).block()
+        expectException(
+            { processor.process(exchange, processFun, defaultFun).block() },
+            "Query param \"redirectTo\" not found"
+        )
+
         verify { processFun wasNot Called }
-        verify { defaultFun() }
+        verify { defaultFun() wasNot Called }
     }
 
     @Test
@@ -199,9 +216,13 @@ internal class AppLoginRedirectProcessorTest {
             )
         }
 
-        processor.process(exchange, processFun, defaultFun).block()
+        expectException(
+            { processor.process(exchange, processFun, defaultFun).block() },
+            "A redirection to the specified address not allowed."
+        )
+
         verify { processFun wasNot Called }
-        verify { defaultFun() }
+        verify { defaultFun() wasNot Called }
     }
 
     @Test
@@ -212,9 +233,13 @@ internal class AppLoginRedirectProcessorTest {
             every { queryParams } returns MultiValueMapAdapter(mapOf(AppLoginUri.REDIRECT_TO to listOf("\\backslash")))
         }
 
-        processor.process(exchange, processFun, defaultFun).block()
+        expectException(
+            { processor.process(exchange, processFun, defaultFun).block() },
+            "URL normalization error: Illegal character in path at index 0: \\backslash"
+        )
+
         verify { processFun wasNot Called }
-        verify { defaultFun() }
+        verify { defaultFun() wasNot Called }
     }
 
     @Test
@@ -226,9 +251,13 @@ internal class AppLoginRedirectProcessorTest {
             every { queryParams } returns MultiValueMapAdapter(mapOf(AppLoginUri.REDIRECT_TO to listOf("")))
         }
 
-        processor.process(exchange, processFun, defaultFun).block()
+        expectException(
+            { processor.process(exchange, processFun, defaultFun).block() },
+            "A redirection to the specified address not allowed."
+        )
+
         verify { processFun wasNot Called }
-        verify { defaultFun() }
+        verify { defaultFun() wasNot Called }
     }
 
     @Test
@@ -239,9 +268,13 @@ internal class AppLoginRedirectProcessorTest {
             every { queryParams } returns MultiValueMapAdapter(mapOf(AppLoginUri.REDIRECT_TO to null))
         }
 
-        processor.process(exchange, processFun, defaultFun).block()
+        expectException(
+            { processor.process(exchange, processFun, defaultFun).block() },
+            "Query param \"redirectTo\" not found"
+        )
+
         verify { processFun wasNot Called }
-        verify { defaultFun() }
+        verify { defaultFun() wasNot Called }
     }
 
     private fun ServerHttpRequest.mockUri(
@@ -258,6 +291,15 @@ internal class AppLoginRedirectProcessorTest {
             null,
             null
         )
+    }
+
+    private fun expectException(testedBlock: () -> Void?, exceptionMessage: String) {
+        expectCatching { testedBlock.invoke() }
+            .isFailure()
+            .isA<AppLoginException>()
+            .get {
+                expectThat(message).isEqualTo(exceptionMessage)
+            }
     }
 
     companion object {
