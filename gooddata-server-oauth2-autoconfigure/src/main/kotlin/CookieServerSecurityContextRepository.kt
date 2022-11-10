@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server
 
+import com.gooddata.api.logging.logDebug
 import com.gooddata.oauth2.server.jackson.mapper
 import mu.KotlinLogging
 import org.springframework.security.core.context.SecurityContext
@@ -66,7 +67,7 @@ class CookieServerSecurityContextRepository(
             }
             .switchIfEmpty {
                 // when content == null or filters don't match
-                logger.debug { "Delete security context" }
+                logger.logDebug { withMessage { "Delete security context" } }
                 Mono.just(deleteSecurityContext(exchange))
             }
             .then()

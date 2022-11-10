@@ -17,6 +17,8 @@ package com.gooddata.oauth2.server
 
 import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.gooddata.api.logging.logDebug
+import com.gooddata.api.logging.logWarn
 import mu.KotlinLogging
 import org.springframework.http.ResponseCookie
 import org.springframework.http.server.reactive.ServerHttpRequest
@@ -57,7 +59,7 @@ class ReactiveCookieService(
      * and sets its maxAge to 0.
      */
     fun invalidateCookie(exchange: ServerWebExchange, name: String) {
-        logger.debug { "Invalidate cookie name=$name" }
+        logger.logDebug { withMessage { "Invalidate cookie name=$name" } }
         val cookie = createResponseCookie(exchange.request, name, null, Duration.ZERO)
         exchange.response.addCookie(cookie)
     }
@@ -89,7 +91,10 @@ class ReactiveCookieService(
         return Mono.justOrEmpty(request.cookies.getFirst(name))
             .map { cookie -> cookieSerializer.decodeCookie(request.uri.host, cookie.value) }
             .onErrorResume(IllegalArgumentException::class.java) { exception ->
-                logger.warn(exception) { "Cookie cannot be decoded" }
+                logger.logWarn {
+                    withMessage { "Cookie cannot be decoded" }
+                    withException(exception)
+                }
                 Mono.empty()
             }
     }
@@ -117,7 +122,10 @@ class ReactiveCookieService(
         return decodeCookie(request, name)
             .map { cookieValue -> mapper.readValue(cookieValue, valueType) }
             .onErrorResume(JsonProcessingException::class.java) { exception ->
-                logger.warn(exception) { "Cookie cannot be parsed" }
+                logger.logWarn {
+                    withMessage { "Cookie cannot be parsed" }
+                    withException(exception)
+                }
                 Mono.empty()
             }
     }

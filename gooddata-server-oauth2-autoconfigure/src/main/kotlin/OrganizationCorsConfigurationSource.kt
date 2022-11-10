@@ -16,6 +16,8 @@
 
 package com.gooddata.oauth2.server
 
+import com.gooddata.api.logging.logDebug
+import com.gooddata.api.logging.logError
 import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 import org.springframework.web.cors.CorsConfiguration
@@ -37,10 +39,16 @@ class OrganizationCorsConfigurationSource(private val authenticationStoreClient:
             it.allowedOrigins?.toCorsConfiguration()
         }
     } catch (e: ResponseStatusException) {
-        logger.debug("Organization with hostname '$serverName' not found.", e)
+        logger.logDebug {
+            withMessage { "Organization with hostname '$serverName' not found." }
+            withException(e)
+        }
         null
     } catch (e: Exception) {
-        logger.error("Cannot retrieve organization with hostname '$serverName'.", e)
+        logger.logError {
+            withMessage { "Cannot retrieve organization with hostname '$serverName'." }
+            withException(e)
+        }
         null
     }
 }

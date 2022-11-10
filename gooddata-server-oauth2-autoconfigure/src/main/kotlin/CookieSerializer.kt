@@ -85,7 +85,7 @@ class CookieSerializer(
     }
 
     private fun getAeadFromCache(hostname: Hostname, now: Instant): Aead? =
-        aeadCache[hostname]?.let { aead -> aead.getValidAead(now) }
+        aeadCache[hostname]?.getValidAead(now)
 
     private fun resolveAndCacheAead(hostname: Hostname, now: Instant): Aead {
         // process before compute() method for not blocking cache

@@ -15,6 +15,8 @@
  */
 package com.gooddata.oauth2.server
 
+import com.gooddata.api.logging.logDebug
+import com.gooddata.api.logging.logTrace
 import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
 import org.springframework.http.HttpMethod
@@ -133,13 +135,13 @@ class AppLoginRedirectProcessor(
     private fun ServerWebExchange.redirectToOrError(): Mono<URI> {
         val redirectTo = request.queryParams[AppLoginUri.REDIRECT_TO]?.firstOrNull()
         return if (redirectTo == null) {
-            logger.trace { "Query param \"${AppLoginUri.REDIRECT_TO}\" not found" }
+            logger.logTrace { withMessage { "Query param \"${AppLoginUri.REDIRECT_TO}\" not found" } }
             Mono.error(AppLoginException("Query param \"${AppLoginUri.REDIRECT_TO}\" not found"))
         } else {
             Mono.defer {
                 Mono.just(URI.create(redirectTo).normalize())
             }.onErrorResume { exception ->
-                logger.debug { "URL normalization error: $exception" }
+                logger.logDebug { withMessage { "URL normalization error: $exception" } }
                 Mono.error(AppLoginException("URL normalization error: ${exception.message}"))
             }
         }
@@ -153,7 +155,7 @@ class AppLoginRedirectProcessor(
             .switchIfEmpty(uri.isAllowedForOrganization(organizationHost))
             .doOnNext { canRedirect ->
                 if (!canRedirect) {
-                    logger.trace { "URI \"$uri\" can't be redirected" }
+                    logger.logTrace { withMessage { "URI \"$uri\" can't be redirected" } }
                 }
             }
     }

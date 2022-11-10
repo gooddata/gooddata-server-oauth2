@@ -17,6 +17,7 @@ package com.gooddata.oauth2.server
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
+import com.gooddata.api.logging.logDebug
 import mu.KLogger
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -34,7 +35,7 @@ private val objectMapper = ObjectMapper()
  * Log JWT token stored in cookie
  */
 fun KLogger.debugToken(cookieName: String, tokenType: String, tokenValue: String) {
-    debug { "cookie_name=$cookieName token_type=$tokenType ${tokenDetails(tokenValue)}" }
+    logDebug { withMessage { "cookie_name=$cookieName token_type=$tokenType ${tokenDetails(tokenValue)}" } }
 }
 
 /**

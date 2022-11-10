@@ -1,5 +1,6 @@
 package com.gooddata.oauth2.server
 
+import com.gooddata.api.logging.logDebug
 import mu.KotlinLogging
 import org.springframework.http.HttpRequest
 import org.springframework.security.core.Authentication
@@ -47,7 +48,7 @@ class Auth0LogoutHandler(
             }.map { (clientRegistration, issuer) ->
                 buildLogoutUrl(issuer, clientRegistration.clientId, request.uri.baseUrl())
             }.doOnNext { logoutUrl ->
-                logger.debug { "Auth0 logout URL: $logoutUrl" }
+                logger.logDebug { withMessage { "Auth0 logout URL: $logoutUrl" } }
             }
 
     private fun ClientRegistration.issuer(): URI = providerDetails.configurationMetadata["issuer"].toString().toUri()

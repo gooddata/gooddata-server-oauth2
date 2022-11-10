@@ -54,6 +54,7 @@ allprojects {
         mavenCentral()
         jcenter()
         maven("https://plugins.gradle.org/m2/")
+        gitlabMavenRepository("https://gitlab.com/api/v4/groups/gooddata/-/packages/maven")
     }
 
     java.sourceCompatibility = JavaVersion.VERSION_11

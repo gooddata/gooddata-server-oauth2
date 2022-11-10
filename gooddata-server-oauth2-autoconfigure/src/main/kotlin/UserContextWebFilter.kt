@@ -15,6 +15,12 @@
  */
 package com.gooddata.oauth2.server
 
+import com.gooddata.api.logging.LogBuilder
+import com.gooddata.api.logging.logDebug
+import com.gooddata.api.logging.logError
+import com.gooddata.api.logging.logInfo
+import com.gooddata.api.logging.logTrace
+import com.gooddata.api.logging.logWarn
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -95,7 +101,7 @@ class UserContextWebFilter(
         val userContext = getUserContextForAuthenticationToken(client, auth)
 
         return if (userContext.user == null) {
-            logger.info { "Session was logged out" }
+            logger.logInfo { withMessage { "Session was logged out" } }
             serverLogoutHandler.logout(WebFilterExchange(exchange, chain), auth).awaitOrNull()
             if (userContext.restartAuthentication) {
                 authenticationEntryPoint.commence(exchange, null).awaitOrNull()
@@ -103,7 +109,7 @@ class UserContextWebFilter(
                 throw ResponseStatusException(HttpStatus.NOT_FOUND, "User is not registered")
             }
         } else {
-            withUserContext(userContext.organization, userContext.user!!, auth.name) {
+            withUserContext(userContext.organization, userContext.user, auth.name) {
                 chain.filter(exchange).awaitOrNull()
             }
         }
@@ -128,13 +134,14 @@ class UserContextWebFilter(
         logLevel: Level,
         message: () -> String,
     ): Void? {
-        when (logLevel) {
-            Level.ERROR -> logger.error(message)
-            Level.WARN -> logger.warn(message)
-            Level.INFO -> logger.info(message)
-            Level.DEBUG -> logger.debug(message)
-            Level.TRACE -> logger.trace(message)
+        val logFn: (block: LogBuilder.() -> Unit) -> Unit = when (logLevel) {
+            Level.ERROR -> logger::logError
+            Level.WARN -> logger::logWarn
+            Level.INFO -> logger::logInfo
+            Level.DEBUG -> logger::logDebug
+            Level.TRACE -> logger::logTrace
         }
+        logFn { withMessage(message) }
         return chain.filter(exchange).awaitOrNull()
     }
 
