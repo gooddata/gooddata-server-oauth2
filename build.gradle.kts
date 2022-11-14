@@ -31,16 +31,8 @@ plugins {
     id("io.spring.dependency-management")
     id("org.datlowe.maven-publish-auth") apply false
     id("org.springframework.boot") apply false
-    id("pl.allegro.tech.build.axion-release")
 }
 
-scmVersion {
-    tag {
-        prefix = "${project.name}-"
-    }
-}
-
-project.version = scmVersion.version
 val rootProjectDir = project(":").projectDir
 
 allprojects {

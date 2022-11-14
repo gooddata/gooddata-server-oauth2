@@ -35,7 +35,6 @@ pluginManagement {
         id("io.spring.dependency-management") version "1.0.11.RELEASE"
         id("org.datlowe.maven-publish-auth") version "2.0.2"
         id("org.springframework.boot") version springBootVersion
-        id("pl.allegro.tech.build.axion-release") version "1.13.14"
     }
 }
 
