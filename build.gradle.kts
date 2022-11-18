@@ -92,6 +92,7 @@ subprojects {
             val gitlabMavenUrl: String by project
             gitlabMavenRepository(gitlabMavenUrl)
         }
+        version = project.findProperty("release_version") ?: "unspecified"
     }
 
     idea {
