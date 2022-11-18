@@ -67,6 +67,6 @@ build-and-publish-library:
     - export GRADLE_USER_HOME=`pwd`/.gradle
   script:
     # publish to GitLab package registry is done, a corresponding tag needs to be created beforehand
-    - ./gradlew clean publishLibraryPublicationToGitlabMavenRepository --info
+    - ./gradlew clean publishLibraryPublicationToGitlabMavenRepository -Prelease_version=${CI_COMMIT_TAG#*gooddata-server-oauth2-} --info
   rules:
     - if: '$CI_COMMIT_TAG && $CI_COMMIT_REF_PROTECTED == "true"'
