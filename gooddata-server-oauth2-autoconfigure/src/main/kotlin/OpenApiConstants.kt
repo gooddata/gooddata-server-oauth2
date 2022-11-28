@@ -16,3 +16,5 @@
 package com.gooddata.oauth2.server
 
 const val OPEN_API_SCHEMA_PATTERN = """/api/{version:v\d+}/schemas/*"""
+
+const val API_VERSION = "/api/version"
