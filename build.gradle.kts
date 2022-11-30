@@ -31,6 +31,15 @@ plugins {
     id("io.spring.dependency-management")
     id("org.datlowe.maven-publish-auth") apply false
     id("org.springframework.boot") apply false
+    id("org.sonarqube") version "3.5.0.2730"
+}
+
+sonarqube {
+  properties {
+    property("sonar.projectKey", "gooddata-server-oauth2")
+    property("sonar.organization", "gooddata-github")
+    property("sonar.host.url", "https://sonarcloud.io")
+  }
 }
 
 val rootProjectDir = project(":").projectDir
