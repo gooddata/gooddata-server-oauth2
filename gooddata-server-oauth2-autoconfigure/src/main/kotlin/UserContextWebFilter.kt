@@ -103,7 +103,7 @@ class UserContextWebFilter(
                 throw ResponseStatusException(HttpStatus.NOT_FOUND, "User is not registered")
             }
         } else {
-            withUserContext(userContext.organization, userContext.user!!, auth.name) {
+            withUserContext(userContext.organization, userContext.user, auth.name) {
                 chain.filter(exchange).awaitOrNull()
             }
         }

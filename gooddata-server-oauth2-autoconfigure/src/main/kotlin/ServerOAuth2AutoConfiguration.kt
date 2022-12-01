@@ -217,6 +217,7 @@ class ServerOAuth2AutoConfiguration {
                         PathPatternParserServerWebExchangeMatcher("/login"),
                         PathPatternParserServerWebExchangeMatcher("/error", HttpMethod.GET),
                         PathPatternParserServerWebExchangeMatcher(OPEN_API_SCHEMA_PATTERN, HttpMethod.GET),
+                        PathPatternParserServerWebExchangeMatcher(API_VERSION, HttpMethod.GET),
                     )
                 ).matches(serverWebExchange)
             }
