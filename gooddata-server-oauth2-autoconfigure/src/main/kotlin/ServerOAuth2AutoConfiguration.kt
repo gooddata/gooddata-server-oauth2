@@ -34,6 +34,7 @@ import org.springframework.security.config.web.server.ServerHttpSecurity
 import org.springframework.security.config.web.server.ServerHttpSecurityDsl
 import org.springframework.security.config.web.server.invoke
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper
+import org.springframework.security.crypto.keygen.Base64StringKeyGenerator
 import org.springframework.security.oauth2.client.authentication.OAuth2LoginReactiveAuthenticationManager
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest
 import org.springframework.security.oauth2.client.endpoint.ReactiveOAuth2AccessTokenResponseClient
@@ -44,6 +45,8 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest
 import org.springframework.security.oauth2.client.userinfo.ReactiveOAuth2UserService
+import org.springframework.security.oauth2.client.web.server.DefaultServerOAuth2AuthorizationRequestResolver
+import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizationRequestResolver
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizedClientRepository
 import org.springframework.security.oauth2.core.oidc.user.OidcUser
 import org.springframework.security.oauth2.core.user.OAuth2User
@@ -61,6 +64,7 @@ import org.springframework.web.client.RestTemplate
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource
 import org.springframework.web.reactive.config.EnableWebFlux
 import java.net.URI
+import java.util.Base64
 
 @Configuration
 @EnableConfigurationProperties(
@@ -162,6 +166,33 @@ class ServerOAuth2AutoConfiguration {
         authenticationStoreClient: AuthenticationStoreClient
     ) = OrganizationCorsConfigurationSource(authenticationStoreClient)
 
+    /**
+     * By default, Spring Security fills the `state` query parameter value of the authorization request call
+     * with the **base64-encoded 32-byte** random. It means that the base64 string needs to be aligned to the closest
+     * multiple of 3 using the `=` sign. The "equal" sign is a reserved character in URL and must be URI-encoded (to
+     * `%3D`).
+     *
+     * At least Amazon Cognito IdP does not encode this query parameter in the `Location` header after the successful
+     * login. This results in the URL parsing error when the client application has `server.forward-headers-strategy`
+     * Spring property set to the `framework` value (use `ForwardedHeaderTransformer` for rewriting URLs
+     * based on `X-Forwarded*` headers).
+     *
+     * To avoid the problem mentioned above, we are changing the `state` generator to fill query parameters
+     * with the **base64-URL-encoded 33-byte** random values.
+     */
+    @Bean
+    fun urlSafeStateAuthorizationRequestResolver(
+        clientRegistrationRepository: ReactiveClientRegistrationRepository
+    ): ServerOAuth2AuthorizationRequestResolver {
+        // ensures the URL-safe (encoded) Base64
+        val base64Encoder = Base64.getUrlEncoder()
+        // use the new state generator with "multiple of 3" bytes
+        val stateKeyGenerator = Base64StringKeyGenerator(base64Encoder, URL_SAFE_STATE_KEY_BYTES)
+        return DefaultServerOAuth2AuthorizationRequestResolver(clientRegistrationRepository).apply {
+            setAuthorizationRequestCustomizer { builder -> builder.state(stateKeyGenerator.generateKey()) }
+        }
+    }
+
     @Bean
     @Suppress("LongParameterList", "LongMethod")
     fun springSecurityFilterChain(
@@ -177,6 +208,7 @@ class ServerOAuth2AutoConfiguration {
         grantedAuthoritiesMapper: ObjectProvider<GrantedAuthoritiesMapper>,
         jwtDecoderFactory: ObjectProvider<ReactiveJwtDecoderFactory<ClientRegistration>>,
         loginAuthManager: ReactiveAuthenticationManager,
+        urlSafeStateAuthorizationRequestResolver: ServerOAuth2AuthorizationRequestResolver,
         // TODO the property serves for a temporary hack.
         //  So for now, we will keep this configuration property here.
         //  Can be moved elsewhere or even removed in the following library release.
@@ -242,6 +274,7 @@ class ServerOAuth2AutoConfiguration {
                 authorizedClientRepository = oauth2ClientRepository
                 authenticationFailureHandler = ServerOAuth2FailureHandler()
                 authenticationManager = loginAuthManager
+                authorizationRequestResolver = urlSafeStateAuthorizationRequestResolver
             }
             oauth2Client { }
             exceptionHandling {
@@ -327,6 +360,17 @@ class ServerOAuth2AutoConfiguration {
             oidc.setAuthoritiesMapper(authoritiesMapper)
         }
         return DelegatingReactiveAuthenticationManager(oidc, oauth2Manager)
+    }
+
+    companion object {
+        /**
+         * Number of bytes for having the URL-safe `state` query parameter values in auth. requests.
+         *
+         * The value should always be the "multiple of 3".
+         *
+         * @see ServerOAuth2AutoConfiguration.urlSafeStateAuthorizationRequestResolver
+         */
+        private const val URL_SAFE_STATE_KEY_BYTES = 33
     }
 }
 
