@@ -22,20 +22,24 @@ import net.javacrumbs.jsonunit.core.util.ResourceUtils.resource
 import org.junit.jupiter.api.Test
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.oauth2.core.oidc.OidcIdToken
+import org.springframework.security.oauth2.core.oidc.OidcUserInfo
+import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser
 import org.springframework.security.oauth2.core.oidc.user.OidcUser
 import strikt.api.expectThat
 import strikt.assertions.isA
 import strikt.assertions.isEqualTo
+import java.time.Instant
 
 internal class OAuth2AuthenticationTokenTest {
 
     @Test
     fun `deserialization works`() {
-        val body = resource("oauth2_authentication_token.json").readText()
-
-        val obj = mapper.readValue(body, OAuth2AuthenticationToken::class.java)
-
-        expectThat(obj) {
+        expectThat(
+            mapper.readValue(
+                resource("oauth2_authentication_token.json").readText(),
+                OAuth2AuthenticationToken::class.java
+            )
+        ) {
             get(OAuth2AuthenticationToken::getAuthorizedClientRegistrationId)
                 .isEqualTo("localhost")
             get(OAuth2AuthenticationToken::getPrincipal).isA<OidcUser>().and {
@@ -46,12 +50,32 @@ internal class OAuth2AuthenticationTokenTest {
     }
 
     @Test
-    fun `serialization works`() {
-        val body = resource("oauth2_authentication_token.json").readText()
-        val obj = mapper.readValue(body, OAuth2AuthenticationToken::class.java)
+    fun `serialization ignores all fields except the original encrypted ID token value`() {
+        val token = OAuth2AuthenticationToken(
+            DefaultOidcUser(
+                emptyList(),
+                OidcIdToken(
+                    "tokenValue",
+                    Instant.parse("2023-01-24T10:15:30.00Z"),
+                    Instant.parse("2030-01-24T10:15:30.00Z"),
+                    mapOf("sub" to "1234", "nonce" to "aNonce"),
+                ),
+                OidcUserInfo(
+                    mapOf(
+                        "sub" to "auth|1234",
+                        "name" to "adam.sangala",
+                        "email" to "as@example.com"
+                    )
+                ),
+                "name"
+            ),
+            emptyList(),
+            "localhost"
+        )
+
         assertJsonEquals(
             resource("oauth2_authentication_token.json").readText(),
-            mapper.writeValueAsString(obj),
+            mapper.writeValueAsString(token),
             Configuration.empty().withOptions(Option.IGNORING_ARRAY_ORDER)
         )
     }
