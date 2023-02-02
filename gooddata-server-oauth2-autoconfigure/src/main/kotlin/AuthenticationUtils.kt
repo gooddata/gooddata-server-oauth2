@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server
 
+import com.nimbusds.jwt.proc.DefaultJWTClaimsVerifier
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ClientRegistrations
@@ -136,25 +137,36 @@ suspend fun userContextAuthenticationToken(
  * @return user context
  *
  */
-suspend fun getUserContextForAuthenticationToken(
+suspend fun getUserForAuthenticationToken(
     authenticationStoreClient: AuthenticationStoreClient,
     authenticationToken: OAuth2AuthenticationToken,
-): UserContext {
+): UserFromTokenResult {
     val organization =
         authenticationStoreClient.getOrganizationByHostname(authenticationToken.authorizedClientRegistrationId)
-    return authenticationStoreClient.getUserByAuthenticationId(
+    val user = authenticationStoreClient.getUserByAuthenticationId(
         organization.id,
         authenticationToken.principal.attributes[IdTokenClaimNames.SUB] as String
-    )?.let { user ->
-        val tokenIssuedAtTime = authenticationToken.principal.attributes[IdTokenClaimNames.IAT] as Instant
-        val lastLogoutAllTimestamp = user.lastLogoutAllTimestamp
-        val isValid = lastLogoutAllTimestamp == null || tokenIssuedAtTime.isAfter(lastLogoutAllTimestamp)
-        if (isValid) {
-            UserContext(organization, user, restartAuthentication = false)
-        } else {
-            UserContext(organization, user = null, restartAuthentication = true)
-        }
-    } ?: UserContext(organization, user = null, restartAuthentication = false)
+    )
+
+    return when {
+        user == null -> UserFromTokenResult.UserNotFound
+        authenticationToken.isExpired() -> UserFromTokenResult.ExpiredToken
+        !authenticationToken.isValidSession(user.lastLogoutAllTimestamp) -> UserFromTokenResult.LoggedOutUser
+        else -> UserFromTokenResult.UserContext(organization, user)
+
+    }
+}
+
+private const val MAX_CLOCK_SKEW = DefaultJWTClaimsVerifier.DEFAULT_MAX_CLOCK_SKEW_SECONDS.toLong()
+private fun OAuth2AuthenticationToken.isExpired(): Boolean {
+    val expiredTime = principal.attributes[IdTokenClaimNames.EXP] as Instant
+    val expTimeWithClockSkew = expiredTime.plusSeconds(MAX_CLOCK_SKEW)
+    return Instant.now().isAfter(expTimeWithClockSkew)
+}
+
+private fun OAuth2AuthenticationToken.isValidSession(lastLogout: Instant?): Boolean {
+    val tokenIssuedAtTime = principal.attributes[IdTokenClaimNames.IAT] as Instant
+    return lastLogout == null || tokenIssuedAtTime.isAfter(lastLogout)
 }
 
 /**
@@ -169,20 +181,24 @@ fun String.removeIllegalCharacters(): String = filter(::isLegalChar)
 private fun isLegalChar(c: Char): Boolean =
     (c.code <= 0x7f) && (c.code in 0x20..0x21 || c.code in 0x23..0x5b || c.code in 0x5d..0x7e)
 
-/**
- * Organization and user unless global logout has been triggered or no user has been retrieved.
- */
-data class UserContext(
+sealed class UserFromTokenResult(val shouldDestroySession: Boolean) {
+
+    object UserNotFound : UserFromTokenResult(true)
+    object ExpiredToken : UserFromTokenResult(true)
+    object LoggedOutUser : UserFromTokenResult(true)
     /**
-     * Organization
+     * Organization and user unless global logout has been triggered or no user has been retrieved.
      */
-    val organization: Organization,
-    /**
-     * User or `null` if no [User] has been found or global logout has been triggered
-     */
-    val user: User?,
-    /**
-     * Flag indicating whether authentication flow should be restarted or not
-     */
-    val restartAuthentication: Boolean,
-)
+    data class UserContext(
+        /**
+         * Organization
+         */
+        val organization: Organization,
+        /**
+         * User or `null` if no [User] has been found or global logout has been triggered
+         */
+        val user: User,
+    ) : UserFromTokenResult(false)
+}
+
+

@@ -127,19 +127,64 @@ class ServerOAuth2AutoConfiguration {
         )
 
     @Bean
+    fun cookieServerAuthorizationRequestRepository(
+        cookieService: ReactiveCookieService,
+    ): CookieServerAuthorizationRequestRepository = CookieServerAuthorizationRequestRepository(cookieService)
+
+    @Bean
+    fun appLoginRedirectProcessor(
+        appLoginProperties: AppLoginProperties,
+        authenticationStoreClients: ObjectProvider<AuthenticationStoreClient>,
+    ) = AppLoginRedirectProcessor(
+        appLoginProperties,
+        authenticationStoreClients.`object`,
+    )
+
+    @Bean
+    fun delegatingServerRequestCache(
+        cookieService: ReactiveCookieService,
+        appLoginRedirectProcessor: AppLoginRedirectProcessor,
+    ) = DelegatingServerRequestCache(
+        CookieServerRequestCache(cookieService),
+        AppLoginCookieRequestCacheWriter(cookieService),
+        appLoginRedirectProcessor,
+    )
+
+    @Bean
+    fun silentAuthenticationRequestRedirectProvider(
+        urlSafeStateAuthorizationRequestResolver: ServerOAuth2AuthorizationRequestResolver,
+        cookieServerAuthorizationRequestRepository: CookieServerAuthorizationRequestRepository,
+        delegatingServerRequestCache: DelegatingServerRequestCache,
+    ): SilentAuthenticationRequestRedirectProvider = SilentAuthenticationRequestRedirectProvider(
+        urlSafeStateAuthorizationRequestResolver,
+        cookieServerAuthorizationRequestRepository,
+        delegatingServerRequestCache,
+    )
+
+    @Bean
     fun serverSecurityContextRepository(
         clientRegistrationRepository: ReactiveClientRegistrationRepository,
         cookieService: ReactiveCookieService,
-        reactiveDecoderFactory: ReactiveJwtDecoderFactory<ClientRegistration>
-    ): ServerSecurityContextRepository =
-        CookieServerSecurityContextRepository(clientRegistrationRepository, cookieService, reactiveDecoderFactory)
+        jwkCache: JwkCache,
+        restTemplate: RestTemplate,
+    ): ServerSecurityContextRepository = CookieServerSecurityContextRepository(
+        clientRegistrationRepository,
+        cookieService,
+        // TODO reasoning
+        JwkCachingReactiveDecoderFactory(
+            jwkCache,
+            restTemplate,
+            { NoopOAuth2TokenValidator },
+            ExpTimeIgnoringJwtClaimsSetVerifier
+        )
+    )
 
     @Bean
     fun reactiveJwtDecoderFactory(
         jwkCache: JwkCache,
         restTemplate: RestTemplate
     ): ReactiveJwtDecoderFactory<ClientRegistration> =
-        JwkCachingReactiveDecoderFactory(jwkCache, null, restTemplate)
+        JwkCachingReactiveDecoderFactory(jwkCache, restTemplate)
 
     @ConditionalOnMissingBean(JwkCache::class)
     @Bean
@@ -199,31 +244,23 @@ class ServerOAuth2AutoConfiguration {
         serverHttpSecurity: ServerHttpSecurity,
         oauth2ClientRepository: ServerOAuth2AuthorizedClientRepository,
         clientRegistrationRepository: ReactiveClientRegistrationRepository,
-        cookieService: ReactiveCookieService,
         serverSecurityContextRepository: ServerSecurityContextRepository,
         authenticationStoreClients: ObjectProvider<AuthenticationStoreClient>,
-        appLoginProperties: AppLoginProperties,
         userContextHolder: ObjectProvider<UserContextHolder<*>>,
         compositeCorsConfigurationSource: CompositeCorsConfigurationSource,
-        grantedAuthoritiesMapper: ObjectProvider<GrantedAuthoritiesMapper>,
-        jwtDecoderFactory: ObjectProvider<ReactiveJwtDecoderFactory<ClientRegistration>>,
         loginAuthManager: ReactiveAuthenticationManager,
         urlSafeStateAuthorizationRequestResolver: ServerOAuth2AuthorizationRequestResolver,
+        cookieServerAuthorizationRequestRepository: CookieServerAuthorizationRequestRepository,
+        appLoginRedirectProcessor: AppLoginRedirectProcessor,
+        delegatingServerRequestCache: DelegatingServerRequestCache,
+        // TODO mozno sa mozme zbavit vsetkych bean
+        silentAuthenticationRequestRedirectProvider: SilentAuthenticationRequestRedirectProvider,
         // TODO the property serves for a temporary hack.
         //  So for now, we will keep this configuration property here.
         //  Can be moved elsewhere or even removed in the following library release.
         @Value("\${spring.security.oauth2.config.provider.auth0.customDomain:#{null}}") auth0CustomDomain: String?,
     ): SecurityWebFilterChain {
-        val appLoginRedirectProcessor = AppLoginRedirectProcessor(
-            appLoginProperties,
-            authenticationStoreClients.`object`,
-        )
-        val serverRequestCache = DelegatingServerRequestCache(
-            CookieServerRequestCache(cookieService),
-            AppLoginCookieRequestCacheWriter(cookieService),
-            appLoginRedirectProcessor,
-        )
-        val hostBasedAuthEntryPoint = HostBasedServerAuthenticationEntryPoint(serverRequestCache)
+        val hostBasedAuthEntryPoint = HostBasedServerAuthenticationEntryPoint(delegatingServerRequestCache)
 
         val logoutHandler = DelegatingServerLogoutHandler(
             SecurityContextRepositoryLogoutHandler(serverSecurityContextRepository),
@@ -270,7 +307,7 @@ class ServerOAuth2AutoConfiguration {
                     BearerTokenReactiveAuthenticationManagerResolver(authenticationStoreClients.`object`)
             }
             oauth2Login {
-                authorizationRequestRepository = CookieServerAuthorizationRequestRepository(cookieService)
+                authorizationRequestRepository = cookieServerAuthorizationRequestRepository
                 authorizedClientRepository = oauth2ClientRepository
                 authenticationFailureHandler = ServerOAuth2FailureHandler()
                 authenticationManager = loginAuthManager
@@ -284,7 +321,7 @@ class ServerOAuth2AutoConfiguration {
                 authorize(anyExchange, authenticated)
             }
             requestCache {
-                requestCache = serverRequestCache
+                requestCache = delegatingServerRequestCache
             }
             logout {
                 this.logoutSuccessHandler = logoutSuccessHandler
@@ -297,7 +334,8 @@ class ServerOAuth2AutoConfiguration {
                     authenticationStoreClients.`object`,
                     hostBasedAuthEntryPoint,
                     logoutHandler,
-                    userContextHolder.`object`
+                    userContextHolder.`object`,
+                    silentAuthenticationRequestRedirectProvider,
                 ),
                 SecurityWebFiltersOrder.LOGOUT
             )

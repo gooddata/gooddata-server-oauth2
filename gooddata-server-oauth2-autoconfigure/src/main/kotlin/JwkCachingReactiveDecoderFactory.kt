@@ -20,11 +20,18 @@ import com.nimbusds.jose.jwk.JWKSet
 import com.nimbusds.jose.jwk.source.JWKSecurityContextJWKSet
 import com.nimbusds.jose.proc.JWKSecurityContext
 import com.nimbusds.jose.proc.JWSVerificationKeySelector
+import com.nimbusds.jose.proc.SecurityContext
+import com.nimbusds.jwt.JWTClaimsSet
+import com.nimbusds.jwt.proc.BadJWTException
+import com.nimbusds.jwt.proc.DefaultJWTClaimsVerifier
 import com.nimbusds.jwt.proc.DefaultJWTProcessor
+import com.nimbusds.jwt.proc.JWTClaimsSetVerifier
 import org.springframework.security.oauth2.client.oidc.authentication.ReactiveOidcIdTokenDecoderFactory
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.core.OAuth2TokenValidator
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult
 import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.security.oauth2.jwt.JwtTimestampValidator
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoderFactory
@@ -32,8 +39,10 @@ import org.springframework.web.client.RestOperations
 import org.springframework.web.client.RestTemplate
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
+import java.time.Instant
 
 /**
+ * TODO update docs
  * [JwkCachingReactiveDecoderFactory.createDecoder] creates everytime new instance of [NimbusReactiveJwtDecoder]
  * to avoid any underlying caching like [ReactiveOidcIdTokenDecoderFactory] does from which logic was taken. It was
  * added JWK caching using [JwkCache] to improve performance by reducing JWK calls.
@@ -54,8 +63,9 @@ import reactor.kotlin.core.publisher.toMono
  */
 class JwkCachingReactiveDecoderFactory(
     private val jwkCache: JwkCache,
-    private val jwtValidatorFactory: ((ClientRegistration) -> OAuth2TokenValidator<Jwt>)? = null,
     private val restOperations: RestOperations = RestTemplate(),
+    private val jwtValidatorFactory: ((ClientRegistration) -> OAuth2TokenValidator<Jwt>)? = null,
+    private val jwtClaimSetVerifier: JWTClaimsSetVerifier<JWKSecurityContext>? = null,
 ) : ReactiveJwtDecoderFactory<ClientRegistration> {
 
     /**
@@ -75,6 +85,9 @@ class JwkCachingReactiveDecoderFactory(
                     JWSAlgorithm.RS256,
                     JWKSecurityContextJWKSet()
                 )
+                if (jwtClaimSetVerifier != null) {
+                    jwtProcessor.jwtClaimsSetVerifier = jwtClaimSetVerifier
+                }
                 jwtProcessor.process(signedJwt, securityContext)
             }
         }.apply {
@@ -90,3 +103,35 @@ class JwkCachingReactiveDecoderFactory(
         jwkCache = jwkCache,
     ).get().toMono()
 }
+
+// TODO docs
+internal object ExpTimeIgnoringJwtClaimsSetVerifier : JWTClaimsSetVerifier<JWKSecurityContext> {
+
+    private val defaultVerifier = DefaultJWTClaimsVerifier<SecurityContext>(null, null)
+    override fun verify(claimsSet: JWTClaimsSet?, context: JWKSecurityContext) {
+        val noExpTimeClaimSet = JWTClaimsSet.Builder(claimsSet).expirationTime(null).build()
+        defaultVerifier.verify(noExpTimeClaimSet, context)
+    }
+}
+
+internal object NoopOAuth2TokenValidator : OAuth2TokenValidator<Jwt> {
+    override fun validate(token: Jwt?): OAuth2TokenValidatorResult = OAuth2TokenValidatorResult.success()
+}
+
+internal object ExpTimeCheckingJwtClaimsSetVerifier : JWTClaimsSetVerifier<JWKSecurityContext> {
+
+    private const val MAX_CLOCK_SKEW = DefaultJWTClaimsVerifier.DEFAULT_MAX_CLOCK_SKEW_SECONDS.toLong()
+    private val defaultVerifier = DefaultJWTClaimsVerifier<SecurityContext>(null, null)
+    override fun verify(claimsSet: JWTClaimsSet?, context: JWKSecurityContext) {
+        claimsSet?.expirationTime?.let { expTime ->
+            val expTimeWithClockSkew = expTime.toInstant().plusSeconds(MAX_CLOCK_SKEW)
+            if (Instant.now().isAfter(expTimeWithClockSkew)) {
+                throw JwtExpiredException("Expired JWT")
+            }
+        }
+        defaultVerifier.verify(claimsSet, context)
+    }
+}
+
+// TODO docs
+internal class JwtExpiredException(message: String?) : BadJWTException(message)

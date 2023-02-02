@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server
 
+import com.gooddata.oauth2.server.SilentAuthenticationUtils.hasSilentAuthEnabled
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
 import org.springframework.security.core.AuthenticationException
@@ -41,14 +42,15 @@ class HostBasedServerAuthenticationEntryPoint(
 
     override fun commence(exchange: ServerWebExchange, e: AuthenticationException?): Mono<Void> =
         mono(Dispatchers.Unconfined) {
-            if (exchange.isAjaxCall()) {
+            if (exchange.isAjaxCall() && !exchange.hasSilentAuthEnabled()) {
                 val uri = URI.create(AppLoginUri.PATH)
                 xmlHttpRequestServerRedirectStrategy.sendRedirect(exchange, uri)
             } else {
-                val uri = URI.create("/oauth2/authorization/${exchange.request.uri.host}")
+                val baseUriString = "/oauth2/authorization/${exchange.request.uri.host}"
+                val uriString = if (exchange.hasSilentAuthEnabled()) "$baseUriString?silentAuth" else baseUriString
                 requestCache
                     .saveRequest(exchange)
-                    .then(redirectStrategy.sendRedirect(exchange, uri))
+                    .then(redirectStrategy.sendRedirect(exchange, URI.create(uriString)))
             }.awaitOrNull()
         }
 

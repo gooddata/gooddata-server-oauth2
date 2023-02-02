@@ -27,6 +27,7 @@ import org.slf4j.event.Level
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
+import org.springframework.security.oauth2.core.oidc.user.OidcUser
 import org.springframework.security.web.server.ServerAuthenticationEntryPoint
 import org.springframework.security.web.server.WebFilterExchange
 import org.springframework.security.web.server.authentication.logout.ServerLogoutHandler
@@ -55,6 +56,7 @@ class UserContextWebFilter(
     private val authenticationEntryPoint: ServerAuthenticationEntryPoint,
     private val serverLogoutHandler: ServerLogoutHandler,
     private val userContextHolder: UserContextHolder<*>,
+    private val silentAuthenticationRequestRedirectProvider: SilentAuthenticationRequestRedirectProvider,
 ) : WebFilter {
 
     private val logger = KotlinLogging.logger {}
@@ -92,19 +94,31 @@ class UserContextWebFilter(
         exchange: ServerWebExchange,
         chain: WebFilterChain,
     ): Void? {
-        val userContext = getUserContextForAuthenticationToken(client, auth)
+        val userResult = getUserForAuthenticationToken(client, auth)
 
-        return if (userContext.user == null) {
+        if (userResult.shouldDestroySession) {
             logger.info { "Session was logged out" }
             serverLogoutHandler.logout(WebFilterExchange(exchange, chain), auth).awaitOrNull()
-            if (userContext.restartAuthentication) {
-                authenticationEntryPoint.commence(exchange, null).awaitOrNull()
-            } else {
-                throw ResponseStatusException(HttpStatus.NOT_FOUND, "User is not registered")
+        }
+
+        return when (userResult) {
+            UserFromTokenResult.ExpiredToken -> {
+                silentAuthenticationRequestRedirectProvider.sendRedirect(
+                    exchange,
+                    auth.authorizedClientRegistrationId,
+                    (auth.principal as OidcUser).idToken.tokenValue
+                ).awaitOrNull()
             }
-        } else {
-            withUserContext(userContext.organization, userContext.user, auth.name) {
-                chain.filter(exchange).awaitOrNull()
+            UserFromTokenResult.LoggedOutUser -> {
+                authenticationEntryPoint.commence(exchange, null).awaitOrNull()
+            }
+            is UserFromTokenResult.UserContext -> {
+                withUserContext(userResult.organization, userResult.user, auth.name) {
+                    chain.filter(exchange).awaitOrNull()
+                }
+            }
+            UserFromTokenResult.UserNotFound -> {
+                throw ResponseStatusException(HttpStatus.NOT_FOUND, "User is not registered")
             }
         }
     }
