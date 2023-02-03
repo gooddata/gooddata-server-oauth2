@@ -16,6 +16,7 @@
 package com.gooddata.oauth2.server
 
 import com.gooddata.oauth2.server.jackson.mapper
+import com.nimbusds.jwt.proc.BadJWTException
 import mu.KotlinLogging
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextImpl
@@ -92,10 +93,19 @@ class CookieServerSecurityContextRepository(
                             // decode JWT token from JSON
                             .decode((oauthToken.principal as OidcUser).idToken.tokenValue)
                             .onErrorMap(JwtException::class.java) { exception ->
-                                logger.logException(exception)
+                                // Sanitizes JwtException. This will get fix the empty reasoning
+                                // when the non-JwtException error is chained into the JwtException
+                                val sanitizedException = when (val cause = exception.cause) {
+                                    is BadJWTException -> cause
+                                    else -> exception
+                                }
+                                logDecodingException(sanitizedException)
                                 cookieService.invalidateCookie(exchange, SPRING_SEC_OAUTH2_AUTHZ_CLIENT)
                                 cookieService.invalidateCookie(exchange, SPRING_SEC_SECURITY_CONTEXT)
-                                CookieDecodeException("JWT from cookie decoding error", exception)
+                                CookieDecodeException(
+                                    "Cannot read ID Token from the session: ${sanitizedException.message}.",
+                                    cause = sanitizedException.cause,
+                                )
                             }
                             .map { jwt -> OidcIdToken(jwt.tokenValue, jwt.issuedAt, jwt.expiresAt, jwt.claims) }
                             .map { oidcToken ->
@@ -112,5 +122,21 @@ class CookieServerSecurityContextRepository(
                     }
             }
             .map { oauthToken -> SecurityContextImpl(oauthToken) }
+    }
+
+    /**
+     * Logs token decoding [Exception] based on the level. If the level is:
+     * * `DEBUG` - the exception message along with the full stacktrace is logged
+     * * other - only the exception message is logged
+     *
+     * @receiver the Kotlin logger
+     * @param[exception] token decoding [Exception] which should be logged
+     */
+    private fun logDecodingException(exception: Exception) {
+        val message = "Stored JWT token cannot be decoded: ${exception.message}, cause: ${exception.cause?.message}"
+        when (logger.isDebugEnabled) {
+            true -> logger.debug(exception) { message }
+            false -> logger.info { message }
+        }
     }
 }
