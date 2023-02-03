@@ -15,11 +15,24 @@
  */
 package com.gooddata.oauth2.server
 
-import org.springframework.security.core.AuthenticationException
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException
+import org.springframework.security.oauth2.core.OAuth2Error
+import org.springframework.security.oauth2.core.OAuth2ErrorCodes
 
 /**
- * Thrown when an error during cookie decoding occurs. Typically of token expiration.
+ * Thrown when an error during cookie decoding occurs. Typically, of token expiration.
+ *
+ * The exception is descendant of [OAuth2AuthenticationException] which represents the "Bearer" authentication error
+ * which is handled when the cookie is not properly decoded. We can also say that any of cookies represents part
+ * of the "Bearer" OAuth2 token.
+ *
  * @param[message] exception message
  * @param[cause] exception cause
+ *
+ * @see OAuth2AuthenticationException
  */
-class CookieDecodeException(message: String, cause: Throwable? = null) : AuthenticationException(message, cause)
+class CookieDecodeException(message: String?, cause: Throwable? = null) : OAuth2AuthenticationException(
+    OAuth2Error(OAuth2ErrorCodes.INVALID_TOKEN, message, null),
+    message,
+    cause,
+)
