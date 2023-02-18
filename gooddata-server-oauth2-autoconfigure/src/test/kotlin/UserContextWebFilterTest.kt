@@ -24,7 +24,6 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.reactor.ReactorContext
 import org.junit.jupiter.api.Test
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextImpl
@@ -48,7 +47,7 @@ internal class UserContextWebFilterTest {
 
     private val serverLogoutHandler: ServerLogoutHandler = mockk()
 
-    private val userContextHolder: UserContextHolder<*> = mockk()
+    private val userContextProvider: ReactorUserContextProvider = mockk()
 
     @Test
     fun `user context is stored`() {
@@ -75,12 +74,12 @@ internal class UserContextWebFilterTest {
         coEvery { client.getUserByAuthenticationId("organizationId", "sub") } returns User(
             "userId",
         )
-        coEvery { userContextHolder.setContext(any(), any(), any()) } returns ReactorContext(Context.empty())
+        coEvery { userContextProvider.getContextView(any(), any(), any()) } returns Context.empty()
 
         val webFilterChain = mockk<WebFilterChain> {
             every { filter(any()) } returns Mono.empty()
         }
-        val filter = UserContextWebFilter(client, authenticationEntryPoint, serverLogoutHandler, userContextHolder)
+        val filter = UserContextWebFilter(client, authenticationEntryPoint, serverLogoutHandler, userContextProvider)
 
         filter
             .filter(mockk(), webFilterChain)
@@ -90,7 +89,7 @@ internal class UserContextWebFilterTest {
         verify { serverLogoutHandler wasNot called }
         verify { authenticationEntryPoint wasNot called }
         verify(exactly = 1) { webFilterChain.filter(any()) }
-        coVerify(exactly = 1) { userContextHolder.setContext("organizationId", "userId", "sub") }
+        coVerify(exactly = 1) { userContextProvider.getContextView("organizationId", "userId", "sub") }
     }
 
     @Test
@@ -124,7 +123,7 @@ internal class UserContextWebFilterTest {
 
         val webFilterChain = mockk<WebFilterChain>()
 
-        val filter = UserContextWebFilter(client, authenticationEntryPoint, serverLogoutHandler, userContextHolder)
+        val filter = UserContextWebFilter(client, authenticationEntryPoint, serverLogoutHandler, userContextProvider)
 
         filter
             .filter(mockk(), webFilterChain)
@@ -134,12 +133,12 @@ internal class UserContextWebFilterTest {
         verify(exactly = 1) { serverLogoutHandler.logout(any(), any()) }
         verify(exactly = 1) { authenticationEntryPoint.commence(any(), any()) }
         verify { webFilterChain wasNot called }
-        verify { userContextHolder wasNot called }
+        verify { userContextProvider wasNot called }
     }
 
     @Test
     fun `bearer context is stored`() {
-        coEvery { userContextHolder.setContext(any(), any(), any()) } returns ReactorContext(Context.empty())
+        coEvery { userContextProvider.getContextView(any(), any(), any()) } returns Context.empty()
 
         val context = SecurityContextImpl(
             UserContextAuthenticationToken(
@@ -151,7 +150,7 @@ internal class UserContextWebFilterTest {
         val webFilterChain = mockk<WebFilterChain> {
             every { filter(any()) } returns Mono.empty()
         }
-        val filter = UserContextWebFilter(client, authenticationEntryPoint, serverLogoutHandler, userContextHolder)
+        val filter = UserContextWebFilter(client, authenticationEntryPoint, serverLogoutHandler, userContextProvider)
 
         filter
             .filter(mockk(), webFilterChain)
@@ -159,6 +158,6 @@ internal class UserContextWebFilterTest {
             .block()
 
         verify(exactly = 1) { webFilterChain.filter(any()) }
-        coVerify(exactly = 1) { userContextHolder.setContext("organizationId", "userId", null) }
+        coVerify(exactly = 1) { userContextProvider.getContextView("organizationId", "userId", null) }
     }
 }

@@ -514,6 +514,11 @@ class UserContextWebFluxTest(
 
         @Bean
         fun userContextHolder() = CoroutineUserContextHolder
+
+        @Bean
+        fun reactorUserContextProvider() = ReactorUserContextProvider { organizationId, userId, userName ->
+            Context.of(UserContext::class.java, UserContext(organizationId, userId, userName))
+        }
     }
 
     data class UserContext(

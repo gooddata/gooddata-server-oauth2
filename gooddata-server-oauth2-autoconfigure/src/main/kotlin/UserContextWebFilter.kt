@@ -15,17 +15,14 @@
  */
 package com.gooddata.oauth2.server
 
-import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.reactor.ReactorContext
 import kotlinx.coroutines.reactor.mono
-import kotlinx.coroutines.slf4j.MDCContext
-import kotlinx.coroutines.withContext
 import mu.KotlinLogging
-import org.slf4j.event.Level
 import org.springframework.http.HttpStatus
+import org.springframework.security.authentication.AbstractAuthenticationToken
+import org.springframework.security.core.Authentication
+import org.springframework.security.core.context.ReactiveSecurityContextHolder
 import org.springframework.security.core.context.SecurityContext
+import org.springframework.security.core.context.SecurityContextImpl
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.web.server.ServerAuthenticationEntryPoint
 import org.springframework.security.web.server.WebFilterExchange
@@ -54,121 +51,80 @@ class UserContextWebFilter(
     private val client: AuthenticationStoreClient,
     private val authenticationEntryPoint: ServerAuthenticationEntryPoint,
     private val serverLogoutHandler: ServerLogoutHandler,
-    private val userContextHolder: UserContextHolder<*>,
+    private val reactorUserContextProvider: ReactorUserContextProvider,
 ) : WebFilter {
 
     private val logger = KotlinLogging.logger {}
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> =
-        mono(Dispatchers.Unconfined + CoroutineName("userContextWebFilter")) {
-            val authOption = Option(Level.WARN, { "ReactorContext is not a part of coroutineContext" }) {
-                coroutineContext[ReactorContext]?.context
-            }.map(
-                Level.DEBUG,
-                { "Security context is not set, probably accessing unauthenticated resource" }
-            ) { context ->
-                context.getOrDefault<Mono<SecurityContext>>(SecurityContext::class.java, null)
-            }.map(Level.WARN, { "Security cannot be retrieved" }) { context ->
-                context.awaitOrNull()?.authentication
-            }
-
-            when (authOption) {
-                is Option.Present -> when (val auth = authOption.value) {
-                    is OAuth2AuthenticationToken -> processAuthenticationToken(auth, exchange, chain)
-                    is UserContextAuthenticationToken -> withUserContext(auth.organization, auth.user, null) {
-                        chain.filter(exchange).awaitOrNull()
+        ReactiveSecurityContextHolder.getContext()
+            .switchIfEmpty(Mono.just(SecurityContextImpl(UnauthenticatedResourceAuthentication)))
+            .flatMap { securityContext ->
+                when (val authentication = securityContext.authentication) {
+                    UnauthenticatedResourceAuthentication -> {
+                        logger.debug { "Security context is not set, probably accessing unauthenticated resource" }
+                        chain.filter(exchange)
                     }
-                    else -> logAndContinue(exchange, chain, Level.WARN) {
-                        "Security context contains unexpected authentication ${auth::class}"
+                    null -> {
+                        logger.warn { "Security cannot be retrieved" }
+                        chain.filter(exchange)
                     }
+                    else -> authentication.process(exchange, chain)
                 }
-                is Option.Empty -> logAndContinue(exchange, chain, authOption.logLevel, authOption.message)
             }
-        }
 
-    private suspend fun processAuthenticationToken(
+    private fun Authentication.process(
+        exchange: ServerWebExchange,
+        chain: WebFilterChain,
+    ): Mono<Void> = when (this) {
+        is OAuth2AuthenticationToken -> processAuthenticationToken(this, exchange, chain)
+        is UserContextAuthenticationToken -> withUserContext(organization, user, null) {
+            chain.filter(exchange)
+        }
+        else -> {
+            logger.warn { "Security context contains unexpected authentication ${this::class}" }
+            chain.filter(exchange)
+        }
+    }
+
+    private fun processAuthenticationToken(
         auth: OAuth2AuthenticationToken,
         exchange: ServerWebExchange,
         chain: WebFilterChain,
-    ): Void? {
-        val userContext = getUserContextForAuthenticationToken(client, auth)
-
-        return if (userContext.user == null) {
+    ): Mono<Void> = mono {
+        getUserContextForAuthenticationToken(client, auth)
+    }.flatMap { userContext ->
+        if (userContext.user == null) {
             logger.info { "Session was logged out" }
-            serverLogoutHandler.logout(WebFilterExchange(exchange, chain), auth).awaitOrNull()
-            if (userContext.restartAuthentication) {
-                authenticationEntryPoint.commence(exchange, null).awaitOrNull()
-            } else {
-                throw ResponseStatusException(HttpStatus.NOT_FOUND, "User is not registered")
-            }
+            serverLogoutHandler.logout(WebFilterExchange(exchange, chain), auth).then(
+                if (userContext.restartAuthentication) {
+                    authenticationEntryPoint.commence(exchange, null)
+                } else {
+                    Mono.error(ResponseStatusException(HttpStatus.NOT_FOUND, "User is not registered"))
+                }
+            )
         } else {
             withUserContext(userContext.organization, userContext.user, auth.name) {
-                chain.filter(exchange).awaitOrNull()
+                chain.filter(exchange)
             }
         }
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    private suspend fun <T> withUserContext(
+    private fun <T> withUserContext(
         organization: Organization,
         user: User,
         name: String?,
-        block: suspend () -> T,
-    ): T {
-        val reactorContext = userContextHolder.setContext(organization.id, user.id, name)
-        return withContext(reactorContext + MDCContext()) {
-            block()
-        }
-    }
+        monoProvider: () -> Mono<T>,
+    ): Mono<T> = monoProvider().contextWrite(reactorUserContextProvider.getContextView(organization.id, user.id, name))
 
-    private suspend fun logAndContinue(
-        exchange: ServerWebExchange,
-        chain: WebFilterChain,
-        logLevel: Level,
-        message: () -> String,
-    ): Void? {
-        when (logLevel) {
-            Level.ERROR -> logger.error(message)
-            Level.WARN -> logger.warn(message)
-            Level.INFO -> logger.info(message)
-            Level.DEBUG -> logger.debug(message)
-            Level.TRACE -> logger.trace(message)
-        }
-        return chain.filter(exchange).awaitOrNull()
-    }
-
-    sealed class Option<T> {
-
-        @Suppress("UNCHECKED_CAST")
-        suspend fun <U> map(
-            logLevel: Level,
-            message: () -> String,
-            mapper: suspend (T) -> U?,
-        ): Option<U> = when (this) {
-            is Present -> Option(logLevel, message) {
-                mapper(this.value)
-            }
-            is Empty -> this as Empty<U>
-        }
-
-        companion object {
-            suspend operator fun <T> invoke(
-                logLevel: Level,
-                message: () -> String,
-                block: suspend () -> T?,
-            ): Option<T> {
-                val value = block()
-                return if (value != null) {
-                    Present(value)
-                } else {
-                    Empty(logLevel, message)
-                }
-            }
-        }
-
-        data class Present<T>(val value: T) : Option<T>()
-
-        data class Empty<T>(val logLevel: Level, val message: () -> String) : Option<T>()
+    /**
+     * A helper [Authentication] type for representing the empty authentication of unauthenticated resources.
+     *
+     * This allows us to handle all cases (unauthenticated resource, missing authentication in authenticated resource
+     * and proper authentication in authenticated resource) together.
+     */
+    private object UnauthenticatedResourceAuthentication : AbstractAuthenticationToken(emptyList()) {
+        override fun getCredentials() = null
+        override fun getPrincipal() = null
     }
 }
