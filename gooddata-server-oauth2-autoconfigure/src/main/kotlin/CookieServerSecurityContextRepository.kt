@@ -38,6 +38,11 @@ import reactor.kotlin.core.publisher.switchIfEmpty
  * `SPRING_SEC_SECURITY_CONTEXT` HTTP cookie. Security context is not stored as a whole but only JWT part of OAuth2
  * ID token together with some additional necessary information. This is in contrast to default
  * [org.springframework.security.web.server.context.WebSessionServerSecurityContextRepository] that uses web sessions.
+ *
+ * To avoid redundant decoding of the cookie, when the resulting [Mono] produced from the [load] function is subscribed
+ * multiple times, the [OAuth2AuthenticationToken] decoded from the cookie is cached for a single API request.
+ * This saves the time of expensive cookie decryption and also saves a possible I/O for [CookieSecurityProperties].
+ * The caching mechanism is implemented by simple saving the token value within the [ServerWebExchange] attributes.
  */
 class CookieServerSecurityContextRepository(
     private val clientRegistrationRepository: ReactiveClientRegistrationRepository,
@@ -76,53 +81,65 @@ class CookieServerSecurityContextRepository(
     private fun deleteSecurityContext(exchange: ServerWebExchange) =
         cookieService.invalidateCookie(exchange, SPRING_SEC_SECURITY_CONTEXT)
 
-    override fun load(exchange: ServerWebExchange): Mono<SecurityContext> {
-        return Mono.just(exchange)
+    override fun load(exchange: ServerWebExchange): Mono<SecurityContext> =
+        Mono.just(exchange)
             .flatMap { webExchange ->
-                cookieService.decodeCookie<OAuth2AuthenticationToken>(
-                    webExchange.request,
-                    SPRING_SEC_SECURITY_CONTEXT,
-                    mapper,
-                )
+                // This cannot be a top-level Mono (therefore the `Mono.just(exchange)`)
+                // because we always need emit this each time the new subscription is processed.
+                Mono.justOrEmpty(webExchange.attributes[OAUTH_TOKEN_CACHE_KEY])
+                    .filter { cacheValue -> cacheValue is OAuth2AuthenticationToken }
+                    .map { tokenCacheValue -> tokenCacheValue as OAuth2AuthenticationToken }
+                    .switchIfEmpty(webExchange.loadTokenFromCookie())
             }
-            .flatMap { oauthToken ->
-                // find registration based on its ID
-                clientRegistrationRepository.findByRegistrationId(oauthToken.authorizedClientRegistrationId)
-                    .flatMap { registration ->
-                        jwtDecoderFactory.createDecoder(registration)
-                            // decode JWT token from JSON
-                            .decode((oauthToken.principal as OidcUser).idToken.tokenValue)
-                            .onErrorMap(JwtException::class.java) { exception ->
-                                // Sanitizes JwtException. This will get fix the empty reasoning
-                                // when the non-JwtException error is chained into the JwtException
-                                val sanitizedException = when (val cause = exception.cause) {
-                                    is BadJWTException -> cause
-                                    else -> exception
-                                }
-                                logDecodingException(sanitizedException)
-                                cookieService.invalidateCookie(exchange, SPRING_SEC_OAUTH2_AUTHZ_CLIENT)
-                                cookieService.invalidateCookie(exchange, SPRING_SEC_SECURITY_CONTEXT)
-                                CookieDecodeException(
-                                    "Cannot read ID Token from the session: ${sanitizedException.message}.",
-                                    cause = sanitizedException.cause,
-                                )
+            .map(::SecurityContextImpl)
+
+    private fun ServerWebExchange.loadTokenFromCookie() = Mono.just(this)
+        .flatMap { exchange ->
+            cookieService.decodeCookie<OAuth2AuthenticationToken>(
+                exchange.request,
+                SPRING_SEC_SECURITY_CONTEXT,
+                mapper,
+            )
+        }
+        .flatMap { oauthToken ->
+            // find registration based on its ID
+            clientRegistrationRepository.findByRegistrationId(oauthToken.authorizedClientRegistrationId)
+                .flatMap { registration ->
+                    jwtDecoderFactory.createDecoder(registration)
+                        // decode JWT token from JSON
+                        .decode((oauthToken.principal as OidcUser).idToken.tokenValue)
+                        .onErrorMap(JwtException::class.java) { exception ->
+                            // Sanitizes JwtException. This will get fix the empty reasoning
+                            // when the non-JwtException error is chained into the JwtException
+                            val sanitizedException = when (val cause = exception.cause) {
+                                is BadJWTException -> cause
+                                else -> exception
                             }
-                            .map { jwt -> OidcIdToken(jwt.tokenValue, jwt.issuedAt, jwt.expiresAt, jwt.claims) }
-                            .map { oidcToken ->
-                                OAuth2AuthenticationToken(
-                                    DefaultOidcUser(
-                                        oauthToken.principal.authorities,
-                                        oidcToken,
-                                        registration.providerDetails.userInfoEndpoint.userNameAttributeName
-                                    ),
-                                    emptyList(), // it is not stored in JSON anyway
-                                    registration.registrationId
-                                )
-                            }
-                    }
-            }
-            .map { oauthToken -> SecurityContextImpl(oauthToken) }
-    }
+                            logDecodingException(sanitizedException)
+                            cookieService.invalidateCookie(this, SPRING_SEC_OAUTH2_AUTHZ_CLIENT)
+                            cookieService.invalidateCookie(this, SPRING_SEC_SECURITY_CONTEXT)
+                            CookieDecodeException(
+                                "Cannot read ID Token from the session: ${sanitizedException.message}.",
+                                cause = sanitizedException.cause,
+                            )
+                        }
+                        .map { jwt -> OidcIdToken(jwt.tokenValue, jwt.issuedAt, jwt.expiresAt, jwt.claims) }
+                        .map { oidcToken ->
+                            OAuth2AuthenticationToken(
+                                DefaultOidcUser(
+                                    oauthToken.principal.authorities,
+                                    oidcToken,
+                                    registration.providerDetails.userInfoEndpoint.userNameAttributeName
+                                ),
+                                emptyList(), // it is not stored in JSON anyway
+                                registration.registrationId
+                            )
+                        }.doOnNext { tokenFromCookie ->
+                            // save token to cache
+                            attributes[OAUTH_TOKEN_CACHE_KEY] = tokenFromCookie
+                        }
+                }
+        }
 
     /**
      * Logs token decoding [Exception] based on the level. If the level is:
@@ -138,5 +155,9 @@ class CookieServerSecurityContextRepository(
             true -> logger.debug(exception) { message }
             false -> logger.info { message }
         }
+    }
+
+    companion object {
+        internal const val OAUTH_TOKEN_CACHE_KEY = "oauthTokenFromCookieCache"
     }
 }

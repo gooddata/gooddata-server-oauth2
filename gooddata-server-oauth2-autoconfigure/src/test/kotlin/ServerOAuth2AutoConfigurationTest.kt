@@ -87,6 +87,9 @@ internal abstract class ServerOAuth2AutoConfigurationTest {
     @MockkBean
     lateinit var userContextHolder: UserContextHolder<*>
 
+    @MockkBean
+    lateinit var reactorUserContextProvider: ReactorUserContextProvider
+
     @Test
     fun `context loads`() {
         expectThat(cookieService).isNotNull()

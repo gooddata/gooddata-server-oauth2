@@ -15,8 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.reactor.mono
 import org.springframework.http.HttpStatus
 import org.springframework.security.web.server.DefaultServerRedirectStrategy
 import org.springframework.web.server.ServerWebExchange
@@ -29,18 +27,23 @@ import java.net.URI
  */
 class XMLHttpRequestServerRedirectStrategy : DefaultServerRedirectStrategy() {
 
-    override fun sendRedirect(exchange: ServerWebExchange, location: URI): Mono<Void> =
-        mono(Dispatchers.Unconfined) {
-            super.sendRedirect(exchange, location).awaitOrNull()
+    override fun sendRedirect(serverExchange: ServerWebExchange, location: URI): Mono<Void> =
+        // ensure proper redirect URI, then convert to UNAUTHORIZED instead
+        Mono.just(serverExchange)
+            // we need to handle the exchange changing side effect from the original sendRedirect
+            // therefore, we need to emit a new mono with the input exchange
+            .flatMap { exchange -> super.sendRedirect(exchange, location).then(Mono.just(exchange)) }
+            .flatMap { exchange -> convertToUnauthorized(exchange) }
 
-            val response = exchange.response
-            val uri = response.headers.location!!
-            response.headers.location = null
-            response.statusCode = HttpStatus.UNAUTHORIZED
-            response.writeWith(
-                mono(Dispatchers.Unconfined) {
-                    response.bufferFactory().wrap(uri.toASCIIString().toByteArray())
-                }
-            ).awaitOrNull()
-        }
+    private fun convertToUnauthorized(exchange: ServerWebExchange): Mono<Void> {
+        val response = exchange.response
+        val uri = response.headers.location ?: error("Location header not defined after the sendRedirect.")
+        // clear location header
+        response.headers.location = null
+        // change redirect to UNAUTHORIZED
+        response.statusCode = HttpStatus.UNAUTHORIZED
+        return response.writeWith(
+            Mono.just(response.bufferFactory().wrap(uri.toASCIIString().toByteArray()))
+        )
+    }
 }

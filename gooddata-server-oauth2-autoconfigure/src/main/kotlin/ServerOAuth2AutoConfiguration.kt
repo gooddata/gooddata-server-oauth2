@@ -204,6 +204,7 @@ class ServerOAuth2AutoConfiguration {
         authenticationStoreClients: ObjectProvider<AuthenticationStoreClient>,
         appLoginProperties: AppLoginProperties,
         userContextHolder: ObjectProvider<UserContextHolder<*>>,
+        userContextProvider: ObjectProvider<ReactorUserContextProvider>,
         compositeCorsConfigurationSource: CompositeCorsConfigurationSource,
         grantedAuthoritiesMapper: ObjectProvider<GrantedAuthoritiesMapper>,
         jwtDecoderFactory: ObjectProvider<ReactiveJwtDecoderFactory<ClientRegistration>>,
@@ -297,7 +298,7 @@ class ServerOAuth2AutoConfiguration {
                     authenticationStoreClients.`object`,
                     hostBasedAuthEntryPoint,
                     logoutHandler,
-                    userContextHolder.`object`
+                    userContextProvider.`object`
                 ),
                 SecurityWebFiltersOrder.LOGOUT
             )

@@ -17,10 +17,13 @@ package com.gooddata.oauth2.server
 
 import com.google.crypto.tink.CleartextKeysetHandle
 import com.google.crypto.tink.JsonKeysetReader
+import com.nimbusds.openid.connect.sdk.claims.UserInfo
 import com.ninjasquad.springmockk.MockkBean
 import com.ninjasquad.springmockk.SpykBean
 import io.mockk.coEvery
 import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.reactor.ReactorContext
@@ -35,13 +38,12 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.security.core.context.SecurityContextImpl
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
+import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository
 import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
-import org.springframework.security.oauth2.core.oidc.OidcIdToken
-import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser
-import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority
+import org.springframework.security.oauth2.jwt.JoseHeaderNames
+import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.security.oauth2.jwt.ReactiveJwtDecoderFactory
 import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException
 import org.springframework.security.web.server.context.ServerSecurityContextRepository
 import org.springframework.test.web.reactive.server.WebTestClient
@@ -60,11 +62,24 @@ import kotlin.coroutines.coroutineContext
 @Import(ServerOAuth2AutoConfiguration::class, UserContextWebFluxTest.Config::class)
 class UserContextWebFluxTest(
     @Autowired private val webClient: WebTestClient,
-    @Autowired private val serverSecurityContextRepository: ServerSecurityContextRepository,
-    @Autowired private val clientRegistrationRepository: ReactiveClientRegistrationRepository,
-    @Autowired private val authenticationStoreClient: AuthenticationStoreClient,
     @Autowired private val cookieSerializer: CookieSerializer,
 ) {
+
+    @SpykBean
+    lateinit var serverSecurityContextRepository: ServerSecurityContextRepository
+
+    @SpykBean
+    lateinit var clientRegistrationRepository: ReactiveClientRegistrationRepository
+
+    @SpykBean
+    lateinit var cookieService: ReactiveCookieService
+
+    @SpykBean
+    lateinit var jwtDecoderFactory: ReactiveJwtDecoderFactory<ClientRegistration>
+
+    @MockkBean
+    lateinit var authenticationStoreClient: AuthenticationStoreClient
+
     @Language("JSON")
     private val keyset = """
         {
@@ -88,7 +103,12 @@ class UserContextWebFluxTest(
     fun `filter works with cookies`() {
         everyValidSecurityContext()
         everyValidOrganization()
-        coEvery { authenticationStoreClient.getUserByAuthenticationId("organizationTestId", "sub") } returns User(
+        coEvery {
+            authenticationStoreClient.getUserByAuthenticationId(
+                "organizationTestId",
+                SUB_CLAIM_VALUE
+            )
+        } returns User(
             "userTestId",
         )
         coEvery { authenticationStoreClient.getCookieSecurityProperties("organizationTestId") } returns
@@ -106,13 +126,24 @@ class UserContextWebFluxTest(
             .exchange()
             .expectStatus().isOk
             .expectBody<String>().isEqualTo("sub <userTestId@organizationTestId>")
+
+        // Check only one session decoding is processed during the session load.
+        // In following loads, the cache should be used.
+        verify(exactly = 1) {
+            cookieService.decodeCookie(any(), SPRING_SEC_SECURITY_CONTEXT)
+        }
     }
 
     @Test
     fun `redirects appLogin with cookies`() {
         everyValidSecurityContext()
         everyValidOrganization()
-        coEvery { authenticationStoreClient.getUserByAuthenticationId("organizationTestId", "sub") } returns User(
+        coEvery {
+            authenticationStoreClient.getUserByAuthenticationId(
+                "organizationTestId",
+                SUB_CLAIM_VALUE
+            )
+        } returns User(
             "userTestId",
         )
         coEvery { authenticationStoreClient.getCookieSecurityProperties("organizationTestId") } returns
@@ -135,8 +166,18 @@ class UserContextWebFluxTest(
     @Test
     fun `redirects appLogin with absolute uri with cookies`() {
         everyValidSecurityContext()
-        everyValidOrganization()
-        coEvery { authenticationStoreClient.getUserByAuthenticationId("organizationTestId", "sub") } returns User(
+        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } returns Organization(
+            id = "organizationTestId",
+            oauthClientId = "clientId",
+            oauthClientSecret = "clientSecret",
+            allowedOrigins = listOf("https://localhost:8443"),
+        )
+        coEvery {
+            authenticationStoreClient.getUserByAuthenticationId(
+                "organizationTestId",
+                SUB_CLAIM_VALUE
+            )
+        } returns User(
             "userId",
         )
         coEvery { authenticationStoreClient.getCookieSecurityProperties("organizationTestId") } returns
@@ -145,10 +186,7 @@ class UserContextWebFluxTest(
                 lastRotation = Instant.now(),
                 rotationInterval = Duration.ofDays(1),
             )
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } returns Organization(
-            id = "organizationTestId",
-            allowedOrigins = listOf("https://localhost:8443")
-        )
+
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
@@ -244,7 +282,7 @@ class UserContextWebFluxTest(
         everyValidSecurityContext()
         everyValidOrganization()
         coEvery {
-            authenticationStoreClient.getUserByAuthenticationId("organizationTestId", "sub")
+            authenticationStoreClient.getUserByAuthenticationId("organizationTestId", SUB_CLAIM_VALUE)
         } returns null
 
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
@@ -269,7 +307,12 @@ class UserContextWebFluxTest(
         every { serverSecurityContextRepository.save(any(), null) } returns Mono.empty()
         everyValidSecurityContext()
         everyValidOrganization()
-        coEvery { authenticationStoreClient.getUserByAuthenticationId("organizationTestId", "sub") } returns User(
+        coEvery {
+            authenticationStoreClient.getUserByAuthenticationId(
+                "organizationTestId",
+                SUB_CLAIM_VALUE
+            )
+        } returns User(
             "userTestId",
             lastLogoutAllTimestamp = Instant.ofEpochSecond(1),
         )
@@ -429,7 +472,7 @@ class UserContextWebFluxTest(
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.empty()
         everyValidOrganization()
         coEvery {
-            authenticationStoreClient.getUserByAuthenticationId("organizationTestId", "sub")
+            authenticationStoreClient.getUserByAuthenticationId("organizationTestId", SUB_CLAIM_VALUE)
         } returns User("userTestId")
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
@@ -466,27 +509,26 @@ class UserContextWebFluxTest(
     }
 
     private fun everyValidSecurityContext() {
-        every { serverSecurityContextRepository.load(any()) } returns Mono.just(
-            OidcIdToken(
-                "tokenValue",
-                Instant.EPOCH,
-                Instant.EPOCH.plusSeconds(1),
-                mapOf(
-                    IdTokenClaimNames.SUB to "sub",
-                    IdTokenClaimNames.IAT to Instant.EPOCH
-                )
-            )
-        ).map {
-            SecurityContextImpl(
-                OAuth2AuthenticationToken(
-                    DefaultOidcUser(
-                        listOf(OidcUserAuthority(it)),
-                        it
-                    ),
-                    emptyList(),
-                    "localhost"
-                )
-            )
+        val rawTokenValue = "tokenValue"
+        val rawToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
+        val jwt = Jwt(
+            rawTokenValue,
+            Instant.parse("2023-02-18T10:15:30.00Z"),
+            Instant.parse("2023-02-28T10:15:30.00Z"),
+            mapOf(
+                JoseHeaderNames.ALG to "RS256"
+            ),
+            mapOf(
+                UserInfo.NAME_CLAIM_NAME to NAME_CLAIM_VALUE,
+                IdTokenClaimNames.SUB to SUB_CLAIM_VALUE,
+                IdTokenClaimNames.IAT to Instant.EPOCH,
+            ),
+        )
+        every {
+            cookieService.decodeCookie(any(), SPRING_SEC_SECURITY_CONTEXT)
+        } returns Mono.just(rawToken)
+        every { jwtDecoderFactory.createDecoder(any()) } returns mockk {
+            every { decode(rawTokenValue) } returns Mono.just(jwt)
         }
     }
 
@@ -500,20 +542,16 @@ class UserContextWebFluxTest(
 
     @Configuration
     class Config {
-        @MockkBean
-        lateinit var serverSecurityContextRepository: ServerSecurityContextRepository
-
-        @SpykBean
-        lateinit var clientRegistrationRepository: ReactiveClientRegistrationRepository
-
-        @MockkBean
-        lateinit var authenticationStoreClient: AuthenticationStoreClient
-
         @Bean
         fun dummyController() = DummyController()
 
         @Bean
         fun userContextHolder() = CoroutineUserContextHolder
+
+        @Bean
+        fun reactorUserContextProvider() = ReactorUserContextProvider { organizationId, userId, userName ->
+            Context.of(UserContext::class.java, UserContext(organizationId, userId, userName))
+        }
     }
 
     data class UserContext(
@@ -550,5 +588,10 @@ class UserContextWebFluxTest(
                 "${authContext.userName} <${authContext.userId}@${authContext.organizationId}>"
             )
         }
+    }
+
+    companion object {
+        private const val SUB_CLAIM_VALUE = "sub|123"
+        private const val NAME_CLAIM_VALUE = "sub"
     }
 }
