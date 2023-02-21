@@ -106,7 +106,7 @@ class CookieServerOAuth2AuthorizedClientRepository(
     }
 
     override fun removeAuthorizedClient(
-        clientRegistrationId: String,
+        clientRegistrationId: String?,
         principal: Authentication?,
         exchange: ServerWebExchange
     ): Mono<Void> {

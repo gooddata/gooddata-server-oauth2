@@ -20,7 +20,12 @@ import com.nimbusds.jose.jwk.JWKSet
 import com.nimbusds.jose.jwk.source.JWKSecurityContextJWKSet
 import com.nimbusds.jose.proc.JWKSecurityContext
 import com.nimbusds.jose.proc.JWSVerificationKeySelector
+import com.nimbusds.jose.proc.SecurityContext
+import com.nimbusds.jwt.JWTClaimsSet
+import com.nimbusds.jwt.proc.BadJWTException
+import com.nimbusds.jwt.proc.DefaultJWTClaimsVerifier
 import com.nimbusds.jwt.proc.DefaultJWTProcessor
+import com.nimbusds.jwt.proc.JWTClaimsSetVerifier
 import org.springframework.security.oauth2.client.oidc.authentication.ReactiveOidcIdTokenDecoderFactory
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.core.OAuth2TokenValidator
@@ -32,6 +37,7 @@ import org.springframework.web.client.RestOperations
 import org.springframework.web.client.RestTemplate
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
+import java.time.Instant
 
 /**
  * [JwkCachingReactiveDecoderFactory.createDecoder] creates everytime new instance of [NimbusReactiveJwtDecoder]
@@ -75,6 +81,7 @@ class JwkCachingReactiveDecoderFactory(
                     JWSAlgorithm.RS256,
                     JWKSecurityContextJWKSet()
                 )
+                jwtProcessor.jwtClaimsSetVerifier = ExpTimeCheckingJwtClaimsSetVerifier
                 jwtProcessor.process(signedJwt, securityContext)
             }
         }.apply {
@@ -89,4 +96,29 @@ class JwkCachingReactiveDecoderFactory(
         jwkSetUri = jwkSetUri,
         jwkCache = jwkCache,
     ).get().toMono()
+
+    /**
+     * Extension of the original [JWTClaimsSetVerifier] used in the [DefaultJWTProcessor] which translates
+     * the expired JWT to a special [JwtExpiredException]. The original verifier fails with too generic
+     * [BadJWTException] with just "Expired JWT" message which is unprocessable. On the other hand, this extension
+     * allows us to handle expired JWTs in easier way.
+     */
+    private object ExpTimeCheckingJwtClaimsSetVerifier : JWTClaimsSetVerifier<JWKSecurityContext> {
+        private const val MAX_CLOCK_SKEW = DefaultJWTClaimsVerifier.DEFAULT_MAX_CLOCK_SKEW_SECONDS.toLong()
+        private val defaultVerifier = DefaultJWTClaimsVerifier<SecurityContext>(null, null)
+        override fun verify(claimsSet: JWTClaimsSet?, context: JWKSecurityContext) {
+            claimsSet?.expirationTime?.let { expTime ->
+                val expTimeWithClockSkew = expTime.toInstant().plusSeconds(MAX_CLOCK_SKEW)
+                if (Instant.now().isAfter(expTimeWithClockSkew)) {
+                    throw JwtExpiredException()
+                }
+            }
+            defaultVerifier.verify(claimsSet, context)
+        }
+    }
 }
+
+/**
+ * Signalizes that the JWT token is expired = its `exp` time is not valid anymore.
+ */
+internal class JwtExpiredException : BadJWTException("Expired JWT")
