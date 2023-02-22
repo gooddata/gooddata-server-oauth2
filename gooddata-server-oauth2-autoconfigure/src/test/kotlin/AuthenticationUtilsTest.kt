@@ -25,6 +25,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import strikt.api.expect
 import strikt.api.expectThat
+import strikt.assertions.containsExactlyInAnyOrder
 import strikt.assertions.endsWith
 import strikt.assertions.isEqualTo
 
@@ -59,6 +60,7 @@ internal class AuthenticationUtilsTest {
             that(clientRegistration).and {
                 get { registrationId }.isEqualTo(REGISTRATION_ID)
                 get { clientId }.isEqualTo(CLIENT_ID)
+                get { scopes }.containsExactlyInAnyOrder("openid", "profile")
             }
         }
     }
@@ -83,6 +85,7 @@ internal class AuthenticationUtilsTest {
             that(clientRegistrationProvider()).and {
                 get { registrationId }.isEqualTo(REGISTRATION_ID)
                 get { clientId }.isEqualTo(CLIENT_ID)
+                get { scopes }.containsExactlyInAnyOrder("openid", "profile", "offline_access")
             }
             that(clientRegistrationProvider()).and {
                 get { registrationId }.isEqualTo(REGISTRATION_ID)

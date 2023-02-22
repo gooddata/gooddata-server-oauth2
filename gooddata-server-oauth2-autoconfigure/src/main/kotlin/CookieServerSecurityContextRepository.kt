@@ -18,14 +18,18 @@ package com.gooddata.oauth2.server
 import com.gooddata.oauth2.server.jackson.mapper
 import com.nimbusds.jwt.proc.BadJWTException
 import mu.KotlinLogging
+import org.springframework.security.core.Authentication
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextImpl
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository
+import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizedClientRepository
 import org.springframework.security.oauth2.core.oidc.OidcIdToken
+import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser
 import org.springframework.security.oauth2.core.oidc.user.OidcUser
+import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.jwt.JwtException
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoderFactory
 import org.springframework.security.web.server.context.ServerSecurityContextRepository
@@ -48,6 +52,8 @@ class CookieServerSecurityContextRepository(
     private val clientRegistrationRepository: ReactiveClientRegistrationRepository,
     private val cookieService: ReactiveCookieService,
     private val jwtDecoderFactory: ReactiveJwtDecoderFactory<ClientRegistration>,
+    private val repositoryAwareOidcTokensRefreshingService: RepositoryAwareOidcTokensRefreshingService,
+    private val authorizedClientRepository: ServerOAuth2AuthorizedClientRepository,
 ) : ServerSecurityContextRepository {
 
     private val logger = KotlinLogging.logger {}
@@ -58,27 +64,29 @@ class CookieServerSecurityContextRepository(
             .filter { it.authentication is OAuth2AuthenticationToken }
             // we support only OidcUser
             .filter { it.authentication.principal is OidcUser }
-            .map { securityContext ->
-                cookieService.createCookie(
-                    exchange,
-                    SPRING_SEC_SECURITY_CONTEXT,
-                    mapper.writeValueAsString(securityContext.authentication)
-                )
-                logger.debugToken(
-                    SPRING_SEC_SECURITY_CONTEXT,
-                    "id_token",
-                    (securityContext.authentication.principal as OidcUser).idToken.tokenValue
-                )
-            }
+            .map { securityContext -> createSecurityContextCookie(exchange, securityContext.authentication) }
             .switchIfEmpty {
                 // when content == null or filters don't match
                 logger.debug { "Delete security context" }
-                Mono.just(deleteSecurityContext(exchange))
+                Mono.just(deleteSecurityContextCookie(exchange))
             }
             .then()
     }
 
-    private fun deleteSecurityContext(exchange: ServerWebExchange) =
+    private fun createSecurityContextCookie(exchange: ServerWebExchange, authentication: Authentication) {
+        cookieService.createCookie(
+            exchange,
+            SPRING_SEC_SECURITY_CONTEXT,
+            mapper.writeValueAsString(authentication)
+        )
+        logger.debugToken(
+            SPRING_SEC_SECURITY_CONTEXT,
+            "id_token",
+            (authentication.principal as OidcUser).idToken.tokenValue
+        )
+    }
+
+    private fun deleteSecurityContextCookie(exchange: ServerWebExchange) =
         cookieService.invalidateCookie(exchange, SPRING_SEC_SECURITY_CONTEXT)
 
     override fun load(exchange: ServerWebExchange): Mono<SecurityContext> =
@@ -101,45 +109,87 @@ class CookieServerSecurityContextRepository(
                 mapper,
             )
         }
-        .flatMap { oauthToken ->
-            // find registration based on its ID
-            clientRegistrationRepository.findByRegistrationId(oauthToken.authorizedClientRegistrationId)
-                .flatMap { registration ->
-                    jwtDecoderFactory.createDecoder(registration)
-                        // decode JWT token from JSON
-                        .decode((oauthToken.principal as OidcUser).idToken.tokenValue)
-                        .onErrorMap(JwtException::class.java) { exception ->
-                            // Sanitizes JwtException. This will get fix the empty reasoning
-                            // when the non-JwtException error is chained into the JwtException
-                            val sanitizedException = when (val cause = exception.cause) {
-                                is BadJWTException -> cause
-                                else -> exception
-                            }
-                            logDecodingException(sanitizedException)
-                            cookieService.invalidateCookie(this, SPRING_SEC_OAUTH2_AUTHZ_CLIENT)
-                            cookieService.invalidateCookie(this, SPRING_SEC_SECURITY_CONTEXT)
-                            CookieDecodeException(
-                                "Cannot read ID Token from the session: ${sanitizedException.message}.",
-                                cause = sanitizedException.cause,
-                            )
-                        }
-                        .map { jwt -> OidcIdToken(jwt.tokenValue, jwt.issuedAt, jwt.expiresAt, jwt.claims) }
-                        .map { oidcToken ->
-                            OAuth2AuthenticationToken(
-                                DefaultOidcUser(
-                                    oauthToken.principal.authorities,
-                                    oidcToken,
-                                    registration.providerDetails.userInfoEndpoint.userNameAttributeName
-                                ),
-                                emptyList(), // it is not stored in JSON anyway
-                                registration.registrationId
-                            )
-                        }.doOnNext { tokenFromCookie ->
-                            // save token to cache
-                            attributes[OAUTH_TOKEN_CACHE_KEY] = tokenFromCookie
-                        }
+        .flatMap { oauthToken -> oauthToken.decodeAndExpand(this) }
+        .doOnNext { expandedToken ->
+            // save token to cache
+            attributes[OAUTH_TOKEN_CACHE_KEY] = expandedToken
+        }
+        .onErrorResume(CookieDecodeException::class.java) { exception ->
+            logDecodingException(exception)
+            Mono.just(this)
+                .doOnNext(::deleteSecurityContextCookie)
+                .flatMap { webExchange ->
+                    authorizedClientRepository.removeAuthorizedClient(null, null, webExchange)
+                }
+                .then(Mono.error(exception))
+        }
+
+    private fun OAuth2AuthenticationToken.decodeAndExpand(
+        exchange: ServerWebExchange,
+    ): Mono<OAuth2AuthenticationToken> = clientRegistrationRepository
+        // find registration based on its ID
+        .findByRegistrationId(authorizedClientRegistrationId)
+        .flatMap { registration ->
+            jwtDecoderFactory.createDecoder(registration)
+                // decode JWT token from JSON
+                .decode((principal as OidcUser).idToken.tokenValue)
+                .map { jwt -> createExpandedOAuth2Token(jwt, this, registration) }
+                .sanitizeJwtException()
+                .onErrorResume(JwtExpiredException::class.java) { exception ->
+                    tryToRefreshIdToken(this, registration, exchange)
+                        // fallback to an original error
+                        .switchIfEmpty(Mono.error(exception))
+                }
+                .onErrorMap({ it is JwtException || it is BadJWTException }) { exception ->
+                    // translate to a cookie decoding exception
+                    CookieDecodeException(
+                        "Cannot read ID Token from the session: ${exception.message}.",
+                        exception.cause,
+                    )
                 }
         }
+
+    /**
+     * Sanitizes JwtException. This will fix the empty reasoning when the non-JwtException error is chained
+     * into the JwtException.
+     */
+    private fun <T> Mono<T>.sanitizeJwtException(): Mono<T> = onErrorMap(JwtException::class.java) { exception ->
+        when (val exceptionCause = exception.cause) {
+            is BadJWTException -> exceptionCause
+            else -> exception
+        }
+    }
+
+    private fun tryToRefreshIdToken(
+        authToken: OAuth2AuthenticationToken,
+        registration: ClientRegistration,
+        exchange: ServerWebExchange,
+    ) = repositoryAwareOidcTokensRefreshingService.refreshTokensIfPossible(registration, authToken, exchange)
+        .flatMap { refreshedTokens ->
+            val rawIdToken = refreshedTokens.additionalParameters[OidcParameterNames.ID_TOKEN]
+            Mono.justOrEmpty(rawIdToken)
+        }
+        .flatMap { rawIdToken ->
+            jwtDecoderFactory.createDecoder(registration).decode(rawIdToken.toString())
+                .map { jwt -> createExpandedOAuth2Token(jwt, authToken, registration) }
+                // save a new sec. context cookie
+                .doOnNext { token -> createSecurityContextCookie(exchange, token) }
+        }
+        .sanitizeJwtException()
+
+    private fun createExpandedOAuth2Token(
+        idTokenJwt: Jwt,
+        originalOAuth2Token: OAuth2AuthenticationToken,
+        registration: ClientRegistration,
+    ) = OAuth2AuthenticationToken(
+        DefaultOidcUser(
+            originalOAuth2Token.principal.authorities,
+            OidcIdToken(idTokenJwt.tokenValue, idTokenJwt.issuedAt, idTokenJwt.expiresAt, idTokenJwt.claims),
+            registration.providerDetails.userInfoEndpoint.userNameAttributeName
+        ),
+        emptyList(), // it is not stored in JSON anyway
+        registration.registrationId
+    )
 
     /**
      * Logs token decoding [Exception] based on the level. If the level is:

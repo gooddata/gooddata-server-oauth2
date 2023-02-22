@@ -22,8 +22,10 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.http.client.reactive.ReactorClientHttpConnector
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest
+import org.springframework.security.oauth2.client.endpoint.OAuth2RefreshTokenGrantRequest
 import org.springframework.security.oauth2.client.endpoint.ReactiveOAuth2AccessTokenResponseClient
 import org.springframework.security.oauth2.client.endpoint.WebClientReactiveAuthorizationCodeTokenResponseClient
+import org.springframework.security.oauth2.client.endpoint.WebClientReactiveRefreshTokenTokenResponseClient
 import org.springframework.security.oauth2.client.http.OAuth2ErrorResponseErrorHandler
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcReactiveOAuth2UserService
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest
@@ -90,8 +92,9 @@ class ReactiveCommunicationClientsConfiguration(private val httpProperties: Http
     }
 
     @Bean
-    fun authCodeAccessTokenResponseClient(webClient: WebClient):
-        ReactiveOAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> =
+    fun authCodeAccessTokenResponseClient(
+        webClient: WebClient,
+    ): ReactiveOAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> =
         WebClientReactiveAuthorizationCodeTokenResponseClient().apply {
             setWebClient(webClient)
             setBodyExtractor(SafeOAuth2AccessTokenResponseBodyExtractor())
@@ -105,9 +108,18 @@ class ReactiveCommunicationClientsConfiguration(private val httpProperties: Http
 
     @Bean
     fun oidcUserService(
-        userService: ReactiveOAuth2UserService<OAuth2UserRequest, OAuth2User>
+        userService: ReactiveOAuth2UserService<OAuth2UserRequest, OAuth2User>,
     ): ReactiveOAuth2UserService<OidcUserRequest, OidcUser> =
         OidcReactiveOAuth2UserService().apply {
             setOauth2UserService(userService)
+        }
+
+    @Bean
+    fun refreshTokenResponseClient(
+        webClient: WebClient,
+    ): ReactiveOAuth2AccessTokenResponseClient<OAuth2RefreshTokenGrantRequest> =
+        WebClientReactiveRefreshTokenTokenResponseClient().apply {
+            setWebClient(webClient)
+            setBodyExtractor(SafeOAuth2AccessTokenResponseBodyExtractor())
         }
 }

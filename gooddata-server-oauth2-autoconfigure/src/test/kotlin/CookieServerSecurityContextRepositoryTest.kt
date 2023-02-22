@@ -23,6 +23,7 @@ import com.github.tomakehurst.wiremock.core.WireMockConfiguration
 import com.gooddata.oauth2.server.CookieServerSecurityContextRepository.Companion.OAUTH_TOKEN_CACHE_KEY
 import com.google.crypto.tink.CleartextKeysetHandle
 import com.google.crypto.tink.JsonKeysetReader
+import com.nimbusds.openid.connect.sdk.claims.UserInfo
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -44,19 +45,26 @@ import org.springframework.security.core.context.SecurityContextImpl
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository
+import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizedClientRepository
 import org.springframework.security.oauth2.core.AuthenticationMethod
 import org.springframework.security.oauth2.core.AuthorizationGrantType
 import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
 import org.springframework.security.oauth2.core.oidc.OidcIdToken
+import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority
+import org.springframework.security.oauth2.jwt.JoseHeaderNames
+import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.security.oauth2.jwt.JwtException
 import org.springframework.util.CollectionUtils.toMultiValueMap
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
 import strikt.api.expectThat
+import strikt.api.expectThrows
 import strikt.assertions.containsKey
 import strikt.assertions.isA
 import strikt.assertions.isEqualTo
+import strikt.assertions.isNotNull
 import strikt.assertions.isTrue
 import java.net.URI
 import java.time.Duration
@@ -109,12 +117,18 @@ internal class CookieServerSecurityContextRepositoryTest {
 
     private val jwkCache = CaffeineJwkCache()
 
-    private val jwtDecoderFactory = JwkCachingReactiveDecoderFactory(jwkCache)
+    private val jwtDecoderFactory = spyk(JwkCachingReactiveDecoderFactory(jwkCache))
+
+    private val authorizedClientRepository: ServerOAuth2AuthorizedClientRepository = mockk()
+
+    private val repositoryAwareOidcTokensRefreshingService: RepositoryAwareOidcTokensRefreshingService = mockk()
 
     private val repository = CookieServerSecurityContextRepository(
         clientRegistrationRepository,
         cookieService,
-        jwtDecoderFactory
+        jwtDecoderFactory,
+        repositoryAwareOidcTokensRefreshingService,
+        authorizedClientRepository,
     )
 
     @AfterEach
@@ -196,16 +210,9 @@ internal class CookieServerSecurityContextRepositoryTest {
 
     @Test
     fun `should not load context from cookie if registration id is not mapped`() {
-        val body = resource("oauth2_authentication_token.json").readText()
         every { exchange.attributes } returns emptyMap()
         every { exchange.request.uri } returns URI.create("http://localhost")
-        every { exchange.request.cookies } returns toMultiValueMap(
-            mapOf(
-                SPRING_SEC_SECURITY_CONTEXT to listOf(
-                    HttpCookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", body))
-                )
-            )
-        )
+        mockSecurityContextCookie(resource("oauth2_authentication_token.json").readText())
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.empty()
 
         val context = repository.load(exchange)
@@ -217,17 +224,10 @@ internal class CookieServerSecurityContextRepositoryTest {
 
     @Test
     fun `should load context from cookie`() {
-        val body = resource("oauth2_authentication_token_long.json").readText()
         val exchangeAttributes = mutableMapOf<String, Any>()
         every { exchange.attributes } returns exchangeAttributes
         every { exchange.request.uri } returns URI.create("http://localhost")
-        every { exchange.request.cookies } returns toMultiValueMap(
-            mapOf(
-                SPRING_SEC_SECURITY_CONTEXT to listOf(
-                    HttpCookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie("localhost", body))
-                )
-            )
-        )
+        mockSecurityContextCookie(resource("oauth2_authentication_token_long.json").readText())
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.just(
             ClientRegistration
                 .withRegistrationId("localhost")
@@ -267,6 +267,146 @@ internal class CookieServerSecurityContextRepositoryTest {
         val context = repository.load(exchange).blockOptional().get()
 
         expectThat(context.authentication).isEqualTo(token)
+    }
+
+    @Test
+    fun `should load context with refreshed token after its expiration`() {
+        val exchangeAttributes = mutableMapOf<String, Any>()
+        every { exchange.attributes } returns exchangeAttributes
+        every { exchange.request.uri } returns URI.create("http://localhost")
+        mockSecurityContextCookie(resource("oauth2_authentication_token.json").readText())
+        every { cookieService.createCookie(any(), any(), any()) } returns Unit
+        every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.just(mockk {
+            every { registrationId } returns "123"
+            every { providerDetails.userInfoEndpoint.userNameAttributeName } returns "sub"
+        })
+        every { jwtDecoderFactory.createDecoder(any()) } returns mockk {
+            // wrap the expired exception to check if it's properly sanitized
+            every { decode("tokenValue") } returns Mono.error(JwtException("error", JwtExpiredException()))
+            every { decode("newTokenValue") } returns Mono.just(
+                Jwt(
+                    "tokenValue",
+                    Instant.parse("2023-02-18T10:15:30.00Z"),
+                    Instant.parse("2023-02-28T10:15:30.00Z"),
+                    mapOf(
+                        JoseHeaderNames.ALG to "RS256"
+                    ),
+                    mapOf(
+                        UserInfo.NAME_CLAIM_NAME to "userName",
+                        IdTokenClaimNames.SUB to "newTokenUserSub",
+                        IdTokenClaimNames.IAT to Instant.EPOCH,
+                    ),
+                )
+            )
+        }
+        every {
+            repositoryAwareOidcTokensRefreshingService.refreshTokensIfPossible(any(), any(), any())
+        } returns Mono.just(mockk {
+            every { additionalParameters } returns mapOf(OidcParameterNames.ID_TOKEN to "newTokenValue")
+        })
+
+        val context = repository.load(exchange).block()
+
+        // check if new cookie is set
+        verify { cookieService.createCookie(exchange, SPRING_SEC_SECURITY_CONTEXT, any()) }
+
+        expectThat(context).isNotNull().get { authentication }
+            .isA<OAuth2AuthenticationToken>()
+            .get { principal.name }.isEqualTo("newTokenUserSub")
+        expectThat(exchangeAttributes).containsKey(OAUTH_TOKEN_CACHE_KEY)
+    }
+
+    @Test
+    fun `should invalidate cookies when token refresh returns empty response`() {
+        every { exchange.attributes } returns emptyMap()
+        every { exchange.request.uri } returns URI.create("http://localhost")
+        mockSecurityContextCookie(resource("oauth2_authentication_token.json").readText())
+        every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.just(mockk())
+        every { jwtDecoderFactory.createDecoder(any()) } returns mockk {
+            every { decode("tokenValue") } returns Mono.error(JwtException("error", JwtExpiredException()))
+        }
+        every {
+            repositoryAwareOidcTokensRefreshingService.refreshTokensIfPossible(any(), any(), any())
+        } returns Mono.empty()
+        every { authorizedClientRepository.removeAuthorizedClient(any(), any(), any()) } returns Mono.empty()
+        every { cookieService.invalidateCookie(any(), any()) } returns Unit
+
+        expectThrows<CookieDecodeException> {
+            repository.load(exchange).block()
+        }
+
+        // check if new cookie is not set
+        verify(exactly = 0) { cookieService.createCookie(exchange, SPRING_SEC_SECURITY_CONTEXT, any()) }
+        verify {
+            authorizedClientRepository.removeAuthorizedClient(any(), any(), any())
+            cookieService.invalidateCookie(exchange, SPRING_SEC_SECURITY_CONTEXT)
+        }
+    }
+
+    @Test
+    fun `should invalidate cookies when token refresh does not contain ID token`() {
+        every { exchange.attributes } returns emptyMap()
+        every { exchange.request.uri } returns URI.create("http://localhost")
+        mockSecurityContextCookie(resource("oauth2_authentication_token.json").readText())
+        every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.just(mockk())
+        every { jwtDecoderFactory.createDecoder(any()) } returns mockk {
+            every { decode("tokenValue") } returns Mono.error(JwtException("error", JwtExpiredException()))
+        }
+        every {
+            repositoryAwareOidcTokensRefreshingService.refreshTokensIfPossible(any(), any(), any())
+        } returns Mono.just(mockk(relaxed = true))
+        every { authorizedClientRepository.removeAuthorizedClient(any(), any(), any()) } returns Mono.empty()
+        every { cookieService.invalidateCookie(any(), any()) } returns Unit
+
+        expectThrows<CookieDecodeException> {
+            repository.load(exchange).block()
+        }
+
+        // check if new cookie is not set
+        verify(exactly = 0) { cookieService.createCookie(exchange, SPRING_SEC_SECURITY_CONTEXT, any()) }
+        verify {
+            authorizedClientRepository.removeAuthorizedClient(any(), any(), any())
+            cookieService.invalidateCookie(exchange, SPRING_SEC_SECURITY_CONTEXT)
+        }
+    }
+
+    @Test
+    fun `should invalidate cookies when common error occurred during token decoding`() {
+        every { exchange.attributes } returns emptyMap()
+        every { exchange.request.uri } returns URI.create("http://localhost")
+        mockSecurityContextCookie(resource("oauth2_authentication_token.json").readText())
+        every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.just(mockk())
+        every { jwtDecoderFactory.createDecoder(any()) } returns mockk {
+            every { decode("tokenValue") } returns Mono.error(JwtException("non-expired error"))
+        }
+        every { authorizedClientRepository.removeAuthorizedClient(any(), any(), any()) } returns Mono.empty()
+        every { cookieService.invalidateCookie(any(), any()) } returns Unit
+
+        expectThrows<CookieDecodeException> {
+            repository.load(exchange).block()
+        }
+
+        // check if new cookie is not set
+        verify(exactly = 0) { cookieService.createCookie(exchange, SPRING_SEC_SECURITY_CONTEXT, any()) }
+        verify {
+            authorizedClientRepository.removeAuthorizedClient(any(), any(), any())
+            cookieService.invalidateCookie(exchange, SPRING_SEC_SECURITY_CONTEXT)
+        }
+    }
+
+    private fun mockSecurityContextCookie(tokenJson: String) {
+        every { exchange.request.cookies } returns toMultiValueMap(
+            mapOf(
+                SPRING_SEC_SECURITY_CONTEXT to listOf(
+                    HttpCookie(
+                        SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(
+                            "localhost",
+                            tokenJson
+                        )
+                    )
+                )
+            )
+        )
     }
 
     companion object {

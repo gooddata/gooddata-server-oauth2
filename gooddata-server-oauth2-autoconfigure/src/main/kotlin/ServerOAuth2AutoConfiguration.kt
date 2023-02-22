@@ -37,6 +37,7 @@ import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMap
 import org.springframework.security.crypto.keygen.Base64StringKeyGenerator
 import org.springframework.security.oauth2.client.authentication.OAuth2LoginReactiveAuthenticationManager
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest
+import org.springframework.security.oauth2.client.endpoint.OAuth2RefreshTokenGrantRequest
 import org.springframework.security.oauth2.client.endpoint.ReactiveOAuth2AccessTokenResponseClient
 import org.springframework.security.oauth2.client.oidc.authentication.OidcAuthorizationCodeReactiveAuthenticationManager
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest
@@ -127,12 +128,25 @@ class ServerOAuth2AutoConfiguration {
         )
 
     @Bean
+    fun repositoryAwareOidcTokensRefreshingService(
+        refreshTokenResponseClient: ReactiveOAuth2AccessTokenResponseClient<OAuth2RefreshTokenGrantRequest>,
+        authorizedClientRepository: ServerOAuth2AuthorizedClientRepository,
+    ) = RepositoryAwareOidcTokensRefreshingService(refreshTokenResponseClient, authorizedClientRepository)
+
+    @Bean
     fun serverSecurityContextRepository(
         clientRegistrationRepository: ReactiveClientRegistrationRepository,
         cookieService: ReactiveCookieService,
-        reactiveDecoderFactory: ReactiveJwtDecoderFactory<ClientRegistration>
-    ): ServerSecurityContextRepository =
-        CookieServerSecurityContextRepository(clientRegistrationRepository, cookieService, reactiveDecoderFactory)
+        reactiveDecoderFactory: ReactiveJwtDecoderFactory<ClientRegistration>,
+        repositoryAwareOidcTokensRefreshingService: RepositoryAwareOidcTokensRefreshingService,
+        authorizedClientRepository: ServerOAuth2AuthorizedClientRepository,
+    ): ServerSecurityContextRepository = CookieServerSecurityContextRepository(
+        clientRegistrationRepository,
+        cookieService,
+        reactiveDecoderFactory,
+        repositoryAwareOidcTokensRefreshingService,
+        authorizedClientRepository,
+    )
 
     @Bean
     fun reactiveJwtDecoderFactory(

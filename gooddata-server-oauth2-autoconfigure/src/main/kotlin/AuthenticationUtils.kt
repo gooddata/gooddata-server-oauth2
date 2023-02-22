@@ -15,6 +15,10 @@
  */
 package com.gooddata.oauth2.server
 
+import com.nimbusds.oauth2.sdk.Scope
+import com.nimbusds.openid.connect.sdk.OIDCScopeValue
+import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata
+import net.minidev.json.JSONObject
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ClientRegistrations
@@ -62,7 +66,7 @@ fun buildClientRegistration(
         ClientRegistration
             .withRegistrationId(registrationId)
             .withDexConfig(properties)
-    }.withIssuerConfig(organization).build()
+    }.buildWithIssuerConfig(organization)
 
 /**
  * Adds the redirect URL to this receiver in the case the [oauthIssuerId] is defined, otherwise the default value
@@ -83,13 +87,33 @@ private fun ClientRegistration.Builder.withRedirectUri(oauthIssuerId: String?) =
  * @param organization the organization containing OIDC issuer configuration
  * @return this builder
  */
-private fun ClientRegistration.Builder.withIssuerConfig(
+private fun ClientRegistration.Builder.buildWithIssuerConfig(
     organization: Organization,
-) = clientId(organization.oauthClientId)
-    .clientSecret(organization.oauthClientSecret)
-    .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-    .scope("openid", "profile")
-    .userNameAttributeName("name")
+): ClientRegistration {
+    val withIssuerConfigBuilder = clientId(organization.oauthClientId)
+        .clientSecret(organization.oauthClientSecret)
+        .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+        .userNameAttributeName("name")
+    val supportedScopes = withIssuerConfigBuilder.build().resolveSupportedScopes()
+
+    return withIssuerConfigBuilder.withScopes(supportedScopes).build()
+}
+
+private fun ClientRegistration.resolveSupportedScopes() =
+    JSONObject(providerDetails.configurationMetadata)
+        .takeIf(JSONObject::isNotEmpty)
+        ?.let { confMetadata -> OIDCProviderMetadata.parse(confMetadata).scopes }
+
+private fun ClientRegistration.Builder.withScopes(supportedScopes: Scope?): ClientRegistration.Builder {
+    // in the future, we could check mandatory scopes against the supported ones
+    val mandatoryScopes = listOf(OIDCScopeValue.OPENID, OIDCScopeValue.PROFILE).map(Scope.Value::getValue)
+    val optionalScopes = supportedScopes
+        ?.filter { scope -> scope in listOf(OIDCScopeValue.OFFLINE_ACCESS) }
+        ?.map(Scope.Value::getValue)
+        ?: listOf()
+
+    return scope(mandatoryScopes + optionalScopes)
+}
 
 /**
  * Adds the DEX issuer static configuration to this receiver.
