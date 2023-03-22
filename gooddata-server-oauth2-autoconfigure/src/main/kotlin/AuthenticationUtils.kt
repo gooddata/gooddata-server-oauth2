@@ -18,6 +18,8 @@ package com.gooddata.oauth2.server
 import com.nimbusds.oauth2.sdk.Scope
 import com.nimbusds.openid.connect.sdk.OIDCScopeValue
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.reactor.mono
 import net.minidev.json.JSONObject
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.oauth2.client.registration.ClientRegistration
@@ -26,6 +28,7 @@ import org.springframework.security.oauth2.core.AuthenticationMethod
 import org.springframework.security.oauth2.core.AuthorizationGrantType
 import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
 import org.springframework.security.oauth2.server.resource.BearerTokenAuthenticationToken
+import reactor.core.publisher.Mono
 import java.time.Instant
 
 /**
@@ -131,22 +134,6 @@ private fun ClientRegistration.Builder.withDexConfig(
     .userInfoAuthenticationMethod(AuthenticationMethod.HEADER)
     .jwkSetUri("${properties.localAddress}/dex/keys")
 
-/**
- * Retrieves user and organization details from [AuthenticationStoreClient] for given Bearer token.
- *
- * @param client authentication client
- * @param hostname hostname to be queried
- * @param authentication Bearer token authentication details
- */
-suspend fun userContextAuthenticationToken(
-    client: AuthenticationStoreClient,
-    hostname: String,
-    authentication: BearerTokenAuthenticationToken,
-): UserContextAuthenticationToken {
-    val organization = client.getOrganizationByHostname(hostname)
-    val user = client.getUserByApiToken(organization.id, authentication.token)
-    return UserContextAuthenticationToken(organization, user)
-}
 
 /**
  * Takes provided [OAuth2AuthenticationToken] and tries to retrieve [Organization] and [User] that correspond to it.

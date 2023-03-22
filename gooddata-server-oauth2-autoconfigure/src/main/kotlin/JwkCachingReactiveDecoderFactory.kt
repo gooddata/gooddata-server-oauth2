@@ -97,13 +97,14 @@ class JwkCachingReactiveDecoderFactory(
         jwkCache = jwkCache,
     ).get().toMono()
 
+//    TODO move elsewhere
     /**
      * Extension of the original [JWTClaimsSetVerifier] used in the [DefaultJWTProcessor] which translates
      * the expired JWT to a special [JwtExpiredException]. The original verifier fails with too generic
      * [BadJWTException] with just "Expired JWT" message which is unprocessable. On the other hand, this extension
      * allows us to handle expired JWTs in easier way.
      */
-    private object ExpTimeCheckingJwtClaimsSetVerifier : JWTClaimsSetVerifier<JWKSecurityContext> {
+    internal object ExpTimeCheckingJwtClaimsSetVerifier : JWTClaimsSetVerifier<JWKSecurityContext> {
         private const val MAX_CLOCK_SKEW = DefaultJWTClaimsVerifier.DEFAULT_MAX_CLOCK_SKEW_SECONDS.toLong()
         private val defaultVerifier = DefaultJWTClaimsVerifier<SecurityContext>(null, null)
         override fun verify(claimsSet: JWTClaimsSet?, context: JWKSecurityContext) {

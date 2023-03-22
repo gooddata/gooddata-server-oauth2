@@ -215,6 +215,7 @@ class ServerOAuth2AutoConfiguration {
         clientRegistrationRepository: ReactiveClientRegistrationRepository,
         cookieService: ReactiveCookieService,
         serverSecurityContextRepository: ServerSecurityContextRepository,
+        // TODO rename
         authenticationStoreClients: ObjectProvider<AuthenticationStoreClient>,
         appLoginProperties: AppLoginProperties,
         userContextHolder: ObjectProvider<UserContextHolder<*>>,
@@ -243,6 +244,7 @@ class ServerOAuth2AutoConfiguration {
         val logoutHandler = DelegatingServerLogoutHandler(
             SecurityContextRepositoryLogoutHandler(serverSecurityContextRepository),
             ClientRepositoryLogoutHandler(oauth2ClientRepository),
+            JwtAuthenticationLogoutHandler(authenticationStoreClients.`object`)
         )
 
         val logoutSuccessHandler = DelegatingServerLogoutSuccessHandler(
@@ -251,8 +253,9 @@ class ServerOAuth2AutoConfiguration {
                 setPostLogoutRedirectUri("{baseUrl}")
                 setLogoutSuccessUrl(URI.create("/"))
             },
-            // Keep Auth0 handler as last one
+            // Keep Auth0 handler as last one in OIDC handlers
             Auth0LogoutHandler(clientRegistrationRepository, auth0CustomDomain),
+            JwtAuthenticationLogoutHandler(authenticationStoreClients.`object`)
         )
 
         return serverHttpSecurity.securityContextRepository(serverSecurityContextRepository).configure {

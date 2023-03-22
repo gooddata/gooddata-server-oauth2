@@ -246,6 +246,8 @@ internal class CookieServerSecurityContextRepositoryTest {
         wireMockServer
             .stubFor(
                 get(urlEqualTo("/dex/keys"))
+                    // TODO replace with new private + public keys (to have possibility to generate own tokens
+                    //  with e.g. new exp time)
                     .willReturn(aResponse().withBody(resource("keySet.json").readText()))
             )
 
