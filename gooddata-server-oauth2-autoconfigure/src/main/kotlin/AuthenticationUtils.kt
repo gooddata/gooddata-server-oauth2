@@ -18,7 +18,9 @@ package com.gooddata.oauth2.server
 import com.nimbusds.oauth2.sdk.Scope
 import com.nimbusds.openid.connect.sdk.OIDCScopeValue
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata
+import java.time.Instant
 import net.minidev.json.JSONObject
+import org.springframework.http.HttpStatus
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ClientRegistrations
@@ -26,7 +28,7 @@ import org.springframework.security.oauth2.core.AuthenticationMethod
 import org.springframework.security.oauth2.core.AuthorizationGrantType
 import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
 import org.springframework.security.oauth2.server.resource.BearerTokenAuthenticationToken
-import java.time.Instant
+import org.springframework.web.client.HttpClientErrorException
 
 /**
  * Constants for OAuth type authentication which are not directly available in the Spring Security.
@@ -58,7 +60,14 @@ fun buildClientRegistration(
 ): ClientRegistration =
     if (organization.oauthIssuerLocation != null) {
         clientRegistrationBuilderCache.get(organization.oauthIssuerLocation) {
-            ClientRegistrations.fromIssuerLocation(organization.oauthIssuerLocation)
+            try {
+                ClientRegistrations.fromIssuerLocation(organization.oauthIssuerLocation)
+            } catch (e: IllegalArgumentException) {
+                throw HttpClientErrorException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Authorization failed for given issuer \"${organization.oauthIssuerLocation}\""
+                )
+            }
         }
             .registrationId(registrationId)
             .withRedirectUri(organization.oauthIssuerId)
