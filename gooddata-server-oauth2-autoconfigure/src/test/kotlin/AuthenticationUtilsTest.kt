@@ -21,8 +21,12 @@ import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
 import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.springframework.http.HttpStatus
+import org.springframework.web.client.HttpClientErrorException
 import strikt.api.expect
 import strikt.api.expectThat
 import strikt.assertions.containsExactlyInAnyOrder
@@ -109,6 +113,24 @@ internal class AuthenticationUtilsTest {
             get { clientId }.isEqualTo(CLIENT_ID)
             get { redirectUri }.endsWith(customIssuerId)
         }
+    }
+
+    @Test
+    fun `build client registration throws 401 for invalid issuer`() {
+        val customIssuerId = "someCustomIssuerId"
+        val invalidIssuerLocation = "invalidIssuerLocation"
+        organization = Organization(
+            id = ORGANIZATION_ID,
+            oauthClientId = CLIENT_ID,
+            oauthIssuerLocation = invalidIssuerLocation,
+            oauthIssuerId = customIssuerId,
+        )
+
+        val ex = assertThrows<HttpClientErrorException> {
+            buildClientRegistration(REGISTRATION_ID, organization, properties, clientRegistrationBuilderCache)
+        }
+        assertEquals("401 Authorization failed for given issuer \"$invalidIssuerLocation\"", ex.message)
+        assertEquals(HttpStatus.UNAUTHORIZED, ex.statusCode)
     }
 
     private fun mockOidcIssuer(): String {
