@@ -52,6 +52,7 @@ object OAuthConstants {
  * @param clientRegistrationBuilderCache the cache where non-DEX client registration builders are saved
  * for improving performance
  */
+@SuppressWarnings("TooGenericExceptionCaught")
 fun buildClientRegistration(
     registrationId: String,
     organization: Organization,
@@ -62,11 +63,17 @@ fun buildClientRegistration(
         clientRegistrationBuilderCache.get(organization.oauthIssuerLocation) {
             try {
                 ClientRegistrations.fromIssuerLocation(organization.oauthIssuerLocation)
-            } catch (e: IllegalArgumentException) {
-                throw HttpClientErrorException(
-                    HttpStatus.UNAUTHORIZED,
-                    "Authorization failed for given issuer \"${organization.oauthIssuerLocation}\""
-                )
+            } catch (ex: RuntimeException) {
+                when (ex) {
+                    is IllegalArgumentException,
+                    is IllegalStateException ->
+                        throw HttpClientErrorException(
+                            HttpStatus.UNAUTHORIZED,
+                            "Authorization failed for given issuer \"${organization.oauthIssuerLocation}\""
+                        )
+
+                    else -> throw ex
+                }
             }
         }
             .registrationId(registrationId)

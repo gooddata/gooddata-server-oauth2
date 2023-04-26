@@ -19,12 +19,16 @@ package com.gooddata.oauth2.server
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
+import java.util.stream.Stream
 import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import org.springframework.http.HttpStatus
 import org.springframework.web.client.HttpClientErrorException
 import strikt.api.expect
@@ -115,21 +119,24 @@ internal class AuthenticationUtilsTest {
         }
     }
 
-    @Test
-    fun `build client registration throws 401 for invalid issuer`() {
+    @ParameterizedTest(name = "build client registration throws 401 for {0}")
+    @MethodSource("illegalIssuerArguments")
+    fun `build client registration with invalid issuer`(
+        case: String,
+        issuerLocation: String
+    ) {
         val customIssuerId = "someCustomIssuerId"
-        val invalidIssuerLocation = "invalidIssuerLocation"
         organization = Organization(
             id = ORGANIZATION_ID,
             oauthClientId = CLIENT_ID,
-            oauthIssuerLocation = invalidIssuerLocation,
+            oauthIssuerLocation = issuerLocation,
             oauthIssuerId = customIssuerId,
         )
 
         val ex = assertThrows<HttpClientErrorException> {
             buildClientRegistration(REGISTRATION_ID, organization, properties, clientRegistrationBuilderCache)
         }
-        assertEquals("401 Authorization failed for given issuer \"$invalidIssuerLocation\"", ex.message)
+        assertEquals("401 Authorization failed for given issuer \"$issuerLocation\"", ex.message)
         assertEquals(HttpStatus.UNAUTHORIZED, ex.statusCode)
     }
 
@@ -157,6 +164,12 @@ internal class AuthenticationUtilsTest {
         fun cleanUp() {
             wireMockServer.stop()
         }
+
+        @JvmStatic
+        fun illegalIssuerArguments() = Stream.of(
+            Arguments.of("non matching issuer", "https://gooddata-stg.us.auth0.com/wrong"),
+            Arguments.of("invalid issuer", "https://www.share.bfqa.org/")
+        )
 
         @Language("json")
         private val OIDC_CONFIG = """
