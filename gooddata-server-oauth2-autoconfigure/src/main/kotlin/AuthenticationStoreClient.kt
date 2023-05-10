@@ -23,7 +23,9 @@ import java.time.Instant
 /**
  * `AuthenticationStoreClient` defines methods for retrieving identity objects from persistent storage.
  */
-interface AuthenticationStoreClient {
+interface AuthenticationStoreClient
+
+
 
     /**
      * Retrieves [Organization] that corresponds to provided `hostname`. [ResponseStatusException]
