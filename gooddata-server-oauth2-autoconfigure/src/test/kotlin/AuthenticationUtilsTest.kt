@@ -30,7 +30,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import org.springframework.http.HttpStatus
-import org.springframework.web.client.HttpClientErrorException
+import org.springframework.web.server.ResponseStatusException
 import strikt.api.expect
 import strikt.api.expectThat
 import strikt.assertions.containsExactlyInAnyOrder
@@ -133,11 +133,11 @@ internal class AuthenticationUtilsTest {
             oauthIssuerId = customIssuerId,
         )
 
-        val ex = assertThrows<HttpClientErrorException> {
+        val ex = assertThrows<ResponseStatusException> {
             buildClientRegistration(REGISTRATION_ID, organization, properties, clientRegistrationBuilderCache)
         }
-        assertEquals("401 Authorization failed for given issuer \"$issuerLocation\"", ex.message)
-        assertEquals(HttpStatus.UNAUTHORIZED, ex.statusCode)
+        assertEquals("401 UNAUTHORIZED \"Authorization failed for given issuer \"$issuerLocation\"\"", ex.message)
+        assertEquals(HttpStatus.UNAUTHORIZED, ex.status)
     }
 
     private fun mockOidcIssuer(): String {

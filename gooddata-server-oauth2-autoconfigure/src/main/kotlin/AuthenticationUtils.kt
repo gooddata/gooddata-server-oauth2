@@ -28,7 +28,7 @@ import org.springframework.security.oauth2.core.AuthenticationMethod
 import org.springframework.security.oauth2.core.AuthorizationGrantType
 import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
 import org.springframework.security.oauth2.server.resource.BearerTokenAuthenticationToken
-import org.springframework.web.client.HttpClientErrorException
+import org.springframework.web.server.ResponseStatusException
 
 /**
  * Constants for OAuth type authentication which are not directly available in the Spring Security.
@@ -66,11 +66,10 @@ fun buildClientRegistration(
             } catch (ex: RuntimeException) {
                 when (ex) {
                     is IllegalArgumentException,
-                    is IllegalStateException ->
-                        throw HttpClientErrorException(
-                            HttpStatus.UNAUTHORIZED,
-                            "Authorization failed for given issuer \"${organization.oauthIssuerLocation}\""
-                        )
+                    is IllegalStateException -> throw ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
+                        "Authorization failed for given issuer \"${organization.oauthIssuerLocation}\""
+                    )
 
                     else -> throw ex
                 }
