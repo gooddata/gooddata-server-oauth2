@@ -1,8 +1,15 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>whitesource/merge-confidence:beta", "config:base"],
-  "ignorePresets": [":dependencyDashboard", "group:springSecurity"],
+  "extends": [
+    "github>gooddata/.github",
+    ":automergeDigest",
+    ":automergeLinters",
+    ":enableVulnerabilityAlertsWithLabel(security)",
+    "github>whitesource/merge-confidence:beta"
+  ],
+  "ignorePresets": [":dependencyDashboard", "group:springSecurity", "workarounds:javaLTSVersions"],
   "commitMessagePrefix": "UPDATE: ",
+  "enabledManagers": ["gradle", "gradle-wrapper" ],
   "packageRules": [
     {
       "matchPackagePrefixes": ["io.gitlab.arturbosch.detekt"],
