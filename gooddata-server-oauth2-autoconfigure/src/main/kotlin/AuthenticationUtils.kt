@@ -105,6 +105,13 @@ private fun ClientRegistration.Builder.withRedirectUri(oauthIssuerId: String?) =
 private fun ClientRegistration.Builder.buildWithIssuerConfig(
     organization: Organization,
 ): ClientRegistration {
+    if (organization.oauthClientId == null || organization.oauthClientSecret == null) {
+        throw ResponseStatusException(
+            HttpStatus.UNAUTHORIZED,
+            "Authorization failed for given issuer ${organization.oauthIssuerLocation}." +
+                " Invalid configuration, missing mandatory attribute client id and/or client secret."
+        )
+    }
     val withIssuerConfigBuilder = clientId(organization.oauthClientId)
         .clientSecret(organization.oauthClientSecret)
         .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
