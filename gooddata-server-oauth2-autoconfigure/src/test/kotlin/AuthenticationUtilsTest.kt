@@ -55,7 +55,8 @@ internal class AuthenticationUtilsTest {
     fun buildClientRegistrationDex() {
         organization = Organization(
             id = ORGANIZATION_ID,
-            oauthClientId = CLIENT_ID
+            oauthClientId = CLIENT_ID,
+            oauthClientSecret = CLIENT_SECRET
         )
 
         val clientRegistration = buildClientRegistration(
@@ -68,6 +69,7 @@ internal class AuthenticationUtilsTest {
             that(clientRegistration).and {
                 get { registrationId }.isEqualTo(REGISTRATION_ID)
                 get { clientId }.isEqualTo(CLIENT_ID)
+                get { clientSecret }.isEqualTo(CLIENT_SECRET)
                 get { scopes }.containsExactlyInAnyOrder("openid", "profile")
             }
         }
@@ -78,7 +80,8 @@ internal class AuthenticationUtilsTest {
         organization = Organization(
             id = ORGANIZATION_ID,
             oauthClientId = CLIENT_ID,
-            oauthIssuerLocation = mockOidcIssuer()
+            oauthIssuerLocation = mockOidcIssuer(),
+            oauthClientSecret = CLIENT_SECRET
         )
 
         val clientRegistrationProvider = {
@@ -98,6 +101,7 @@ internal class AuthenticationUtilsTest {
             that(clientRegistrationProvider()).and {
                 get { registrationId }.isEqualTo(REGISTRATION_ID)
                 get { clientId }.isEqualTo(CLIENT_ID)
+                get { clientSecret }.isEqualTo(CLIENT_SECRET)
             }
         }
     }
@@ -110,11 +114,13 @@ internal class AuthenticationUtilsTest {
             oauthClientId = CLIENT_ID,
             oauthIssuerLocation = mockOidcIssuer(),
             oauthIssuerId = customIssuerId,
+            oauthClientSecret = CLIENT_SECRET
         )
 
         expectThat(buildClientRegistration(REGISTRATION_ID, organization, properties, clientRegistrationBuilderCache)) {
             get { registrationId }.isEqualTo(REGISTRATION_ID)
             get { clientId }.isEqualTo(CLIENT_ID)
+            get { clientSecret }.isEqualTo(CLIENT_SECRET)
             get { redirectUri }.endsWith(customIssuerId)
         }
     }
@@ -140,6 +146,26 @@ internal class AuthenticationUtilsTest {
         assertEquals(HttpStatus.UNAUTHORIZED, ex.status)
     }
 
+    @Test
+    fun `build client registration without mandatory oauth attributes`() {
+        val issuer = mockOidcIssuer()
+        organization = Organization(
+            id = ORGANIZATION_ID,
+            oauthClientId = CLIENT_ID,
+            oauthIssuerLocation = issuer,
+        )
+
+        val ex = assertThrows<ResponseStatusException> {
+            buildClientRegistration(REGISTRATION_ID, organization, properties, clientRegistrationBuilderCache)
+        }
+        assertEquals(
+            "401 UNAUTHORIZED \"Authorization failed for given issuer $issuer. " +
+                "Invalid configuration, missing mandatory attribute client id and/or client secret.\"",
+            ex.message
+        )
+        assertEquals(HttpStatus.UNAUTHORIZED, ex.status)
+    }
+
     private fun mockOidcIssuer(): String {
         wireMockServer.stubFor(
             WireMock.get(WireMock.urlEqualTo(OIDC_CONFIG_PATH)).willReturn(
@@ -153,6 +179,7 @@ internal class AuthenticationUtilsTest {
         private const val ORGANIZATION_ID = "orgId"
         private const val REGISTRATION_ID = "regId"
         private const val CLIENT_ID = "clientId"
+        private const val CLIENT_SECRET = "secret"
         private const val OIDC_CONFIG_PATH = "/.well-known/openid-configuration"
 
         private val wireMockServer = WireMockServer(WireMockConfiguration().dynamicPort()).apply {
