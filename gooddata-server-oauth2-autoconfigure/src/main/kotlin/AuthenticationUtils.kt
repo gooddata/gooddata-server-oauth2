@@ -68,7 +68,7 @@ fun buildClientRegistration(
                     is IllegalArgumentException,
                     is IllegalStateException -> throw ResponseStatusException(
                         HttpStatus.UNAUTHORIZED,
-                        "Authorization failed for given issuer \"${organization.oauthIssuerLocation}\""
+                        "Authorization failed for given issuer \"${organization.oauthIssuerLocation}\". ${ex.message}"
                     )
 
                     else -> throw ex

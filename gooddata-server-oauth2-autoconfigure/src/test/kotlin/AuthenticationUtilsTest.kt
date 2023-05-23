@@ -129,7 +129,8 @@ internal class AuthenticationUtilsTest {
     @MethodSource("illegalIssuerArguments")
     fun `build client registration with invalid issuer`(
         case: String,
-        issuerLocation: String
+        issuerLocation: String,
+        messageSpecification: String
     ) {
         val customIssuerId = "someCustomIssuerId"
         organization = Organization(
@@ -142,7 +143,10 @@ internal class AuthenticationUtilsTest {
         val ex = assertThrows<ResponseStatusException> {
             buildClientRegistration(REGISTRATION_ID, organization, properties, clientRegistrationBuilderCache)
         }
-        assertEquals("401 UNAUTHORIZED \"Authorization failed for given issuer \"$issuerLocation\"\"", ex.message)
+        assertEquals(
+            "401 UNAUTHORIZED \"Authorization failed for given issuer \"$issuerLocation\". $messageSpecification",
+            ex.message
+        )
         assertEquals(HttpStatus.UNAUTHORIZED, ex.status)
     }
 
@@ -194,8 +198,17 @@ internal class AuthenticationUtilsTest {
 
         @JvmStatic
         fun illegalIssuerArguments() = Stream.of(
-            Arguments.of("non matching issuer", "https://gooddata-stg.us.auth0.com/wrong"),
-            Arguments.of("invalid issuer", "https://www.share.bfqa.org/")
+            Arguments.of(
+                "non matching issuer",
+                "https://gooddata-stg.us.auth0.com/wrong",
+                "The Issuer \"https://gooddata-stg.us.auth0.com/\" provided in the configuration metadata " +
+                    "did not match the requested issuer \"https://gooddata-stg.us.auth0.com/wrong\"\""
+            ),
+            Arguments.of(
+                "invalid issuer",
+                "https://www.share.bfqa.org/",
+                "Unable to resolve Configuration with the provided Issuer of \"https://www.share.bfqa.org/\"\""
+            )
         )
 
         @Language("json")
