@@ -26,7 +26,6 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
 import org.springframework.http.HttpMethod
-import org.springframework.security.authentication.DelegatingReactiveAuthenticationManager
 import org.springframework.security.authentication.ReactiveAuthenticationManager
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder
@@ -362,7 +361,7 @@ class ServerOAuth2AutoConfiguration {
             this.javaClass.classLoader
         )
         if (!oidcAuthenticationProviderEnabled) {
-            return oauth2Manager
+            return CustomDelegatingReactiveAuthenticationManager(oauth2Manager)
         }
         val oidc = OidcAuthorizationCodeReactiveAuthenticationManager(
             authCodeAccessTokenResponseClient,
@@ -374,7 +373,7 @@ class ServerOAuth2AutoConfiguration {
         if (authoritiesMapper != null) {
             oidc.setAuthoritiesMapper(authoritiesMapper)
         }
-        return DelegatingReactiveAuthenticationManager(oidc, oauth2Manager)
+        return CustomDelegatingReactiveAuthenticationManager(oidc, oauth2Manager)
     }
 
     companion object {

@@ -21,6 +21,7 @@ import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata
 import java.time.Instant
 import net.minidev.json.JSONObject
 import org.springframework.http.HttpStatus
+import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ClientRegistrations
@@ -207,6 +208,11 @@ suspend fun getUserContextForAuthenticationToken(
  * Remove illegal characters from string according to OAuth2 specification
  */
 fun String.removeIllegalCharacters(): String = filter(::isLegalChar)
+
+fun Authentication.userId(): String = when (this) {
+    is UserContextAuthenticationToken -> user.id
+    else -> this.name
+}
 
 /**
  * Detect if character is legal according to OAuth2 specification
