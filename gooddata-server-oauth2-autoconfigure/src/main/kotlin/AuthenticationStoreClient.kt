@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server
 
+import com.nimbusds.jose.jwk.JWK
 import org.springframework.http.HttpStatus
 import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException
 import org.springframework.web.server.ResponseStatusException
@@ -48,14 +49,36 @@ interface AuthenticationStoreClient {
     suspend fun getUserByAuthenticationId(organizationId: String, authenticationId: String): User?
 
     /**
+     *
      * Retrieves [User] that belongs to given `organizationId`
      *
      * @param organizationId ID of the organization that the user belongs to
      * @param token API token to be searched
      * @return `User` corresponding to `hostname`
+     * TODO exception should be handled directly in the library
      * @throws InvalidBearerTokenException in case no [User] is found
      */
     suspend fun getUserByApiToken(organizationId: String, token: String): User
+
+    /**
+     *
+     * Retrieves [User] that belongs to given `organizationId`
+     *
+     * @param organizationId ID of the organization that the user belongs to
+     * @param userId id of the user to be searched
+     * @return `User` corresponding to userId
+     * TODO should an exception be thrown if the user is not found?
+     */
+    suspend fun getUserById(organizationId: String, userId: String): User?
+
+    /**
+     *
+     * Retrieves [List<JWK>] that belongs to given `organizationId`
+     *
+     * @param organizationId ID of the organization that the JWKs belongs to
+     * @return list of JWKs corresponding to organizationId
+     */
+    suspend fun getJwks(organizationId: String): List<JWK>
 
     /**
      * Marks the [User] belonging to the [Organization] for global logout. Any OIDC tokens which were issued before that
