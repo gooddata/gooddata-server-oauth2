@@ -17,9 +17,6 @@
 
 package com.gooddata.oauth2.server
 
-import io.mockk.called
-import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -28,136 +25,114 @@ import org.junit.jupiter.api.Test
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextImpl
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
-import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
-import org.springframework.security.oauth2.core.oidc.OidcIdToken
-import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser
-import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority
-import org.springframework.security.web.server.ServerAuthenticationEntryPoint
-import org.springframework.security.web.server.authentication.logout.ServerLogoutHandler
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.web.server.WebFilterChain
 import reactor.core.publisher.Mono
-import reactor.util.context.Context
-import java.time.Instant
 
 internal class UserContextWebFilterTest {
 
-    private val client: AuthenticationStoreClient = mockk()
-
-    private val authenticationEntryPoint: ServerAuthenticationEntryPoint = mockk()
-
-    private val serverLogoutHandler: ServerLogoutHandler = mockk()
-
-    private val userContextProvider: ReactorUserContextProvider = mockk()
-
-    @Test
-    fun `user context is stored`() {
-        val idToken = OidcIdToken(
-            "tokenValue",
-            Instant.EPOCH,
-            Instant.EPOCH.plusSeconds(1),
-            mapOf(
-                IdTokenClaimNames.SUB to "sub",
-                IdTokenClaimNames.IAT to Instant.EPOCH
-            )
-        )
-        val context = SecurityContextImpl(
-            OAuth2AuthenticationToken(
-                DefaultOidcUser(
-                    listOf(OidcUserAuthority(idToken)),
-                    idToken
-                ),
-                emptyList(),
-                "hostname"
-            )
-        )
-        coEvery { client.getOrganizationByHostname("hostname") } returns Organization("organizationId")
-        coEvery { client.getUserByAuthenticationId("organizationId", "sub") } returns User(
-            "userId",
-        )
-        coEvery { userContextProvider.getContextView(any(), any(), any()) } returns Context.empty()
-
-        val webFilterChain = mockk<WebFilterChain> {
-            every { filter(any()) } returns Mono.empty()
-        }
-        val filter = UserContextWebFilter(client, authenticationEntryPoint, serverLogoutHandler, userContextProvider)
-
-        filter
-            .filter(mockk(), webFilterChain)
-            .contextWrite { it.put(SecurityContext::class.java, Mono.just(context)) }
-            .block()
-
-        verify { serverLogoutHandler wasNot called }
-        verify { authenticationEntryPoint wasNot called }
-        verify(exactly = 1) { webFilterChain.filter(any()) }
-        coVerify(exactly = 1) { userContextProvider.getContextView("organizationId", "userId", "sub") }
-    }
+    private val oidcAuthenticationProcessor: OidcAuthenticationProcessor = mockk()
+    private val jwtAuthenticationProcessor: JwtAuthenticationProcessor = mockk()
+    private val userContextAuthenticationProcessor: UserContextAuthenticationProcessor = mockk()
+    private val filter = UserContextWebFilter(
+        oidcAuthenticationProcessor,
+        jwtAuthenticationProcessor,
+        userContextAuthenticationProcessor
+    )
 
     @Test
-    fun `user context is not processed when logoutAll has been triggered`() {
-        val idToken = OidcIdToken(
-            "tokenValue",
-            Instant.EPOCH,
-            Instant.EPOCH.plusSeconds(1),
-            mapOf(
-                IdTokenClaimNames.SUB to "sub",
-                IdTokenClaimNames.IAT to Instant.EPOCH
-            )
-        )
-        val context = SecurityContextImpl(
-            OAuth2AuthenticationToken(
-                DefaultOidcUser(
-                    listOf(OidcUserAuthority(idToken)),
-                    idToken
-                ),
-                emptyList(),
-                "hostname"
-            )
-        )
-        every { serverLogoutHandler.logout(any(), any()) } returns Mono.empty()
-        every { authenticationEntryPoint.commence(any(), any()) } returns Mono.empty()
-        coEvery { client.getOrganizationByHostname("hostname") } returns Organization("organizationId")
-        coEvery { client.getUserByAuthenticationId("organizationId", "sub") } returns User(
-            "userId",
-            lastLogoutAllTimestamp = Instant.ofEpochSecond(1),
-        )
-
+    fun `oidc authentication triggered`() {
+        val authenticationToken = mockk<OAuth2AuthenticationToken>()
+        val context = SecurityContextImpl(authenticationToken)
         val webFilterChain = mockk<WebFilterChain>()
 
-        val filter = UserContextWebFilter(client, authenticationEntryPoint, serverLogoutHandler, userContextProvider)
+        every {
+            oidcAuthenticationProcessor.authenticate(
+                authenticationToken,
+                any(),
+                webFilterChain
+            )
+        } returns Mono.empty()
 
         filter
             .filter(mockk(), webFilterChain)
             .contextWrite { it.put(SecurityContext::class.java, Mono.just(context)) }
             .block()
 
-        verify(exactly = 1) { serverLogoutHandler.logout(any(), any()) }
-        verify(exactly = 1) { authenticationEntryPoint.commence(any(), any()) }
-        verify { webFilterChain wasNot called }
-        verify { userContextProvider wasNot called }
+        verify(exactly = 1) { oidcAuthenticationProcessor.authenticate(authenticationToken, any(), webFilterChain) }
     }
 
     @Test
-    fun `bearer context is stored`() {
-        coEvery { userContextProvider.getContextView(any(), any(), any()) } returns Context.empty()
+    fun `userContext authentication triggered`() {
+        val authenticationToken = mockk<UserContextAuthenticationToken>()
+        val context = SecurityContextImpl(authenticationToken)
+        val webFilterChain = mockk<WebFilterChain>()
 
-        val context = SecurityContextImpl(
-            UserContextAuthenticationToken(
-                Organization("organizationId"),
-                User("userId"),
+        every {
+            userContextAuthenticationProcessor.authenticate(
+                authenticationToken,
+                any(),
+                webFilterChain
             )
-        )
-
-        val webFilterChain = mockk<WebFilterChain> {
-            every { filter(any()) } returns Mono.empty()
-        }
-        val filter = UserContextWebFilter(client, authenticationEntryPoint, serverLogoutHandler, userContextProvider)
+        } returns Mono.empty()
 
         filter
             .filter(mockk(), webFilterChain)
             .contextWrite { it.put(SecurityContext::class.java, Mono.just(context)) }
             .block()
 
+        verify(exactly = 1) {
+            userContextAuthenticationProcessor.authenticate(
+                authenticationToken,
+                any(),
+                webFilterChain
+            )
+        }
+    }
+
+    @Test
+    fun `jwt authentication triggered`() {
+        val authenticationToken = mockk<JwtAuthenticationToken>()
+        val context = SecurityContextImpl(authenticationToken)
+        val webFilterChain = mockk<WebFilterChain>()
+
+        every {
+            jwtAuthenticationProcessor.authenticate(
+                authenticationToken,
+                any(),
+                webFilterChain
+            )
+        } returns Mono.empty()
+
+        filter
+            .filter(mockk(), webFilterChain)
+            .contextWrite { it.put(SecurityContext::class.java, Mono.just(context)) }
+            .block()
+
+        verify(exactly = 1) {
+            jwtAuthenticationProcessor.authenticate(
+                authenticationToken,
+                any(),
+                webFilterChain
+            )
+        }
+    }
+
+    @Test
+    fun `unauthenticated resource trigger`() {
+        val webFilterChain = mockk<WebFilterChain> {
+            every { filter(any()) } returns Mono.empty()
+        }
+        val filter = UserContextWebFilter(
+            oidcAuthenticationProcessor,
+            jwtAuthenticationProcessor,
+            userContextAuthenticationProcessor
+        )
+
+        filter
+            .filter(mockk(), webFilterChain)
+            .block()
+
         verify(exactly = 1) { webFilterChain.filter(any()) }
-        coVerify(exactly = 1) { userContextProvider.getContextView("organizationId", "userId", null) }
     }
 }
