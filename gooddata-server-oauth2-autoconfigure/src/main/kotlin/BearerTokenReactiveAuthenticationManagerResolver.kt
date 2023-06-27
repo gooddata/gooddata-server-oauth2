@@ -88,11 +88,15 @@ internal class JwtAuthenticationManager(
                 )
                 decoder.setJwtValidator(CustomOAuth2Validator())
                 JwtReactiveAuthenticationManager(decoder).authenticate(jwtToken)
-                    // TODO can we handle this better? Same as in the CookieServerSecurityContextRepository
                     .onErrorMap({ it.cause is JwtException }) { exception ->
-                        when (val jwtCause = exception.cause?.cause) {
-                            is BadJOSEException -> InvalidBearerTokenException(jwtCause.message, jwtCause)
-                            else -> exception
+                        if (exception is InvalidBearerTokenException) {
+                            JWTVerificationException()
+                        } else {
+                            when (exception.cause?.cause) {
+                                is InternalJwtExpiredException -> JWTExpiredException()
+                                is BadJOSEException -> JWTVerificationException()
+                                else -> exception
+                            }
                         }
                     }
             }
@@ -115,10 +119,10 @@ internal class JwtAuthenticationManager(
         val result = try {
             JWSHeader.parse(Base64URL.from(url))
         } catch (exception: ParseException) {
-            throw InvalidBearerTokenException("Token contains invalid JOSE header.", exception)
+            throw JWTVerificationException()
         }
         if (!representJwtWithId(result)) {
-            throw InvalidBearerTokenException("Invalid jws header. Header must be of JWT type and with non-null keyId.")
+            throw JWTVerificationException()
         }
     }
 

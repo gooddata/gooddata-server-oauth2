@@ -135,7 +135,7 @@ class CookieServerSecurityContextRepository(
                 .decode((principal as OidcUser).idToken.tokenValue)
                 .map { jwt -> createExpandedOAuth2Token(jwt, this, registration) }
                 .sanitizeJwtException()
-                .onErrorResume(JwtExpiredException::class.java) { exception ->
+                .onErrorResume(InternalJwtExpiredException::class.java) { exception ->
                     tryToRefreshIdToken(this, registration, exchange)
                         // fallback to an original error
                         .switchIfEmpty(Mono.error(exception))

@@ -120,7 +120,7 @@ internal object ExpTimeCheckingJwtClaimsSetVerifier : JWTClaimsSetVerifier<JWKSe
         claimsSet?.expirationTime?.let { expTime ->
             val expTimeWithClockSkew = expTime.toInstant().plusSeconds(MAX_CLOCK_SKEW)
             if (Instant.now().isAfter(expTimeWithClockSkew)) {
-                throw JwtExpiredException()
+                throw InternalJwtExpiredException()
             }
         }
         defaultVerifier.verify(claimsSet, context)

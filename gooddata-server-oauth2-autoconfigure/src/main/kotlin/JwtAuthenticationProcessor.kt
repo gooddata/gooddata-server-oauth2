@@ -20,7 +20,6 @@ import java.time.Instant
 import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
 import org.springframework.http.HttpStatus
-import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.security.web.server.WebFilterExchange
 import org.springframework.security.web.server.authentication.logout.ServerLogoutHandler
@@ -73,7 +72,7 @@ class JwtAuthenticationProcessor(
             logger.info { "getUserForJwtToken is valid $tokenIssuedAtTime $lastLogoutAllTimestamp $isValid" }
             if (!isValid) {
                 serverLogoutHandler.logout(WebFilterExchange(exchange, chain), authenticationToken)
-                    .then(Mono.error(InvalidBearerTokenException("Token logged out.")))
+                    .then(Mono.error(JWTDisabledException()))
             } else Mono.just(user)
         }
     }

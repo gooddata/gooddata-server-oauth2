@@ -114,10 +114,10 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!
 
-        expectThrows<InvalidBearerTokenException> {
+        expectThrows<JWTVerificationException> {
             manager.authenticate(BearerTokenAuthenticationToken(VALID_JWT)).block()
         }.and {
-            get { message }.isEqualTo("Signed JWT rejected: Another algorithm expected, or no matching key(s) found")
+            get { message }.isEqualTo("The JWT contains invalid claims.")
         }
     }
 
@@ -133,10 +133,10 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!
 
-        expectThrows<InvalidBearerTokenException> {
+        expectThrows<JWTExpiredException> {
             manager.authenticate(BearerTokenAuthenticationToken(EXPIRED_JWT)).block()
         }.and {
-            get { message }.isEqualTo("JWT has expired.")
+            get { message }.isEqualTo("The JWT is expired.")
         }
     }
 
@@ -155,10 +155,10 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
 
         val invalidJwt = ResourceUtils.resource("jwt/jwt_invalid_par_$parameterName.txt").readText()
 
-        expectThrows<InvalidBearerTokenException> {
+        expectThrows<JWTVerificationException> {
             manager.authenticate(BearerTokenAuthenticationToken(invalidJwt)).block()
         }.and {
-            get { message }.isEqualTo("Jwt contains not allowed header parameter \"$parameterName\".")
+            get { message }.isEqualTo("The JWT contains invalid claims.")
         }
     }
 
@@ -176,10 +176,10 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
 
         val invalidJwt = ResourceUtils.resource("jwt/jwt_invalid_type.txt").readText()
 
-        expectThrows<InvalidBearerTokenException> {
+        expectThrows<JWTVerificationException> {
             manager.authenticate(BearerTokenAuthenticationToken(invalidJwt)).block()
         }.and {
-            get { message }.isEqualTo("Invalid jws header. Header must be of JWT type and with non-null keyId.")
+            get { message }.isEqualTo("The JWT contains invalid claims.")
         }
     }
 

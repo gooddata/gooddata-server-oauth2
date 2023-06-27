@@ -29,7 +29,6 @@ import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
 import org.springframework.security.oauth2.jwt.JoseHeaderNames
 import org.springframework.security.oauth2.jwt.Jwt
-import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.security.web.server.ServerAuthenticationEntryPoint
 import org.springframework.security.web.server.authentication.logout.ServerLogoutHandler
@@ -128,10 +127,10 @@ class JwtAuthenticationProcessorTest {
             every { filter(any()) } returns Mono.empty()
         }
 
-        expectThrows<InvalidBearerTokenException> {
+        expectThrows<JWTDisabledException> {
             jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain).block()
         }.and {
-            get { message }.isEqualTo("Token logged out.")
+            get { message }.isEqualTo("The JWT is disabled by logout / logout all.")
         }
 
         verify(exactly = 1) { serverLogoutHandler.logout(any(), any()) }
