@@ -15,6 +15,8 @@
  */
 package com.gooddata.oauth2.server
 
+import java.net.URI
+import java.util.Base64
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.AutoConfigureBefore
@@ -63,8 +65,6 @@ import org.springframework.util.ClassUtils
 import org.springframework.web.client.RestTemplate
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource
 import org.springframework.web.reactive.config.EnableWebFlux
-import java.net.URI
-import java.util.Base64
 
 @Configuration
 @EnableConfigurationProperties(
@@ -308,10 +308,18 @@ class ServerOAuth2AutoConfiguration {
             addFilterBefore(PostLogoutNotAllowedWebFilter(), SecurityWebFiltersOrder.LOGOUT)
             addFilterAfter(
                 UserContextWebFilter(
-                    authenticationStoreClients.`object`,
-                    hostBasedAuthEntryPoint,
-                    logoutHandler,
-                    userContextProvider.`object`
+                    OidcAuthenticationProcessor(
+                        authenticationStoreClients.`object`,
+                        hostBasedAuthEntryPoint,
+                        logoutHandler,
+                        userContextProvider.`object`
+                    ),
+                    JwtAuthenticationProcessor(
+                        authenticationStoreClients.`object`,
+                        logoutHandler,
+                        userContextProvider.`object`
+                    ),
+                    UserContextAuthenticationProcessor(userContextProvider.`object`)
                 ),
                 SecurityWebFiltersOrder.LOGOUT
             )

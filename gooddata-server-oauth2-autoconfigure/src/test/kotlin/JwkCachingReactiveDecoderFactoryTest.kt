@@ -15,6 +15,8 @@
  */
 package com.gooddata.oauth2.server
 
+import com.nimbusds.jose.jwk.JWKSet
+import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
 import org.junit.jupiter.api.Test
@@ -33,6 +35,7 @@ internal class JwkCachingReactiveDecoderFactoryTest {
 
     @Test
     fun `creates new instance every time`() {
+        every { jwkCache.get(any(), any()) } returns JWKSet()
         val factory = JwkCachingReactiveDecoderFactory(jwkCache)
         val registration = ClientRegistration.withRegistrationId("id")
             .clientId("clientId")

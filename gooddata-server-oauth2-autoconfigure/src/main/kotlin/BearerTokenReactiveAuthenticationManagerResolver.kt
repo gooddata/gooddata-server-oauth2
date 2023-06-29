@@ -15,11 +15,22 @@
  */
 package com.gooddata.oauth2.server
 
+import com.nimbusds.jose.JOSEObjectType
+import com.nimbusds.jose.JWSAlgorithm
+import com.nimbusds.jose.JWSHeader
+import com.nimbusds.jose.jwk.JWKSet
+import com.nimbusds.jose.proc.BadJOSEException
+import com.nimbusds.jose.util.Base64URL
+import java.text.ParseException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
 import org.springframework.security.authentication.ReactiveAuthenticationManager
 import org.springframework.security.authentication.ReactiveAuthenticationManagerResolver
+import org.springframework.security.core.Authentication
+import org.springframework.security.oauth2.jwt.JwtException
 import org.springframework.security.oauth2.server.resource.BearerTokenAuthenticationToken
+import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException
+import org.springframework.security.oauth2.server.resource.authentication.JwtReactiveAuthenticationManager
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
 
@@ -31,13 +42,101 @@ class BearerTokenReactiveAuthenticationManagerResolver(
 ) : ReactiveAuthenticationManagerResolver<ServerWebExchange> {
 
     override fun resolve(exchange: ServerWebExchange): Mono<ReactiveAuthenticationManager> =
-        mono(Dispatchers.Unconfined) {
-            ReactiveAuthenticationManager { authentication ->
-                mono(Dispatchers.Unconfined) {
-                    (authentication as? BearerTokenAuthenticationToken)?.let { authenticationToken ->
-                        userContextAuthenticationToken(client, exchange.request.uri.host, authenticationToken)
-                    }
+        Mono.just(exchange).map { webExchange ->
+            val organizationProvider = {
+                mono { client.getOrganizationByHostname(webExchange.request.uri.host) }
+            }
+            CustomDelegatingReactiveAuthenticationManager(
+                JwtAuthenticationManager(client, organizationProvider),
+                PersistentApiTokenAuthenticationManager(client, organizationProvider)
+            )
+        }
+}
+
+/**
+ * [ReactiveAuthenticationManager] that is responsible for handling API token authentication
+ */
+private class PersistentApiTokenAuthenticationManager(
+    private val client: AuthenticationStoreClient,
+    private val organizationProvider: () -> Mono<Organization>,
+) : ReactiveAuthenticationManager {
+
+    override fun authenticate(authentication: Authentication?): Mono<Authentication> =
+        Mono.justOrEmpty(authentication)
+            .filter { authentication is BearerTokenAuthenticationToken }
+            .cast(BearerTokenAuthenticationToken::class.java)
+            .flatMap { authToken ->
+                organizationProvider().flatMap { organization ->
+                    mono(Dispatchers.Unconfined) { client.getUserByApiToken(organization.id, authToken.token) }
+                        .map { user -> UserContextAuthenticationToken(organization, user) }
                 }
             }
+}
+
+/**
+ * [ReactiveAuthenticationManager] that is responsible for handling JWT authentications
+ */
+private class JwtAuthenticationManager(
+    private val client: AuthenticationStoreClient,
+    private val organizationProvider: () -> Mono<Organization>,
+) : ReactiveAuthenticationManager {
+
+    override fun authenticate(authentication: Authentication?): Mono<Authentication> {
+        return Mono.justOrEmpty(authentication)
+            .filter { authentication is BearerTokenAuthenticationToken }
+            .cast(BearerTokenAuthenticationToken::class.java)
+            .filter(::hasValidJwsHeader)
+            .flatMap { jwtToken ->
+                val decoder = prepareJwtDecoder(
+                    getJwkSet(),
+                    setOf(JWSAlgorithm.RS256, JWSAlgorithm.RS384, JWSAlgorithm.RS512)
+                )
+                decoder.setJwtValidator(CustomOAuth2Validator())
+                JwtReactiveAuthenticationManager(decoder).authenticate(jwtToken)
+                    .onErrorMap({ it.cause is JwtException }) { exception ->
+                        if (exception is InvalidBearerTokenException) {
+                            JWTVerificationException()
+                        } else {
+                            when (exception.cause?.cause) {
+                                is InternalJwtExpiredException -> JWTExpiredException()
+                                is BadJOSEException -> JWTVerificationException()
+                                else -> exception
+                            }
+                        }
+                    }
+            }
+    }
+
+    private fun hasValidJwsHeader(authToken: BearerTokenAuthenticationToken): Boolean {
+        val rawHeader = findRawJwsHeaderPart(authToken)
+        return if (rawHeader != null) {
+            validateJwtHeader(rawHeader)
+            true
+        } else {
+            false
         }
+    }
+
+    private fun findRawJwsHeaderPart(authToken: BearerTokenAuthenticationToken) =
+        authToken.token.trim().substringBefore('.', "").takeIf(String::isNotEmpty)
+
+    private fun validateJwtHeader(url: String) {
+        val result = try {
+            JWSHeader.parse(Base64URL.from(url))
+        } catch (exception: ParseException) {
+            throw JWTVerificationException()
+        }
+        if (!representJwtWithId(result)) {
+            throw JWTVerificationException()
+        }
+    }
+
+    private fun representJwtWithId(jwsHeader: JWSHeader) =
+        jwsHeader.keyID != null && jwsHeader.type == JOSEObjectType.JWT
+
+    private fun getJwkSet(): Mono<JWKSet> = organizationProvider().flatMap { organization ->
+        mono {
+            client.getJwks(organization.id).let(::JWKSet)
+        }
+    }
 }
