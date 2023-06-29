@@ -16,6 +16,7 @@
 package com.gooddata.oauth2.server
 
 import com.gooddata.oauth2.server.CustomOAuth2Validator.Companion.notAllowedHeaders
+import com.nimbusds.jose.JOSEObjectType
 import org.springframework.security.oauth2.core.OAuth2Error
 import org.springframework.security.oauth2.core.OAuth2TokenValidator
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult
@@ -39,6 +40,27 @@ class CustomOAuth2Validator : OAuth2TokenValidator<Jwt> {
      */
     override fun validate(token: Jwt): OAuth2TokenValidatorResult {
         val validationErrors = mutableListOf<OAuth2Error>()
+
+        if (!representJwtWithId(token)) {
+            validationErrors.add(
+                OAuth2Error(
+                    "not_valid_jwt",
+                    "Token is not a valid Jwt",
+                    null
+                )
+            )
+        }
+
+        if (!token.claims.containsKey("name")) {
+            validationErrors.add(
+                OAuth2Error(
+                    "missing_mandatory_attribute",
+                    "Jwt does not contain mandatory attribute `name`",
+                    null
+                )
+            )
+        }
+
         notAllowedHeaders.forEach { header ->
             if (token.headers.containsKey(header)) {
                 validationErrors.add(
@@ -53,4 +75,7 @@ class CustomOAuth2Validator : OAuth2TokenValidator<Jwt> {
         return if (validationErrors.isEmpty()) OAuth2TokenValidatorResult.success()
         else OAuth2TokenValidatorResult.failure(validationErrors)
     }
+
+    private fun representJwtWithId(jwt: Jwt) =
+        jwt.headers["kid"] != null && jwt.headers["typ"] == JOSEObjectType.JWT.toString()
 }

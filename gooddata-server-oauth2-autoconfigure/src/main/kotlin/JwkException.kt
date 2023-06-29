@@ -28,9 +28,9 @@ import org.springframework.security.oauth2.core.OAuth2ErrorCodes
 class JwkException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
 
 /**
- * Thrown when JWT validation failed.
+ * Thrown when Jwt validation failed.
  */
-class JWTVerificationException : OAuth2AuthenticationException(
+class JwtVerificationException : OAuth2AuthenticationException(
     OAuth2Error(
         OAuth2ErrorCodes.INVALID_TOKEN,
         "The JWT contains invalid claims.",
@@ -39,9 +39,9 @@ class JWTVerificationException : OAuth2AuthenticationException(
 )
 
 /**
- * Thrown when JWT token expired.
+ * Thrown when Jwt token expired.
  */
-class JWTExpiredException : OAuth2AuthenticationException(
+class JwtExpiredException : OAuth2AuthenticationException(
     OAuth2Error(
         OAuth2ErrorCodes.INVALID_TOKEN,
         "The JWT is expired.",
@@ -50,12 +50,23 @@ class JWTExpiredException : OAuth2AuthenticationException(
 )
 
 /**
- * Thrown when JWT is disabled by logout.
+ * Thrown when Jwt is disabled by logout.
  */
-class JWTDisabledException : OAuth2AuthenticationException(
+class JwtDisabledException : OAuth2AuthenticationException(
     OAuth2Error(
         OAuth2ErrorCodes.INVALID_TOKEN,
         "The JWT is disabled by logout / logout all.",
+        "https://tools.ietf.org/html/rfc6750#section-3.1"
+    )
+)
+
+/**
+ * Thrown when Jwt cannot be decoded
+ */
+class JwtDecodeException : OAuth2AuthenticationException(
+    OAuth2Error(
+        OAuth2ErrorCodes.INVALID_TOKEN,
+        "We are unable to decode JWT.",
         "https://tools.ietf.org/html/rfc6750#section-3.1"
     )
 )

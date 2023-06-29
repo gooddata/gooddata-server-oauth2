@@ -127,7 +127,7 @@ class JwtAuthenticationProcessorTest {
             every { filter(any()) } returns Mono.empty()
         }
 
-        expectThrows<JWTDisabledException> {
+        expectThrows<JwtDisabledException> {
             jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain).block()
         }.and {
             get { message }.isEqualTo("The JWT is disabled by logout / logout all.")
