@@ -214,7 +214,7 @@ class ServerOAuth2AutoConfiguration {
         clientRegistrationRepository: ReactiveClientRegistrationRepository,
         cookieService: ReactiveCookieService,
         serverSecurityContextRepository: ServerSecurityContextRepository,
-        authenticationStoreClients: ObjectProvider<AuthenticationStoreClient>,
+        authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>,
         appLoginProperties: AppLoginProperties,
         userContextHolder: ObjectProvider<UserContextHolder<*>>,
         userContextProvider: ObjectProvider<ReactorUserContextProvider>,
@@ -230,7 +230,7 @@ class ServerOAuth2AutoConfiguration {
     ): SecurityWebFilterChain {
         val appLoginRedirectProcessor = AppLoginRedirectProcessor(
             appLoginProperties,
-            authenticationStoreClients.`object`,
+            authenticationStoreClient.`object`,
         )
         val serverRequestCache = DelegatingServerRequestCache(
             CookieServerRequestCache(cookieService),
@@ -242,6 +242,7 @@ class ServerOAuth2AutoConfiguration {
         val logoutHandler = DelegatingServerLogoutHandler(
             SecurityContextRepositoryLogoutHandler(serverSecurityContextRepository),
             ClientRepositoryLogoutHandler(oauth2ClientRepository),
+            JwtAuthenticationLogoutHandler(authenticationStoreClient.`object`)
         )
 
         val logoutSuccessHandler = DelegatingServerLogoutSuccessHandler(
@@ -250,8 +251,9 @@ class ServerOAuth2AutoConfiguration {
                 setPostLogoutRedirectUri("{baseUrl}")
                 setLogoutSuccessUrl(URI.create("/"))
             },
-            // Keep Auth0 handler as last one
+            // Keep Auth0 handler as last one in OIDC handlers
             Auth0LogoutHandler(clientRegistrationRepository, auth0CustomDomain),
+            JwtAuthenticationLogoutHandler(authenticationStoreClient.`object`)
         )
 
         return serverHttpSecurity.securityContextRepository(serverSecurityContextRepository).configure {
@@ -281,7 +283,7 @@ class ServerOAuth2AutoConfiguration {
             }
             oauth2ResourceServer {
                 authenticationManagerResolver =
-                    BearerTokenReactiveAuthenticationManagerResolver(authenticationStoreClients.`object`)
+                    BearerTokenReactiveAuthenticationManagerResolver(authenticationStoreClient.`object`)
             }
             oauth2Login {
                 authorizationRequestRepository = CookieServerAuthorizationRequestRepository(cookieService)
@@ -309,13 +311,13 @@ class ServerOAuth2AutoConfiguration {
             addFilterAfter(
                 UserContextWebFilter(
                     OidcAuthenticationProcessor(
-                        authenticationStoreClients.`object`,
+                        authenticationStoreClient.`object`,
                         hostBasedAuthEntryPoint,
                         logoutHandler,
                         userContextProvider.`object`
                     ),
                     JwtAuthenticationProcessor(
-                        authenticationStoreClients.`object`,
+                        authenticationStoreClient.`object`,
                         logoutHandler,
                         userContextProvider.`object`
                     ),
@@ -330,7 +332,7 @@ class ServerOAuth2AutoConfiguration {
                         DelegatingServerLogoutHandler(
                             logoutHandler,
                             LogoutAllServerLogoutHandler(
-                                authenticationStoreClients.`object`,
+                                authenticationStoreClient.`object`,
                                 userContextHolder.`object`
                             ),
                         )

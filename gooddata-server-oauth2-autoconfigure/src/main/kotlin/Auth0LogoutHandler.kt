@@ -1,8 +1,10 @@
 package com.gooddata.oauth2.server
 
+import java.net.URI
 import mu.KotlinLogging
 import org.springframework.http.HttpRequest
 import org.springframework.security.core.Authentication
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository
 import org.springframework.security.web.server.DefaultServerRedirectStrategy
@@ -11,7 +13,6 @@ import org.springframework.security.web.server.authentication.logout.ServerLogou
 import org.springframework.security.web.server.authentication.logout.ServerLogoutSuccessHandler
 import org.springframework.web.util.UriComponentsBuilder
 import reactor.core.publisher.Mono
-import java.net.URI
 
 /**
  * Realize logout if provider is Auth0
@@ -29,10 +30,14 @@ class Auth0LogoutHandler(
     private val logger = KotlinLogging.logger {}
     private val redirectStrategy = DefaultServerRedirectStrategy()
 
-    override fun logout(exchange: WebFilterExchange, authentication: Authentication): Mono<Void> =
-        logoutUrl(exchange.exchange.request)
-            .flatMap { url ->
-                redirectStrategy.sendRedirect(exchange.exchange, url)
+    override fun logout(exchange: WebFilterExchange, authentication: Authentication?): Mono<Void> =
+        Mono.justOrEmpty(authentication)
+            .filter { it is OAuth2AuthenticationToken }
+            .cast(OAuth2AuthenticationToken::class.java)
+            .flatMap {
+                logoutUrl(exchange.exchange.request).flatMap { url ->
+                    redirectStrategy.sendRedirect(exchange.exchange, url)
+                }
             }
 
     override fun onLogoutSuccess(exchange: WebFilterExchange, authentication: Authentication): Mono<Void> =

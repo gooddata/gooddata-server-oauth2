@@ -47,6 +47,7 @@ class JwtAuthenticationProcessor(
         exchange: ServerWebExchange,
         chain: WebFilterChain,
     ): Mono<Void> = mono { client.getOrganizationByHostname(exchange.request.uri.host) }
+        .flatMap { organization -> validateJwtToken(exchange, authenticationToken, organization) }
         .flatMap { organization ->
             getUserForJwtToken(exchange, chain, authenticationToken, organization).flatMap { user ->
                 val userName = authenticationToken.tokenAttributes["name"].toString()
@@ -55,6 +56,21 @@ class JwtAuthenticationProcessor(
                 }
             }
         }
+
+    private fun validateJwtToken(
+        exchange: ServerWebExchange,
+        token: JwtAuthenticationToken,
+        organization: Organization
+    ): Mono<Organization> {
+        val tokenHash = getMd5TokenHashFromAuthenticationHeader(exchange)
+        val jwtId = token.tokenAttributes[JWTClaimNames.JWT_ID]?.toString() ?: throw JwtVerificationException()
+        return mono { client.isValidJwt(organization.id, token.name, tokenHash, jwtId) }.map { isValid ->
+            when (isValid) {
+                true -> organization
+                false -> throw JwtDisabledException()
+            }
+        }
+    }
 
     private fun getUserForJwtToken(
         exchange: ServerWebExchange,
