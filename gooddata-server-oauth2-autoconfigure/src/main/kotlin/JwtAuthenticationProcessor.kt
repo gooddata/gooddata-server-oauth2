@@ -49,8 +49,6 @@ class JwtAuthenticationProcessor(
     ): Mono<Void> = mono { client.getOrganizationByHostname(exchange.request.uri.host) }
         .flatMap { organization ->
             getUserForJwtToken(exchange, chain, authenticationToken, organization).flatMap { user ->
-                // TODO "name" constant, should we forcibly ensure "name" in JWT
-                // TODO I dont think its necessary as the name is optional in the context
                 val userName = authenticationToken.tokenAttributes["name"].toString()
                 withUserContext(organization, user, userName) {
                     chain.filter(exchange)
@@ -77,7 +75,7 @@ class JwtAuthenticationProcessor(
             logger.info { "getUserForJwtToken is valid $tokenIssuedAtTime $lastLogoutAllTimestamp $isValid" }
             if (!isValid) {
                 serverLogoutHandler.logout(WebFilterExchange(exchange, chain), authenticationToken)
-                    .then(Mono.error(JWTDisabledException()))
+                    .then(Mono.error(JwtDisabledException()))
             } else Mono.just(user)
         }
     }

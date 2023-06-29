@@ -15,13 +15,9 @@
  */
 package com.gooddata.oauth2.server
 
-import com.nimbusds.jose.JOSEObjectType
 import com.nimbusds.jose.JWSAlgorithm
-import com.nimbusds.jose.JWSHeader
 import com.nimbusds.jose.jwk.JWKSet
 import com.nimbusds.jose.proc.BadJOSEException
-import com.nimbusds.jose.util.Base64URL
-import java.text.ParseException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
 import org.springframework.security.authentication.ReactiveAuthenticationManager
@@ -81,11 +77,16 @@ private class JwtAuthenticationManager(
     private val organizationProvider: () -> Mono<Organization>,
 ) : ReactiveAuthenticationManager {
 
+    companion object {
+        private const val base64Regex = "[A-Za-z0-9+/_-]+={0,2}"
+        private val jwtBearerTokenRegex = Regex("^$base64Regex\\.$base64Regex\\.$base64Regex")
+    }
+
     override fun authenticate(authentication: Authentication?): Mono<Authentication> {
         return Mono.justOrEmpty(authentication)
             .filter { authentication is BearerTokenAuthenticationToken }
             .cast(BearerTokenAuthenticationToken::class.java)
-            .filter(::hasValidJwsHeader)
+            .filter(::isJwtBearerToken)
             .flatMap { jwtToken ->
                 val decoder = prepareJwtDecoder(
                     getJwkSet(),
@@ -93,46 +94,26 @@ private class JwtAuthenticationManager(
                 )
                 decoder.setJwtValidator(CustomOAuth2Validator())
                 JwtReactiveAuthenticationManager(decoder).authenticate(jwtToken)
-                    .onErrorMap({ it.cause is JwtException }) { exception ->
-                        if (exception is InvalidBearerTokenException) {
-                            JWTVerificationException()
+                    .onErrorMap({ it.cause is JwtException }) { ex ->
+                        if (ex is InvalidBearerTokenException) {
+                            if (ex.message!!.startsWith("An error occurred while attempting to decode the Jwt")) {
+                                JwtDecodeException()
+                            } else {
+                                JwtVerificationException()
+                            }
                         } else {
-                            when (exception.cause?.cause) {
-                                is InternalJwtExpiredException -> JWTExpiredException()
-                                is BadJOSEException -> JWTVerificationException()
-                                else -> exception
+                            when (ex.cause?.cause) {
+                                is InternalJwtExpiredException -> JwtExpiredException()
+                                is BadJOSEException -> JwtVerificationException()
+                                else -> ex
                             }
                         }
                     }
             }
     }
 
-    private fun hasValidJwsHeader(authToken: BearerTokenAuthenticationToken): Boolean {
-        val rawHeader = findRawJwsHeaderPart(authToken)
-        return if (rawHeader != null) {
-            validateJwtHeader(rawHeader)
-            true
-        } else {
-            false
-        }
-    }
-
-    private fun findRawJwsHeaderPart(authToken: BearerTokenAuthenticationToken) =
-        authToken.token.trim().substringBefore('.', "").takeIf(String::isNotEmpty)
-
-    private fun validateJwtHeader(url: String) {
-        val result = try {
-            JWSHeader.parse(Base64URL.from(url))
-        } catch (exception: ParseException) {
-            throw JWTVerificationException()
-        }
-        if (!representJwtWithId(result)) {
-            throw JWTVerificationException()
-        }
-    }
-
-    private fun representJwtWithId(jwsHeader: JWSHeader) =
-        jwsHeader.keyID != null && jwsHeader.type == JOSEObjectType.JWT
+    private fun isJwtBearerToken(authToken: BearerTokenAuthenticationToken) =
+        jwtBearerTokenRegex.matches(authToken.token.trim())
 
     private fun getJwkSet(): Mono<JWKSet> = organizationProvider().flatMap { organization ->
         mono {
