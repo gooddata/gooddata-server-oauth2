@@ -15,6 +15,17 @@
  */
 package com.gooddata.oauth2.server
 
+import com.nimbusds.jose.JWSAlgorithm
+import com.nimbusds.jose.jwk.JWKSet
+import com.nimbusds.jose.jwk.source.JWKSecurityContextJWKSet
+import com.nimbusds.jose.proc.JWKSecurityContext
+import com.nimbusds.jose.proc.JWSVerificationKeySelector
+import com.nimbusds.jose.proc.SecurityContext
+import com.nimbusds.jwt.JWTClaimsSet
+import com.nimbusds.jwt.proc.BadJWTException
+import com.nimbusds.jwt.proc.DefaultJWTClaimsVerifier
+import com.nimbusds.jwt.proc.DefaultJWTProcessor
+import com.nimbusds.jwt.proc.JWTClaimsSetVerifier
 import com.nimbusds.oauth2.sdk.Scope
 import com.nimbusds.openid.connect.sdk.OIDCScopeValue
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata
@@ -22,14 +33,13 @@ import java.time.Instant
 import net.minidev.json.JSONObject
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ClientRegistrations
 import org.springframework.security.oauth2.core.AuthenticationMethod
 import org.springframework.security.oauth2.core.AuthorizationGrantType
-import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
-import org.springframework.security.oauth2.server.resource.BearerTokenAuthenticationToken
+import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder
 import org.springframework.web.server.ResponseStatusException
+import reactor.core.publisher.Mono
 
 /**
  * Constants for OAuth type authentication which are not directly available in the Spring Security.
@@ -83,6 +93,47 @@ fun buildClientRegistration(
             .withRegistrationId(registrationId)
             .withDexConfig(properties)
     }.buildWithIssuerConfig(organization)
+
+/**
+ * Prepares [NimbusReactiveJwtDecoder] that decodes incoming JWTs and validates these against JWKs from [jwkSet] and
+ * JWS algorithms specified by [jwsAlgs]
+ *
+ * @param jwkSet Source of the JWKSet (set of JWK keys against which JWTs should be validated during the authentication)
+ * @param jwsAlgs The allowed JWS algorithms for the objects to be verified.
+ */
+fun prepareJwtDecoder(jwkSet: Mono<JWKSet>, jwsAlgs: Set<JWSAlgorithm>): NimbusReactiveJwtDecoder =
+    NimbusReactiveJwtDecoder { signedJwt ->
+        jwkSet.map { jwkSet ->
+            val jwtProcessor = DefaultJWTProcessor<JWKSecurityContext>()
+            val securityContext = JWKSecurityContext(jwkSet.keys)
+            jwtProcessor.jwsKeySelector = JWSVerificationKeySelector(
+                jwsAlgs,
+                JWKSecurityContextJWKSet()
+            )
+            jwtProcessor.jwtClaimsSetVerifier = ExpTimeCheckingJwtClaimsSetVerifier
+            jwtProcessor.process(signedJwt, securityContext)
+        }
+    }
+
+/**
+ * Extension of the original [JWTClaimsSetVerifier] used in the [DefaultJWTProcessor] which translates
+ * the expired JWT to a special [JwtExpiredException]. The original verifier fails with too generic
+ * [BadJWTException] with just "Expired JWT" message which is unprocessable. On the other hand, this extension
+ * allows us to handle expired JWTs in easier way.
+ */
+internal object ExpTimeCheckingJwtClaimsSetVerifier : JWTClaimsSetVerifier<JWKSecurityContext> {
+    private const val MAX_CLOCK_SKEW = DefaultJWTClaimsVerifier.DEFAULT_MAX_CLOCK_SKEW_SECONDS.toLong()
+    private val defaultVerifier = DefaultJWTClaimsVerifier<SecurityContext>(null, null)
+    override fun verify(claimsSet: JWTClaimsSet?, context: JWKSecurityContext) {
+        claimsSet?.expirationTime?.let { expTime ->
+            val expTimeWithClockSkew = expTime.toInstant().plusSeconds(MAX_CLOCK_SKEW)
+            if (Instant.now().isAfter(expTimeWithClockSkew)) {
+                throw InternalJwtExpiredException()
+            }
+        }
+        defaultVerifier.verify(claimsSet, context)
+    }
+}
 
 /**
  * Adds the redirect URL to this receiver in the case the [oauthIssuerId] is defined, otherwise the default value
@@ -153,56 +204,6 @@ private fun ClientRegistration.Builder.withDexConfig(
     .userInfoUri("${properties.localAddress}/dex/userinfo")
     .userInfoAuthenticationMethod(AuthenticationMethod.HEADER)
     .jwkSetUri("${properties.localAddress}/dex/keys")
-
-/**
- * Retrieves user and organization details from [AuthenticationStoreClient] for given Bearer token.
- *
- * @param client authentication client
- * @param hostname hostname to be queried
- * @param authentication Bearer token authentication details
- */
-suspend fun userContextAuthenticationToken(
-    client: AuthenticationStoreClient,
-    hostname: String,
-    authentication: BearerTokenAuthenticationToken,
-): UserContextAuthenticationToken {
-    val organization = client.getOrganizationByHostname(hostname)
-    val user = client.getUserByApiToken(organization.id, authentication.token)
-    return UserContextAuthenticationToken(organization, user)
-}
-
-/**
- * Takes provided [OAuth2AuthenticationToken] and tries to retrieve [Organization] and [User] that correspond to it.
- *
- * Request's [OAuth2AuthenticationToken] is compared to stored last global logout timestamp and if the token
- * has been issued before stored date `null` user is returned and flag indicating that authentication flow is to be
- * restarted.
- *
- * @param authenticationStoreClient authentication client
- * @param authenticationToken OAuth2 authentication token
- * @return user context
- *
- */
-suspend fun getUserContextForAuthenticationToken(
-    authenticationStoreClient: AuthenticationStoreClient,
-    authenticationToken: OAuth2AuthenticationToken,
-): UserContext {
-    val organization =
-        authenticationStoreClient.getOrganizationByHostname(authenticationToken.authorizedClientRegistrationId)
-    return authenticationStoreClient.getUserByAuthenticationId(
-        organization.id,
-        authenticationToken.principal.attributes[IdTokenClaimNames.SUB] as String
-    )?.let { user ->
-        val tokenIssuedAtTime = authenticationToken.principal.attributes[IdTokenClaimNames.IAT] as Instant
-        val lastLogoutAllTimestamp = user.lastLogoutAllTimestamp
-        val isValid = lastLogoutAllTimestamp == null || tokenIssuedAtTime.isAfter(lastLogoutAllTimestamp)
-        if (isValid) {
-            UserContext(organization, user, restartAuthentication = false)
-        } else {
-            UserContext(organization, user = null, restartAuthentication = true)
-        }
-    } ?: UserContext(organization, user = null, restartAuthentication = false)
-}
 
 /**
  * Remove illegal characters from string according to OAuth2 specification

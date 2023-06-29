@@ -282,7 +282,7 @@ internal class CookieServerSecurityContextRepositoryTest {
         })
         every { jwtDecoderFactory.createDecoder(any()) } returns mockk {
             // wrap the expired exception to check if it's properly sanitized
-            every { decode("tokenValue") } returns Mono.error(JwtException("error", JwtExpiredException()))
+            every { decode("tokenValue") } returns Mono.error(JwtException("error", InternalJwtExpiredException()))
             every { decode("newTokenValue") } returns Mono.just(
                 Jwt(
                     "tokenValue",
@@ -323,7 +323,7 @@ internal class CookieServerSecurityContextRepositoryTest {
         mockSecurityContextCookie(resource("oauth2_authentication_token.json").readText())
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.just(mockk())
         every { jwtDecoderFactory.createDecoder(any()) } returns mockk {
-            every { decode("tokenValue") } returns Mono.error(JwtException("error", JwtExpiredException()))
+            every { decode("tokenValue") } returns Mono.error(JwtException("error", InternalJwtExpiredException()))
         }
         every {
             repositoryAwareOidcTokensRefreshingService.refreshTokensIfPossible(any(), any(), any())
@@ -350,7 +350,7 @@ internal class CookieServerSecurityContextRepositoryTest {
         mockSecurityContextCookie(resource("oauth2_authentication_token.json").readText())
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.just(mockk())
         every { jwtDecoderFactory.createDecoder(any()) } returns mockk {
-            every { decode("tokenValue") } returns Mono.error(JwtException("error", JwtExpiredException()))
+            every { decode("tokenValue") } returns Mono.error(JwtException("error", InternalJwtExpiredException()))
         }
         every {
             repositoryAwareOidcTokensRefreshingService.refreshTokensIfPossible(any(), any(), any())

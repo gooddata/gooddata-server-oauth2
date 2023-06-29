@@ -16,9 +16,46 @@
 
 package com.gooddata.oauth2.server
 
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException
+import org.springframework.security.oauth2.core.OAuth2Error
+import org.springframework.security.oauth2.core.OAuth2ErrorCodes
+
 /**
  * Thrown when some error related to JWK occurs.
  * @param[message] exception message
  * @param[cause] exception cause
  */
 class JwkException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
+
+/**
+ * Thrown when JWT validation failed.
+ */
+class JWTVerificationException : OAuth2AuthenticationException(
+    OAuth2Error(
+        OAuth2ErrorCodes.INVALID_TOKEN,
+        "The JWT contains invalid claims.",
+        "https://tools.ietf.org/html/rfc6750#section-3.1"
+    )
+)
+
+/**
+ * Thrown when JWT token expired.
+ */
+class JWTExpiredException : OAuth2AuthenticationException(
+    OAuth2Error(
+        OAuth2ErrorCodes.INVALID_TOKEN,
+        "The JWT is expired.",
+        "https://tools.ietf.org/html/rfc6750#section-3.1"
+    )
+)
+
+/**
+ * Thrown when JWT is disabled by logout.
+ */
+class JWTDisabledException : OAuth2AuthenticationException(
+    OAuth2Error(
+        OAuth2ErrorCodes.INVALID_TOKEN,
+        "The JWT is disabled by logout / logout all.",
+        "https://tools.ietf.org/html/rfc6750#section-3.1"
+    )
+)

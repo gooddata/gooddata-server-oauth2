@@ -64,6 +64,7 @@ dependencies {
     testImplementation("net.javacrumbs.json-unit:json-unit:${jsonUnitVersion}")
     testImplementation("org.jetbrains.kotlin:kotlin-reflect")
     testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.bouncycastle:bcpkix-jdk15on:1.69")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(group="org.mockito", module="mockito-core")

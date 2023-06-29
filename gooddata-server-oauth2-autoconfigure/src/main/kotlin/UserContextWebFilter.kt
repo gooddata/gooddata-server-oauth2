@@ -15,19 +15,14 @@
  */
 package com.gooddata.oauth2.server
 
-import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
-import org.springframework.http.HttpStatus
 import org.springframework.security.authentication.AbstractAuthenticationToken
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.context.ReactiveSecurityContextHolder
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextImpl
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
-import org.springframework.security.web.server.ServerAuthenticationEntryPoint
-import org.springframework.security.web.server.WebFilterExchange
-import org.springframework.security.web.server.authentication.logout.ServerLogoutHandler
-import org.springframework.web.server.ResponseStatusException
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilter
 import org.springframework.web.server.WebFilterChain
@@ -37,21 +32,25 @@ import reactor.core.publisher.Mono
  * [WebFilter] that creates user context and stores it to coroutine/reactor context.
  *
  * There are multiple scenarios how user context is created. If [SecurityContext] contains
- * [UserContextAuthenticationToken] it is simply extracted and user context is created according to its content.
+ * [UserContextAuthenticationToken] the [UserContextAuthenticationProcessor] simply extracts the context and user
+ * context is created according to its content.
  *
- * In case [OAuth2AuthenticationToken] is used `UserContextWebFilter` retrieves [Organization] based on request's
- * hostname and [User] that corresponds to `SUB` attribute from ID token. If the [User] cannot be found the current
- * session is terminated and new authentication flow is triggered.
+ * In case [OAuth2AuthenticationToken] is used the [OidcAuthenticationProcessor] retrieves [Organization] via
+ * `UserContextWebFilter` based on request's hostname and [User] that corresponds to `SUB` attribute from ID token.
+ * If the [User] cannot be found the current session is terminated and new authentication flow is triggered.
  *
- * [UserContextWebFilter] also handles global logout from all user sessions. Request's [OAuth2AuthenticationToken] is
- * compared to stored last global logout timestamp and if the token has been issued before stored date
- * current session is terminated, logout is trigger and new authentication initialization is initiated.
+ * [OidcAuthenticationProcessor] also handles global logout from all user sessions. Request's
+ * [OAuth2AuthenticationToken] is compared to stored last global logout timestamp and if the token has been issued
+ * before stored date current session is terminated, logout is trigger and new authentication initialization is
+ * initiated.
+ *
+ * Similarly in case [JwtAuthenticationToken] is used the [JwtAuthenticationProcessor] retrieves [Organization] by
+ * request uri host. And authenticates the user based on `Jwks` configured for the given organization.
  */
 class UserContextWebFilter(
-    private val client: AuthenticationStoreClient,
-    private val authenticationEntryPoint: ServerAuthenticationEntryPoint,
-    private val serverLogoutHandler: ServerLogoutHandler,
-    private val reactorUserContextProvider: ReactorUserContextProvider,
+    private val oidcAuthenticationProcessor: OidcAuthenticationProcessor,
+    private val jwtAuthenticationProcessor: JwtAuthenticationProcessor,
+    private val userContextAuthenticationProcessor: UserContextAuthenticationProcessor
 ) : WebFilter {
 
     private val logger = KotlinLogging.logger {}
@@ -65,10 +64,12 @@ class UserContextWebFilter(
                         logger.debug { "Security context is not set, probably accessing unauthenticated resource" }
                         chain.filter(exchange)
                     }
+
                     null -> {
                         logger.warn { "Security cannot be retrieved" }
                         chain.filter(exchange)
                     }
+
                     else -> authentication.process(exchange, chain)
                 }
             }
@@ -77,45 +78,14 @@ class UserContextWebFilter(
         exchange: ServerWebExchange,
         chain: WebFilterChain,
     ): Mono<Void> = when (this) {
-        is OAuth2AuthenticationToken -> processAuthenticationToken(this, exchange, chain)
-        is UserContextAuthenticationToken -> withUserContext(organization, user, null) {
-            chain.filter(exchange)
-        }
+        is OAuth2AuthenticationToken -> oidcAuthenticationProcessor.authenticate(this, exchange, chain)
+        is JwtAuthenticationToken -> jwtAuthenticationProcessor.authenticate(this, exchange, chain)
+        is UserContextAuthenticationToken -> userContextAuthenticationProcessor.authenticate(this, exchange, chain)
         else -> {
             logger.warn { "Security context contains unexpected authentication ${this::class}" }
             chain.filter(exchange)
         }
     }
-
-    private fun processAuthenticationToken(
-        auth: OAuth2AuthenticationToken,
-        exchange: ServerWebExchange,
-        chain: WebFilterChain,
-    ): Mono<Void> = mono {
-        getUserContextForAuthenticationToken(client, auth)
-    }.flatMap { userContext ->
-        if (userContext.user == null) {
-            logger.info { "Session was logged out" }
-            serverLogoutHandler.logout(WebFilterExchange(exchange, chain), auth).then(
-                if (userContext.restartAuthentication) {
-                    authenticationEntryPoint.commence(exchange, null)
-                } else {
-                    Mono.error(ResponseStatusException(HttpStatus.NOT_FOUND, "User is not registered"))
-                }
-            )
-        } else {
-            withUserContext(userContext.organization, userContext.user, auth.name) {
-                chain.filter(exchange)
-            }
-        }
-    }
-
-    private fun <T> withUserContext(
-        organization: Organization,
-        user: User,
-        name: String?,
-        monoProvider: () -> Mono<T>,
-    ): Mono<T> = monoProvider().contextWrite(reactorUserContextProvider.getContextView(organization.id, user.id, name))
 
     /**
      * A helper [Authentication] type for representing the empty authentication of unauthenticated resources.
