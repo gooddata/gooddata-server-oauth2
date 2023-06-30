@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server
 
+import com.nimbusds.jwt.JWTClaimNames
 import com.nimbusds.openid.connect.sdk.claims.UserInfo
 import io.mockk.called
 import io.mockk.coEvery
@@ -25,6 +26,7 @@ import io.mockk.verify
 import java.net.URI
 import java.time.Instant
 import org.junit.jupiter.api.Test
+import org.springframework.http.HttpHeaders
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
 import org.springframework.security.oauth2.jwt.JoseHeaderNames
@@ -41,7 +43,18 @@ import strikt.assertions.isEqualTo
 
 class JwtAuthenticationProcessorTest {
 
-    private val client: AuthenticationStoreClient = mockk()
+    companion object {
+        private const val TOKEN = "token"
+        private const val TOKEN_MD5_HASH = "94a08da1fecbb6e8b46990538c7b50b2"
+        private const val USER_ID = "sub"
+        private const val ORGANIZATION_ID = "organizationId"
+        private const val TOKEN_ID = "tokenId"
+    }
+
+    private val client: AuthenticationStoreClient = mockk {
+        coEvery { getOrganizationByHostname("hostname") } returns Organization(ORGANIZATION_ID)
+    }
+
     private val authenticationEntryPoint: ServerAuthenticationEntryPoint = mockk()
     private val serverLogoutHandler: ServerLogoutHandler = mockk()
     private val userContextProvider: ReactorUserContextProvider = mockk()
@@ -49,83 +62,58 @@ class JwtAuthenticationProcessorTest {
     private val jwtAuthenticationProcessor =
         JwtAuthenticationProcessor(client, serverLogoutHandler, userContextProvider)
 
-    @Test
-    fun `user context is stored for jwt authentication`() {
-        val jwt = Jwt(
-            "tokenValue",
-            Instant.parse("2023-02-18T10:15:30.00Z"),
-            Instant.parse("2023-02-28T10:15:30.00Z"),
-            mapOf(
-                JoseHeaderNames.ALG to "RS256"
-            ),
-            mapOf(
-                UserInfo.NAME_CLAIM_NAME to "sub|123",
-                IdTokenClaimNames.SUB to "sub",
-                IdTokenClaimNames.IAT to Instant.EPOCH,
-            ),
-        )
+    private val jwt = Jwt(
+        "tokenValue",
+        Instant.parse("2023-02-18T10:15:30.00Z"),
+        Instant.parse("2023-02-28T10:15:30.00Z"),
+        mapOf(
+            JoseHeaderNames.ALG to "RS256"
+        ),
+        mapOf(
+            UserInfo.NAME_CLAIM_NAME to "sub|123",
+            IdTokenClaimNames.SUB to USER_ID,
+            JWTClaimNames.JWT_ID to TOKEN_ID,
+            IdTokenClaimNames.IAT to Instant.EPOCH,
+        ),
+    )
 
-        val authenticationToken = JwtAuthenticationToken(jwt, emptyList(), "sub")
+    private val authenticationToken = JwtAuthenticationToken(jwt, emptyList(), "sub")
 
-        val webExchange = mockk<ServerWebExchange> {
-            every { request } returns mockk<ServerHttpRequest>() {
-                every { uri } returns URI("https://hostname")
+    private val webExchange = mockk<ServerWebExchange>() {
+        every { request } returns mockk<ServerHttpRequest>() {
+            every { uri } returns URI("https://hostname")
+            every { headers } returns mockk<HttpHeaders>() {
+                every { getFirst(HttpHeaders.AUTHORIZATION) }.returns("Bearer $TOKEN")
             }
         }
+    }
 
-        coEvery { client.getOrganizationByHostname("hostname") } returns Organization("organizationId")
-        coEvery { client.getUserById("organizationId", "sub") } returns User("sub")
+    private val webFilterChain = mockk<WebFilterChain> {
+        every { filter(any()) } returns Mono.empty()
+    }
+
+    @Test
+    fun `user context is stored for jwt authentication`() {
+        coEvery { client.getUserById(ORGANIZATION_ID, USER_ID) } returns User(USER_ID)
+        coEvery { client.isValidJwt(ORGANIZATION_ID, USER_ID, TOKEN_MD5_HASH, TOKEN_ID) }.returns(true)
         coEvery { userContextProvider.getContextView(any(), any(), any()) } returns Context.empty()
 
-        val webFilterChain = mockk<WebFilterChain> {
-            every { filter(any()) } returns Mono.empty()
-        }
         jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain).block()
 
         verify { serverLogoutHandler wasNot called }
         verify { authenticationEntryPoint wasNot called }
         verify(exactly = 1) { webFilterChain.filter(any()) }
-        coVerify(exactly = 1) { userContextProvider.getContextView("organizationId", "sub", "sub|123") }
+        coVerify(exactly = 1) { userContextProvider.getContextView(ORGANIZATION_ID, USER_ID, "sub|123") }
     }
 
     @Test
     fun `user context is not processed when logoutAll has been triggered`() {
-        val jwt = Jwt(
-            "tokenValue",
-            Instant.parse("2023-02-18T10:15:30.00Z"),
-            Instant.parse("2023-02-28T10:15:30.00Z"),
-            mapOf(
-                JoseHeaderNames.ALG to "RS256"
-            ),
-            mapOf(
-                UserInfo.NAME_CLAIM_NAME to "sub|123",
-                IdTokenClaimNames.SUB to "sub",
-                IdTokenClaimNames.IAT to Instant.EPOCH,
-            ),
-        )
-
-        val authenticationToken = JwtAuthenticationToken(
-            jwt,
-            emptyList(),
-            "sub"
-        )
-
-        val webExchange = mockk<ServerWebExchange>() {
-            every { request } returns mockk<ServerHttpRequest>() {
-                every { uri } returns URI("https://hostname")
-            }
-        }
-
         every { serverLogoutHandler.logout(any(), any()) } returns Mono.empty()
-        coEvery { client.getOrganizationByHostname("hostname") } returns Organization("organizationId")
-        coEvery { client.getUserById("organizationId", "sub") } returns User(
-            "userId",
+        coEvery { client.isValidJwt(ORGANIZATION_ID, USER_ID, TOKEN_MD5_HASH, TOKEN_ID) }.returns(true)
+        coEvery { client.getUserById(ORGANIZATION_ID, USER_ID) } returns User(
+            id = "userId",
             lastLogoutAllTimestamp = Instant.ofEpochSecond(1),
         )
-
-        val webFilterChain = mockk<WebFilterChain> {
-            every { filter(any()) } returns Mono.empty()
-        }
 
         expectThrows<JwtDisabledException> {
             jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain).block()
@@ -134,6 +122,20 @@ class JwtAuthenticationProcessorTest {
         }
 
         verify(exactly = 1) { serverLogoutHandler.logout(any(), any()) }
+        verify { webFilterChain wasNot called }
+        verify { userContextProvider wasNot called }
+    }
+
+    @Test
+    fun `user context is not processed when invalidated jwt is used`() {
+        every { serverLogoutHandler.logout(any(), any()) } returns Mono.empty()
+        coEvery { client.isValidJwt(ORGANIZATION_ID, USER_ID, TOKEN_MD5_HASH, TOKEN_ID) }.returns(false)
+
+        expectThrows<JwtDisabledException> {
+            jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain).block()
+        }.and {
+            get { message }.isEqualTo("The JWT is disabled by logout / logout all.")
+        }
         verify { webFilterChain wasNot called }
         verify { userContextProvider wasNot called }
     }

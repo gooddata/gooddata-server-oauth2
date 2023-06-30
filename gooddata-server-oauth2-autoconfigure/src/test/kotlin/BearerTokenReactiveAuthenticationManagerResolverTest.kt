@@ -162,8 +162,9 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
         }
     }
 
-    @Test
-    fun `test auth failed for invalid header`() {
+    @ParameterizedTest
+    @ValueSource(strings = ["jwt_invalid_type.txt", "jwt_missing_kid_header.txt"])
+    fun `test auth failed for invalid header`(jwtSourceFile: String) {
         val exchange: ServerWebExchange = mockk {
             every { request.uri.host } returns HOST
         }
@@ -174,7 +175,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!
 
-        val invalidJwt = ResourceUtils.resource("jwt/jwt_invalid_type.txt").readText()
+        val invalidJwt = ResourceUtils.resource("jwt/$jwtSourceFile").readText()
 
         expectThrows<JwtVerificationException> {
             manager.authenticate(BearerTokenAuthenticationToken(invalidJwt)).block()

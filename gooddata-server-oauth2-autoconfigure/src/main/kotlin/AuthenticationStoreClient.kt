@@ -16,10 +16,11 @@
 package com.gooddata.oauth2.server
 
 import com.nimbusds.jose.jwk.JWK
+import java.time.Instant
+import java.time.LocalDateTime
 import org.springframework.http.HttpStatus
 import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException
 import org.springframework.web.server.ResponseStatusException
-import java.time.Instant
 
 /**
  * `AuthenticationStoreClient` defines methods for retrieving identity objects from persistent storage.
@@ -79,6 +80,36 @@ interface AuthenticationStoreClient {
      * @return list of JWKs corresponding to organizationId
      */
     suspend fun getJwks(organizationId: String): List<JWK>
+
+    /**
+     * Checks whether JWT, that belongs to organization `organizationId` and user `userId` specified by `jwtHash`
+     * (optionally also by `jwtId` for faster processing) is valid
+     *
+     * @param organizationId ID of the organization that the JWTs belongs to
+     * @param userId ID of the user that the JWTs belongs to
+     * @param jwtHash md5 hash of the JWT token
+     * @param jwtId ID of the JWT (optional)
+     * @return true if the JWT is valid, false otherwise
+     */
+    suspend fun isValidJwt(organizationId: String, userId: String, jwtHash: String, jwtId: String?): Boolean
+
+    /**
+     * Invalidates JWT, that belongs to organization `organizationId` and user `userId` specified by `jwtHash`
+     * (optionally also by `jwtId` for faster processing) is valid
+     *
+     * @param organizationId ID of the organization that the JWTs belongs to
+     * @param userId ID of the user that the JWTs belongs to
+     * @param jwtHash md5 hash of the JWT token
+     * @param jwtId ID of the JWT (optional)
+     * @param validTo UTC time of JWT expiration
+     */
+    suspend fun invalidateJwt(
+        organizationId: String,
+        userId: String,
+        jwtHash: String,
+        jwtId: String?,
+        validTo: LocalDateTime
+    )
 
     /**
      * Marks the [User] belonging to the [Organization] for global logout. Any OIDC tokens which were issued before that
