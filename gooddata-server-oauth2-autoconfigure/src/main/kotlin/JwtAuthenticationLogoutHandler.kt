@@ -15,9 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import com.nimbusds.jwt.JWTClaimNames
-import java.net.URI
-import java.time.LocalDateTime
 import kotlinx.coroutines.reactor.mono
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
@@ -28,6 +25,9 @@ import org.springframework.security.web.server.authentication.logout.ServerLogou
 import org.springframework.security.web.server.authentication.logout.ServerLogoutSuccessHandler
 import org.springframework.web.server.ResponseStatusException
 import reactor.core.publisher.Mono
+import java.net.URI
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 
 /**
  * Realize logout if provider is Jwt
@@ -48,12 +48,10 @@ class JwtAuthenticationLogoutHandler(
                 mono {
                     client.getOrganizationByHostname(exchange.exchange.request.uri.host)
                 }.flatMap { organization ->
-                    val jwtId = jwtToken.tokenAttributes.getValue(JWTClaimNames.JWT_ID).toString()
-                    val jwtValidTo = LocalDateTime.parse(
-                        jwtToken.tokenAttributes.getValue(JWTClaimNames.EXPIRATION_TIME).toString()
-                    )
-                    val tokenHash = getMd5TokenHashFromAuthenticationHeader(exchange.exchange)
-                    mono { client.invalidateJwt(organization.id, jwtToken.name, jwtId, tokenHash, jwtValidTo) }.then()
+                    val jwtId = jwtToken.token.id
+                    val jwtValidTo = LocalDateTime.ofInstant(jwtToken.token.expiresAt, ZoneOffset.UTC)
+                    val tokenHash = hashStringWithMD5(jwtToken.token.tokenValue)
+                    mono { client.invalidateJwt(organization.id, jwtToken.name, tokenHash, jwtId, jwtValidTo) }.then()
                 }.onErrorMap(::JwtAuthenticationLogoutException)
             }
 
