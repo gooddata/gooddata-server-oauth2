@@ -45,7 +45,7 @@ class JwtAuthenticationProcessorTest {
 
     companion object {
         private const val TOKEN = "token"
-        private const val TOKEN_MD5_HASH = "94a08da1fecbb6e8b46990538c7b50b2"
+        private const val TOKEN_MD5_HASH = "6128148bc7c7abd76b32789d4962f7e4"
         private const val USER_ID = "sub"
         private const val ORGANIZATION_ID = "organizationId"
         private const val TOKEN_ID = "tokenId"

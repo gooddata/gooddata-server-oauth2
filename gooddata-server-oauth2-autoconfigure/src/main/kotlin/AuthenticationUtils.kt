@@ -29,10 +29,7 @@ import com.nimbusds.jwt.proc.JWTClaimsSetVerifier
 import com.nimbusds.oauth2.sdk.Scope
 import com.nimbusds.openid.connect.sdk.OIDCScopeValue
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata
-import java.security.MessageDigest
-import java.time.Instant
 import net.minidev.json.JSONObject
-import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.client.registration.ClientRegistration
@@ -41,8 +38,9 @@ import org.springframework.security.oauth2.core.AuthenticationMethod
 import org.springframework.security.oauth2.core.AuthorizationGrantType
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder
 import org.springframework.web.server.ResponseStatusException
-import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
+import java.security.MessageDigest
+import java.time.Instant
 
 /**
  * Constants for OAuth type authentication which are not directly available in the Spring Security.
@@ -139,26 +137,11 @@ internal object ExpTimeCheckingJwtClaimsSetVerifier : JWTClaimsSetVerifier<JWKSe
 }
 
 /**
- * Returns Md5 hash of the bearer token extracted from the `ServerWebExchange`
- * @param exchange Contract for an HTTP request-response interaction
- * @return md5 hash of the bearer token
- * @throws JwtDecodeException if the token extraction fails
+ * Returns Md5 hash of the input
+ * @param input
+ * @return md5 hash of the input
  */
-fun getMd5TokenHashFromAuthenticationHeader(exchange: ServerWebExchange): String {
-    val token = getTokenAuthorizationHeader(exchange.request.headers.getFirst(HttpHeaders.AUTHORIZATION))
-        ?: throw JwtDecodeException()
-    return hashStringWithMD5(token)
-}
-
-private fun getTokenAuthorizationHeader(bearerToken: String?): String? {
-    val bearerPrefix = "Bearer "
-    if (bearerToken!!.startsWith(bearerPrefix)) {
-        return bearerToken.substring(bearerPrefix.length)
-    }
-    return null
-}
-
-private fun hashStringWithMD5(input: String): String {
+fun hashStringWithMD5(input: String): String {
     val md5Digest = MessageDigest.getInstance("MD5")
     val hashBytes = md5Digest.digest(input.toByteArray())
 
