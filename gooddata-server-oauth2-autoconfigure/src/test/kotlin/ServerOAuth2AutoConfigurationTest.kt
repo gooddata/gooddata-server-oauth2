@@ -113,8 +113,7 @@ internal abstract class ServerOAuth2AutoConfigurationTest {
         val exFunc: ExchangeFunction = getFieldValue("exchangeFunction", webClient!!)
         val connector: ClientHttpConnector = getFieldValue("connector", exFunc)
         val httpClient: HttpClient = getFieldValue("httpClient", connector)
-        val connectionProvider: ConnectionProvider =
-            getFieldValue("http1ConnectionProvider", httpClient.configuration().connectionProvider())
+        val connectionProvider: ConnectionProvider = httpClient.configuration().connectionProvider()
         val builder: Builder = connectionProvider.mutate()!!
         val maxIdleTime: Duration = getFieldValue("maxIdleTime", builder)
 
