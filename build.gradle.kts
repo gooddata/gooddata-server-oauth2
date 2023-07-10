@@ -44,7 +44,6 @@ allprojects {
     repositories {
         mavenLocal()
         mavenCentral()
-        jcenter()
         maven("https://plugins.gradle.org/m2/")
     }
 
@@ -143,12 +142,16 @@ subprojects {
     tasks {
         withType<Test> {
             useJUnitPlatform()
+            jvmArgs(listOf(
+                "--add-opens=java.base/java.time=ALL-UNNAMED",
+                "--add-opens=java.base/java.net=ALL-UNNAMED",
+            ))
         }
 
         withType<KotlinCompile> {
             kotlinOptions {
                 freeCompilerArgs =
-                    listOf("-Xjsr305=strict", "-Xopt-in=kotlin.RequiresOptIn", "-Xallow-result-return-type")
+                    listOf("-Xjsr305=strict", "-opt-in=kotlin.RequiresOptIn", "-Xallow-result-return-type")
                 jvmTarget = "11"
             }
         }
