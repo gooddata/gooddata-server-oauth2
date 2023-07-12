@@ -62,7 +62,7 @@ class JwtAuthenticationProcessor(
         organization: Organization
     ): Mono<Organization> {
         val tokenHash = hashStringWithMD5(token.token.tokenValue)
-        val jwtId = token.tokenAttributes[JWTClaimNames.JWT_ID]?.toString() ?: throw JwtVerificationException()
+        val jwtId = token.tokenAttributes.getOrDefault(JWTClaimNames.JWT_ID, null).toString()
         return mono { client.isValidJwt(organization.id, token.name, tokenHash, jwtId) }.map { isValid ->
             when (isValid) {
                 true -> organization
