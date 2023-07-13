@@ -184,8 +184,9 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
         }
     }
 
-    @Test
-    fun `test auth failed for missing name attribute`() {
+    @ParameterizedTest
+    @ValueSource(strings = ["iat", "exp", "name", "sub", "iat_and_exp"])
+    fun `test auth failed for missing mandatory attribute`(attribute: String) {
         val exchange: ServerWebExchange = mockk {
             every { request.uri.host } returns HOST
         }
@@ -196,12 +197,12 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!
 
-        val invalidJwt = ResourceUtils.resource("jwt/jwt_missing_name_attr.txt").readText()
-
+        val invalidJwt = ResourceUtils.resource("jwt/jwt_missing_${attribute}_attr.txt").readText()
         expectThrows<JwtVerificationException> {
             manager.authenticate(BearerTokenAuthenticationToken(invalidJwt)).block()
         }.and {
-            get { message }.isEqualTo("The JWT contains invalid claims.")
+            val invalidClaims = attribute.split("_and_")
+            get { message }.isEqualTo("The JWT contains invalid claims '${invalidClaims.joinToString()}'.")
         }
     }
 

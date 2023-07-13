@@ -17,6 +17,7 @@ package com.gooddata.oauth2.server
 
 import com.gooddata.oauth2.server.CustomOAuth2Validator.Companion.notAllowedHeaders
 import com.nimbusds.jose.JOSEObjectType
+import mu.KotlinLogging
 import org.springframework.security.oauth2.core.OAuth2Error
 import org.springframework.security.oauth2.core.OAuth2TokenValidator
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult
@@ -31,7 +32,8 @@ class CustomOAuth2Validator : OAuth2TokenValidator<Jwt> {
 
     companion object {
         // These headers are potential security vulnerabilities for header injection
-        val notAllowedHeaders = listOf("jku", "x5u", "jwk", "x5c")
+        private val notAllowedHeaders = listOf("jku", "x5u", "jwk", "x5c")
+        private val mandatoryAttributes = listOf("sub", "name", "iat", "exp")
     }
 
     /**
@@ -51,14 +53,16 @@ class CustomOAuth2Validator : OAuth2TokenValidator<Jwt> {
             )
         }
 
-        if (!token.claims.containsKey("name")) {
-            validationErrors.add(
-                OAuth2Error(
-                    "missing_mandatory_attribute",
-                    "Jwt does not contain mandatory attribute `name`",
-                    null
+        mandatoryAttributes.forEach { attribute ->
+            if (!token.claims.containsKey(attribute)) {
+                validationErrors.add(
+                    OAuth2Error(
+                        "missing_mandatory_attribute",
+                        "Jwt does not contain mandatory attribute \"${attribute}\"",
+                        null
+                    )
                 )
-            )
+            }
         }
 
         notAllowedHeaders.forEach { header ->
