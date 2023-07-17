@@ -41,8 +41,8 @@ dependencies {
     api("org.jetbrains.kotlinx:kotlinx-coroutines-reactor:${kotlinCoroutinesVersion}")
     api("org.springframework.boot:spring-boot")
     api("org.springframework.boot:spring-boot-starter-webflux")
-    api("org.springframework.security:spring-security-oauth2-client:5.6.11")
-    api("org.springframework.security:spring-security-oauth2-resource-server:5.6.11")
+    api("org.springframework.security:spring-security-oauth2-client:5.6.12")
+    api("org.springframework.security:spring-security-oauth2-resource-server:5.6.12")
     api("org.springframework:spring-web")
 
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
@@ -52,8 +52,8 @@ dependencies {
     implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${kotlinCoroutinesVersion}")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-slf4j:${kotlinCoroutinesVersion}")
-    implementation("org.springframework.security:spring-security-config:5.6.11")
-    implementation("org.springframework.security:spring-security-oauth2-jose:5.6.11")
+    implementation("org.springframework.security:spring-security-config:5.6.12")
+    implementation("org.springframework.security:spring-security-oauth2-jose:5.6.12")
 
     testImplementation("com.github.tomakehurst:wiremock:${wiremockVersion}")
     testImplementation("com.google.crypto.tink:tink:${tinkVersion}")
