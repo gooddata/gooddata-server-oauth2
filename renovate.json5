@@ -9,6 +9,7 @@
   ],
   "ignorePresets": [":dependencyDashboard", "group:springSecurity", "workarounds:javaLTSVersions"],
   "commitMessagePrefix": "UPDATE: ",
+  "addLabels": ["renovate"],
   "enabledManagers": ["gradle", "gradle-wrapper" ],
   "packageRules": [
     {
