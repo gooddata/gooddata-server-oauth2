@@ -140,6 +140,26 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
         }
     }
 
+    @Test
+    fun `authentication fails for non-matching private key alg with JWT`() {
+        val exchange: ServerWebExchange = mockk {
+            every { request.uri.host } returns HOST
+        }
+
+        coEvery { client.getOrganizationByHostname(HOST) } returns Organization(ORG_ID)
+        coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
+
+        val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
+        val manager = resolver.resolve(exchange).block()!!
+
+        val invalidJwt = ResourceUtils.resource("jwt/jwt_non_matching_alg.txt").readText()
+        expectThrows<JwtVerificationException> {
+            manager.authenticate(BearerTokenAuthenticationToken(invalidJwt)).block()
+        }.and {
+            get { message }.isEqualTo("The JWT contains invalid claims.")
+        }
+    }
+
     @ParameterizedTest
     @ValueSource(strings = ["jku", "x5u", "jwk", "x5c"])
     fun `authentication fails for JWT with invalid fields`(parameterName: String) {
@@ -202,7 +222,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
             manager.authenticate(BearerTokenAuthenticationToken(invalidJwt)).block()
         }.and {
             val invalidClaims = attribute.split("_and_")
-            get { message }.isEqualTo("The JWT contains invalid claims '${invalidClaims.joinToString()}'.")
+            get { message }.isEqualTo(JwtVerificationException.invalidClaimsMessage(invalidClaims))
         }
     }
 

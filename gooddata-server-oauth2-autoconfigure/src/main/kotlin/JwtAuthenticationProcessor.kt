@@ -86,14 +86,15 @@ class JwtAuthenticationProcessor(
         }.flatMap { user ->
             val tokenIssuedAtTime = authenticationToken.tokenAttributeOrNull(JWTClaimNames.ISSUED_AT) as Instant?
             val isValidToken = isValidToken(tokenIssuedAtTime, user.lastLogoutAllTimestamp)
-            logger.info { "getUserForJwtToken is valid $tokenIssuedAtTime ${user.lastLogoutAllTimestamp} $isValidToken" }
+            logger.info {
+                "getUserForJwtToken is valid $tokenIssuedAtTime ${user.lastLogoutAllTimestamp} $isValidToken"
+            }
             if (!isValidToken) {
                 serverLogoutHandler.logout(WebFilterExchange(exchange, chain), authenticationToken)
                     .then(Mono.error(JwtDisabledException()))
             } else Mono.just(user)
         }
     }
-
 
     companion object {
         private fun isValidToken(tokenIssuedAtTime: Instant?, lastLogoutAllTimestamp: Instant?): Boolean =

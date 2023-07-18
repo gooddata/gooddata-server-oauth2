@@ -17,7 +17,6 @@ package com.gooddata.oauth2.server
 
 import com.gooddata.oauth2.server.CustomOAuth2Validator.Companion.notAllowedHeaders
 import com.nimbusds.jose.JOSEObjectType
-import mu.KotlinLogging
 import org.springframework.security.oauth2.core.OAuth2Error
 import org.springframework.security.oauth2.core.OAuth2TokenValidator
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult

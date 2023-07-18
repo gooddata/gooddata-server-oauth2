@@ -30,16 +30,23 @@ class JwkException(message: String, cause: Throwable? = null) : RuntimeException
 /**
  * Thrown when Jwt validation failed.
  */
-class JwtVerificationException(invalidClaims: List<String> = emptyList()) : OAuth2AuthenticationException(
+class JwtVerificationException(message: String = invalidClaimsMessage()) : OAuth2AuthenticationException(
     OAuth2Error(
         OAuth2ErrorCodes.INVALID_TOKEN,
-        "The JWT contains invalid claims${constructInvalidClaims(invalidClaims)}.",
+        message,
         "https://tools.ietf.org/html/rfc6750#section-3.1"
     )
 ) {
     companion object {
-        private fun constructInvalidClaims(invalidClaims: List<String>): String =
-            if (invalidClaims.isNotEmpty()) invalidClaims.joinToString(prefix = " '", postfix = "'") else ""
+        private const val EMPTY_STRING = ""
+        private const val INVALID_CLAIMS_MESSAGE = "The JWT contains invalid claims%s."
+
+        fun invalidClaimsMessage(invalidClaims: List<String> = emptyList()): String {
+            val claims = if (invalidClaims.isNotEmpty()) {
+                invalidClaims.joinToString(prefix = ": [", postfix = "]")
+            } else EMPTY_STRING
+            return INVALID_CLAIMS_MESSAGE.format(claims)
+        }
     }
 }
 

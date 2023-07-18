@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server
 
+import com.gooddata.oauth2.server.JwtVerificationException.Companion.invalidClaimsMessage
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.jwk.JWKSet
 import com.nimbusds.jwt.SignedJWT
@@ -93,7 +94,8 @@ private class JwtAuthenticationManager(
                         when (ex.cause?.cause) {
                             is ParseException -> throw JwtDecodeException()
                             is InternalJwtExpiredException -> throw JwtExpiredException()
-                            else -> throw JwtVerificationException(invalidClaims = jwtToken.missingMandatoryClaims())
+                            else ->
+                                throw JwtVerificationException(invalidClaimsMessage(jwtToken.missingMandatoryClaims()))
                         }
                     }
             }
