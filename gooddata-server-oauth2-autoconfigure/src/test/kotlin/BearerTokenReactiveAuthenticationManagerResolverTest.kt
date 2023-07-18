@@ -244,9 +244,9 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
     companion object {
         private const val HOST = "localhost"
         private const val ORG_ID = "organizationId"
-        private const val USER_ID = "userId"
+        private const val USER_ID = "demo.key001"
         private const val TOKEN = "supersecuretoken"
-        private const val PUBLIC_KEY_ID = "key.1"
+        private const val PUBLIC_KEY_ID = "kid001_rs256"
 
         private val PUBLIC_KEY_VALUE = ResourceUtils.resource("jwt/jwk_public_key.txt").readText()
         private val PUBLIC_KEY = PublicKey(PUBLIC_KEY_ID, PUBLIC_KEY_VALUE)
