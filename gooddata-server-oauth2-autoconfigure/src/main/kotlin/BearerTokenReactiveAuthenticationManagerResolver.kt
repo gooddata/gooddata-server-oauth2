@@ -24,6 +24,8 @@ import kotlinx.coroutines.reactor.mono
 import org.springframework.security.authentication.ReactiveAuthenticationManager
 import org.springframework.security.authentication.ReactiveAuthenticationManagerResolver
 import org.springframework.security.core.Authentication
+import org.springframework.security.oauth2.core.OAuth2TokenValidator
+import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.jwt.JwtException
 import org.springframework.security.oauth2.server.resource.BearerTokenAuthenticationToken
 import org.springframework.security.oauth2.server.resource.authentication.JwtReactiveAuthenticationManager
@@ -76,6 +78,7 @@ private class PersistentApiTokenAuthenticationManager(
 private class JwtAuthenticationManager(
     private val client: AuthenticationStoreClient,
     private val organizationProvider: () -> Mono<Organization>,
+    private val jwtTokenValidator: OAuth2TokenValidator<Jwt> = CustomOAuth2Validator(),
 ) : ReactiveAuthenticationManager {
 
     override fun authenticate(authentication: Authentication?): Mono<Authentication> {
@@ -88,7 +91,7 @@ private class JwtAuthenticationManager(
                     getJwkSet(),
                     setOf(JWSAlgorithm.RS256, JWSAlgorithm.RS384, JWSAlgorithm.RS512)
                 )
-                decoder.setJwtValidator(CustomOAuth2Validator())
+                decoder.setJwtValidator(jwtTokenValidator)
                 JwtReactiveAuthenticationManager(decoder).authenticate(jwtToken)
                     .onErrorMap({ it.cause is JwtException }) { ex ->
                         when (ex.cause?.cause) {
