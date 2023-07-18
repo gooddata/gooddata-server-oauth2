@@ -114,10 +114,9 @@ private class JwtAuthenticationManager(
     }
 
     companion object {
+        private const val BASE_64_REGEX = "[A-Za-z0-9+/_-]+={0,2}"
+        private val jwtBearerTokenRegex = Regex("^$BASE_64_REGEX\\.$BASE_64_REGEX\\.$BASE_64_REGEX")
         private val supportedJwsAlgorithms = setOf(JWSAlgorithm.RS256, JWSAlgorithm.RS384, JWSAlgorithm.RS512)
-
-        private const val base64Regex = "[A-Za-z0-9+/_-]+={0,2}"
-        private val jwtBearerTokenRegex = Regex("^$base64Regex\\.$base64Regex\\.$base64Regex")
         private val mandatoryClaims = listOf("name", "sub", "iat", "exp")
 
         private fun BearerTokenAuthenticationToken.missingMandatoryClaims(): List<String> = try {
