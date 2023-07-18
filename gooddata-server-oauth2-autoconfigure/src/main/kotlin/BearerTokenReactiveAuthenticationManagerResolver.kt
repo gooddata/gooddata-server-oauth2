@@ -89,7 +89,7 @@ private class JwtAuthenticationManager(
             .flatMap { jwtToken ->
                 val decoder = prepareJwtDecoder(
                     getJwkSet(),
-                    setOf(JWSAlgorithm.RS256, JWSAlgorithm.RS384, JWSAlgorithm.RS512)
+                    supportedJwsAlgorithms
                 )
                 decoder.setJwtValidator(jwtTokenValidator)
                 JwtReactiveAuthenticationManager(decoder).authenticate(jwtToken)
@@ -114,6 +114,8 @@ private class JwtAuthenticationManager(
     }
 
     companion object {
+        private val supportedJwsAlgorithms = setOf(JWSAlgorithm.RS256, JWSAlgorithm.RS384, JWSAlgorithm.RS512)
+
         private const val base64Regex = "[A-Za-z0-9+/_-]+={0,2}"
         private val jwtBearerTokenRegex = Regex("^$base64Regex\\.$base64Regex\\.$base64Regex")
         private val mandatoryClaims = listOf("name", "sub", "iat", "exp")
