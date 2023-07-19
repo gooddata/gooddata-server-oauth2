@@ -17,7 +17,6 @@ package com.gooddata.oauth2.server
 
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.jwk.JWKSet
-import com.nimbusds.jose.proc.BadJOSEException
 import com.nimbusds.jwt.SignedJWT
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
@@ -26,7 +25,6 @@ import org.springframework.security.authentication.ReactiveAuthenticationManager
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.jwt.JwtException
 import org.springframework.security.oauth2.server.resource.BearerTokenAuthenticationToken
-import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException
 import org.springframework.security.oauth2.server.resource.authentication.JwtReactiveAuthenticationManager
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
@@ -92,19 +90,10 @@ private class JwtAuthenticationManager(
                 decoder.setJwtValidator(CustomOAuth2Validator())
                 JwtReactiveAuthenticationManager(decoder).authenticate(jwtToken)
                     .onErrorMap({ it.cause is JwtException }) { ex ->
-                        if (ex is InvalidBearerTokenException) {
-                            if (ex.message!!.startsWith("An error occurred while attempting to decode the Jwt")) {
-                                JwtDecodeException()
-                            } else {
-                                JwtVerificationException(invalidClaims = jwtToken.missingMandatoryClaims())
-                            }
-                        } else {
-                            when (ex.cause?.cause) {
-                                is InternalJwtExpiredException -> JwtExpiredException()
-                                is BadJOSEException ->
-                                    JwtVerificationException(invalidClaims = jwtToken.missingMandatoryClaims())
-                                else -> ex
-                            }
+                        when (ex.cause?.cause) {
+                            is ParseException -> throw JwtDecodeException()
+                            is InternalJwtExpiredException -> throw JwtExpiredException()
+                            else -> throw JwtVerificationException(invalidClaims = jwtToken.missingMandatoryClaims())
                         }
                     }
             }

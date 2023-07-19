@@ -21,6 +21,7 @@ import com.nimbusds.jose.jwk.source.JWKSecurityContextJWKSet
 import com.nimbusds.jose.proc.JWKSecurityContext
 import com.nimbusds.jose.proc.JWSVerificationKeySelector
 import com.nimbusds.jose.proc.SecurityContext
+import com.nimbusds.jwt.JWTClaimNames
 import com.nimbusds.jwt.JWTClaimsSet
 import com.nimbusds.jwt.proc.BadJWTException
 import com.nimbusds.jwt.proc.DefaultJWTClaimsVerifier
@@ -30,12 +31,17 @@ import com.nimbusds.oauth2.sdk.Scope
 import com.nimbusds.openid.connect.sdk.OIDCScopeValue
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata
 import net.minidev.json.JSONObject
+import org.springframework.core.convert.ConversionService
+import org.springframework.core.convert.TypeDescriptor
+import org.springframework.core.convert.converter.Converter
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ClientRegistrations
 import org.springframework.security.oauth2.core.AuthenticationMethod
 import org.springframework.security.oauth2.core.AuthorizationGrantType
+import org.springframework.security.oauth2.core.converter.ClaimConversionService
+import org.springframework.security.oauth2.jwt.MappedJwtClaimSetConverter
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder
 import org.springframework.web.server.ResponseStatusException
 import reactor.core.publisher.Mono
@@ -114,7 +120,30 @@ fun prepareJwtDecoder(jwkSet: Mono<JWKSet>, jwsAlgs: Set<JWSAlgorithm>): NimbusR
             jwtProcessor.jwtClaimsSetVerifier = ExpTimeCheckingJwtClaimsSetVerifier
             jwtProcessor.process(signedJwt, securityContext)
         }
+    }.apply {
+        setClaimSetConverter(
+            MappedJwtClaimSetConverter.withDefaults(
+                mapOf(JWTClaimNames.ISSUED_AT to JwtIssuedAtConverter())
+            )
+        )
     }
+
+class JwtIssuedAtConverter : Converter<Any, Instant> {
+
+    private val conversionService: ConversionService = ClaimConversionService.getSharedInstance()
+    private val objectTypeDescriptor: TypeDescriptor = TypeDescriptor.valueOf(Any::class.java)
+    private val instantTypeDescriptor: TypeDescriptor = TypeDescriptor.valueOf(Instant::class.java)
+
+    override fun convert(source: Any): Instant = convertInstant(source)
+
+    private fun convertInstant(source: Any?): Instant {
+        if (source == null) {
+            throw JwtVerificationException()
+        }
+        return conversionService.convert(source, objectTypeDescriptor, instantTypeDescriptor) as Instant?
+            ?: throw JwtVerificationException()
+    }
+}
 
 /**
  * Extension of the original [JWTClaimsSetVerifier] used in the [DefaultJWTProcessor] which translates
