@@ -21,6 +21,7 @@ import com.nimbusds.jose.jwk.JWKSet
 import com.nimbusds.jwt.SignedJWT
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
+import mu.KotlinLogging
 import org.springframework.security.authentication.ReactiveAuthenticationManager
 import org.springframework.security.authentication.ReactiveAuthenticationManagerResolver
 import org.springframework.security.core.Authentication
@@ -81,19 +82,27 @@ private class JwtAuthenticationManager(
     private val jwtTokenValidator: OAuth2TokenValidator<Jwt> = CustomOAuth2Validator(),
 ) : ReactiveAuthenticationManager {
 
+    private val logger = KotlinLogging.logger {}
+
     override fun authenticate(authentication: Authentication?): Mono<Authentication> {
         return Mono.justOrEmpty(authentication)
             .filter { authentication is BearerTokenAuthenticationToken }
             .cast(BearerTokenAuthenticationToken::class.java)
             .filter(::isJwtBearerToken)
-            .flatMap { jwtToken ->
-                val decoder = prepareJwtDecoder(
-                    getJwkSet(),
-                    supportedJwsAlgorithms
-                )
-                decoder.setJwtValidator(jwtTokenValidator)
-                JwtReactiveAuthenticationManager(decoder).authenticate(jwtToken)
-                    .onErrorMap({ it.cause is JwtException }) { ex -> parseJwtException(ex, jwtToken) }
+            .flatMap(::authenticate)
+    }
+
+    private fun authenticate(jwtToken: BearerTokenAuthenticationToken): Mono<Authentication>? {
+        val decoder = prepareJwtDecoder(getJwkSet(), supportedJwsAlgorithms)
+            .apply { setJwtValidator(jwtTokenValidator) }
+        return JwtReactiveAuthenticationManager(decoder).authenticate(jwtToken)
+            .onErrorMap({ it.cause is JwtException }) { ex ->
+                logger.logError(ex) {
+                    withAction("authentication")
+                    withMessage { "JWT authentication failed: ${ex.message}" }
+                    withState("error")
+                }
+                parseJwtException(ex, jwtToken)
             }
     }
 
