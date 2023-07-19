@@ -93,15 +93,14 @@ private class JwtAuthenticationManager(
                 )
                 decoder.setJwtValidator(jwtTokenValidator)
                 JwtReactiveAuthenticationManager(decoder).authenticate(jwtToken)
-                    .onErrorMap({ it.cause is JwtException }) { ex ->
-                        when (ex.cause?.cause) {
-                            is ParseException -> throw JwtDecodeException()
-                            is InternalJwtExpiredException -> throw JwtExpiredException()
-                            else ->
-                                throw JwtVerificationException(invalidClaimsMessage(jwtToken.missingMandatoryClaims()))
-                        }
-                    }
+                    .onErrorMap({ it.cause is JwtException }) { ex -> parseJwtException(ex, jwtToken) }
             }
+    }
+
+    private fun parseJwtException(ex: Throwable, jwtToken: BearerTokenAuthenticationToken) = when (ex.cause?.cause) {
+        is ParseException -> JwtDecodeException()
+        is InternalJwtExpiredException -> JwtExpiredException()
+        else -> JwtVerificationException(invalidClaimsMessage(jwtToken.missingMandatoryClaims()))
     }
 
     private fun isJwtBearerToken(authToken: BearerTokenAuthenticationToken) =
