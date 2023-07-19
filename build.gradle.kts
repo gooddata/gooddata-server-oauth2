@@ -57,7 +57,7 @@ subprojects {
     apply(plugin = "com.adarshr.test-logger")
     apply(plugin = "io.gitlab.arturbosch.detekt")
     apply(plugin = "io.spring.dependency-management")
-    apply(plugin = "org.datlowe.maven-publish-auth")
+//    apply(plugin = "org.datlowe.maven-publish-auth")
 
     project.version = parent?.version ?: error("Subproject has no parent, you are in wrong universe.")
 

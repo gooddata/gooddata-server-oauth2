@@ -17,14 +17,13 @@ package com.gooddata.oauth2.server
 
 import com.nimbusds.jwt.JWTClaimNames
 import com.nimbusds.openid.connect.sdk.claims.UserInfo
+import io.mockk.InternalPlatformDsl.toStr
 import io.mockk.called
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import java.net.URI
-import java.time.Instant
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.http.server.reactive.ServerHttpRequest
@@ -40,6 +39,8 @@ import reactor.core.publisher.Mono
 import reactor.util.context.Context
 import strikt.api.expectThrows
 import strikt.assertions.isEqualTo
+import java.net.URI
+import java.time.Instant
 
 class JwtAuthenticationProcessorTest {
 
@@ -62,21 +63,7 @@ class JwtAuthenticationProcessorTest {
     private val jwtAuthenticationProcessor =
         JwtAuthenticationProcessor(client, serverLogoutHandler, userContextProvider)
 
-    private val jwt = Jwt(
-        "tokenValue",
-        Instant.parse("2023-02-18T10:15:30.00Z"),
-        Instant.parse("2023-02-28T10:15:30.00Z"),
-        mapOf(
-            JoseHeaderNames.ALG to "RS256"
-        ),
-        mapOf(
-            UserInfo.NAME_CLAIM_NAME to "sub|123",
-            IdTokenClaimNames.SUB to USER_ID,
-            JWTClaimNames.JWT_ID to TOKEN_ID,
-            IdTokenClaimNames.IAT to Instant.EPOCH,
-        ),
-    )
-
+    private val jwt = prepareJwt()
     private val authenticationToken = JwtAuthenticationToken(jwt, emptyList(), "sub")
 
     private val webExchange = mockk<ServerWebExchange>() {
@@ -96,6 +83,29 @@ class JwtAuthenticationProcessorTest {
     fun `user context is stored for jwt authentication`() {
         coEvery { client.getUserById(ORGANIZATION_ID, USER_ID) } returns User(USER_ID)
         coEvery { client.isValidJwt(ORGANIZATION_ID, USER_ID, TOKEN_MD5_HASH, TOKEN_ID) }.returns(true)
+        coEvery { userContextProvider.getContextView(any(), any(), any()) } returns Context.empty()
+
+        jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain).block()
+
+        verify { serverLogoutHandler wasNot called }
+        verify { authenticationEntryPoint wasNot called }
+        verify(exactly = 1) { webFilterChain.filter(any()) }
+        coVerify(exactly = 1) { userContextProvider.getContextView(ORGANIZATION_ID, USER_ID, "sub|123") }
+    }
+
+    @Test
+    fun `user context is stored for jwt without ID claim authentication`() {
+        val jwt = prepareJwt(
+            claims = mapOf(
+                UserInfo.NAME_CLAIM_NAME to "sub|123",
+                IdTokenClaimNames.SUB to USER_ID,
+                IdTokenClaimNames.IAT to Instant.EPOCH,
+            )
+        )
+        val authenticationToken = JwtAuthenticationToken(jwt, emptyList(), "sub")
+
+        coEvery { client.getUserById(ORGANIZATION_ID, USER_ID) } returns User(USER_ID)
+        coEvery { client.isValidJwt(ORGANIZATION_ID, USER_ID, TOKEN_MD5_HASH, null.toStr()) }.returns(true)
         coEvery { userContextProvider.getContextView(any(), any(), any()) } returns Context.empty()
 
         jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain).block()
@@ -139,4 +149,17 @@ class JwtAuthenticationProcessorTest {
         verify { webFilterChain wasNot called }
         verify { userContextProvider wasNot called }
     }
+
+    private fun prepareJwt(
+        tokenValue: String = "tokenValue",
+        issuedAt: Instant = Instant.parse("2023-02-18T10:15:30.00Z"),
+        expireAt: Instant = Instant.parse("2023-02-28T10:15:30.00Z"),
+        headers: Map<String, Any> = mapOf(JoseHeaderNames.ALG to "RS256"),
+        claims: Map<String, Any> = mapOf(
+            UserInfo.NAME_CLAIM_NAME to "sub|123",
+            IdTokenClaimNames.SUB to USER_ID,
+            JWTClaimNames.JWT_ID to TOKEN_ID,
+            IdTokenClaimNames.IAT to Instant.EPOCH,
+        ),
+    ) = Jwt(tokenValue, issuedAt, expireAt, headers, claims)
 }
