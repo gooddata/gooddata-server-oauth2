@@ -16,7 +16,6 @@
 package com.gooddata.oauth2.server
 
 import com.nimbusds.jwt.JWTClaimNames
-import java.time.Instant
 import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
 import org.springframework.http.HttpStatus
@@ -27,6 +26,7 @@ import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilterChain
 import reactor.core.publisher.Mono
+import java.time.Instant
 
 /**
  * If `SecurityContext` contains [JwtAuthenticationToken] the [JwtAuthenticationProcessor] handles the
@@ -36,7 +36,7 @@ import reactor.core.publisher.Mono
 class JwtAuthenticationProcessor(
     private val client: AuthenticationStoreClient,
     private val serverLogoutHandler: ServerLogoutHandler,
-    private val reactorUserContextProvider: ReactorUserContextProvider
+    private val reactorUserContextProvider: ReactorUserContextProvider,
 ) : AuthenticationProcessor<JwtAuthenticationToken>(reactorUserContextProvider) {
 
     private val logger = KotlinLogging.logger {}
@@ -46,11 +46,12 @@ class JwtAuthenticationProcessor(
         authenticationToken: JwtAuthenticationToken,
         exchange: ServerWebExchange,
         chain: WebFilterChain,
-    ): Mono<Void> = mono { client.getOrganizationByHostname(exchange.request.uri.host) }
-        .flatMap { organization -> validateJwtToken(authenticationToken, organization) }
-        .flatMap { organization ->
+    ): Mono<Void> =
+        withOrganizationFromContext().flatMap { organization ->
+            validateJwtToken(authenticationToken, organization)
+        }.flatMap { organization ->
             getUserForJwtToken(exchange, chain, authenticationToken, organization).flatMap { user ->
-                val userName = authenticationToken.tokenAttributes["name"].toString()
+                val userName = authenticationToken.tokenAttributeOrNull("name").toString()
                 withUserContext(organization, user, userName) {
                     chain.filter(exchange)
                 }
@@ -59,10 +60,10 @@ class JwtAuthenticationProcessor(
 
     private fun validateJwtToken(
         token: JwtAuthenticationToken,
-        organization: Organization
+        organization: Organization,
     ): Mono<Organization> {
         val tokenHash = hashStringWithMD5(token.token.tokenValue)
-        val jwtId = token.tokenAttributes[JWTClaimNames.JWT_ID]?.toString() ?: throw JwtVerificationException()
+        val jwtId = token.tokenAttributeOrNull(JWTClaimNames.JWT_ID).toString()
         return mono { client.isValidJwt(organization.id, token.name, tokenHash, jwtId) }.map { isValid ->
             when (isValid) {
                 true -> organization
@@ -84,14 +85,24 @@ class JwtAuthenticationProcessor(
                 "User with ID='${authenticationToken.name}' is not registered"
             )
         }.flatMap { user ->
-            val tokenIssuedAtTime = authenticationToken.tokenAttributes[JWTClaimNames.ISSUED_AT] as Instant
-            val lastLogoutAllTimestamp = user.lastLogoutAllTimestamp
-            val isValid = lastLogoutAllTimestamp == null || tokenIssuedAtTime.isAfter(lastLogoutAllTimestamp)
-            logger.info { "getUserForJwtToken is valid $tokenIssuedAtTime $lastLogoutAllTimestamp $isValid" }
-            if (!isValid) {
+            val tokenIssuedAtTime = authenticationToken.tokenAttributeOrNull(JWTClaimNames.ISSUED_AT) as Instant?
+            val isValidToken = isValidToken(tokenIssuedAtTime, user.lastLogoutAllTimestamp)
+            logger.info {
+                "getUserForJwtToken is valid $tokenIssuedAtTime ${user.lastLogoutAllTimestamp} $isValidToken"
+            }
+            if (!isValidToken) {
                 serverLogoutHandler.logout(WebFilterExchange(exchange, chain), authenticationToken)
                     .then(Mono.error(JwtDisabledException()))
             } else Mono.just(user)
         }
+    }
+
+    companion object {
+        private fun isValidToken(tokenIssuedAtTime: Instant?, lastLogoutAllTimestamp: Instant?): Boolean =
+            lastLogoutAllTimestamp == null ||
+                tokenIssuedAtTime != null && tokenIssuedAtTime.isAfter(lastLogoutAllTimestamp)
+
+        private fun JwtAuthenticationToken.tokenAttributeOrNull(attribute: String): Any? =
+            tokenAttributes.getOrDefault(attribute, null)
     }
 }

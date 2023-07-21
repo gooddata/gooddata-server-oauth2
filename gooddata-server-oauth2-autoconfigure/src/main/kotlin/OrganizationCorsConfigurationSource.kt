@@ -31,8 +31,10 @@ class OrganizationCorsConfigurationSource(private val authenticationStoreClient:
 
     @Suppress("TooGenericExceptionCaught")
     fun getOrganizationCorsConfiguration(serverName: String) = try {
+        val orgMono = withOrganizationFromContext()
+
         runBlocking {
-            authenticationStoreClient.getOrganizationByHostname(serverName)
+            getSuspendedOrganization(orgMono)
         }.let {
             it.allowedOrigins?.toCorsConfiguration()
         }

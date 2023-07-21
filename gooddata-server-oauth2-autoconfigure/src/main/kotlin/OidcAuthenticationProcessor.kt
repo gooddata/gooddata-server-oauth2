@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server
 
+import kotlinx.coroutines.reactive.awaitSingle
 import java.time.Instant
 import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
@@ -44,7 +45,7 @@ class OidcAuthenticationProcessor(
     private val client: AuthenticationStoreClient,
     private val authenticationEntryPoint: ServerAuthenticationEntryPoint,
     private val serverLogoutHandler: ServerLogoutHandler,
-    private val reactorUserContextProvider: ReactorUserContextProvider
+    private val reactorUserContextProvider: ReactorUserContextProvider,
 ) : AuthenticationProcessor<OAuth2AuthenticationToken>(reactorUserContextProvider) {
 
     private val logger = KotlinLogging.logger {}
@@ -87,8 +88,8 @@ class OidcAuthenticationProcessor(
         authenticationStoreClient: AuthenticationStoreClient,
         authenticationToken: OAuth2AuthenticationToken,
     ): UserContext {
-        val organization =
-            authenticationStoreClient.getOrganizationByHostname(authenticationToken.authorizedClientRegistrationId)
+        val organization = withOrganizationFromContext().awaitSingle()
+
         return authenticationStoreClient.getUserByAuthenticationId(
             organization.id,
             authenticationToken.principal.attributes[IdTokenClaimNames.SUB] as String

@@ -20,6 +20,7 @@ import com.google.crypto.tink.JsonKeysetReader
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
 import io.mockk.slot
 import io.mockk.spyk
 import io.mockk.verify
@@ -29,11 +30,13 @@ import net.javacrumbs.jsonunit.core.Configuration
 import net.javacrumbs.jsonunit.core.Option
 import net.javacrumbs.jsonunit.core.util.ResourceUtils.resource
 import org.intellij.lang.annotations.Language
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpCookie
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest
 import org.springframework.util.CollectionUtils.toMultiValueMap
 import org.springframework.web.server.ServerWebExchange
+import reactor.core.publisher.Mono
 import strikt.api.expectThat
 import strikt.assertions.isEqualTo
 import strikt.assertions.isTrue
@@ -69,8 +72,7 @@ internal class CookieServerAuthorizationRequestRepositoryTest {
     """
 
     private val client: AuthenticationStoreClient = mockk {
-        coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
-        coEvery { getCookieSecurityProperties("org") } returns CookieSecurityProperties(
+        coEvery { getCookieSecurityProperties(ORG_ID) } returns CookieSecurityProperties(
             keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
             lastRotation = Instant.now(),
             rotationInterval = Duration.ofDays(1),
@@ -196,5 +198,16 @@ internal class CookieServerAuthorizationRequestRepositoryTest {
 
         // one for loaded request, one for terminal
         verify(exactly = 2) { cookieService.invalidateCookie(exchange, SPRING_SEC_OAUTH2_AUTHZ_RQ) }
+    }
+
+    companion object {
+        private const val ORG_ID = "org"
+
+        @JvmStatic
+        @BeforeAll
+        fun init() {
+            mockkStatic(::withOrganizationFromContext)
+            every { withOrganizationFromContext() } returns Mono.just(Organization(ORG_ID))
+        }
     }
 }

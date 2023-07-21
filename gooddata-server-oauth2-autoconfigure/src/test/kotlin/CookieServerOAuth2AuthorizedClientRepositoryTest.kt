@@ -20,6 +20,7 @@ import com.google.crypto.tink.JsonKeysetReader
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
 import io.mockk.slot
 import io.mockk.spyk
 import io.mockk.verify
@@ -30,6 +31,7 @@ import net.javacrumbs.jsonunit.core.Configuration
 import net.javacrumbs.jsonunit.core.Option
 import net.javacrumbs.jsonunit.core.util.ResourceUtils.resource
 import org.intellij.lang.annotations.Language
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpCookie
 import org.springframework.security.core.Authentication
@@ -81,8 +83,7 @@ internal class CookieServerOAuth2AuthorizedClientRepositoryTest {
     """
 
     private val client: AuthenticationStoreClient = mockk {
-        coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
-        coEvery { getCookieSecurityProperties("org") } returns CookieSecurityProperties(
+        coEvery { getCookieSecurityProperties(ORG_ID) } returns CookieSecurityProperties(
             keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
             lastRotation = Instant.now(),
             rotationInterval = Duration.ofDays(1),
@@ -234,5 +235,16 @@ internal class CookieServerOAuth2AuthorizedClientRepositoryTest {
         }
 
         verify(exactly = 1) { cookieService.invalidateCookie(exchange, SPRING_SEC_OAUTH2_AUTHZ_CLIENT) }
+    }
+
+    companion object {
+        private const val ORG_ID = "org"
+
+        @JvmStatic
+        @BeforeAll
+        fun init() {
+            mockkStatic(::withOrganizationFromContext)
+            every { withOrganizationFromContext() } returns Mono.just(Organization(ORG_ID))
+        }
     }
 }

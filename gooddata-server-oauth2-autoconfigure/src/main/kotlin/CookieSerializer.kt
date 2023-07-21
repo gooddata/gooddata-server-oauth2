@@ -89,7 +89,7 @@ class CookieSerializer(
 
     private fun resolveAndCacheAead(hostname: Hostname, now: Instant): Aead {
         // process before compute() method for not blocking cache
-        val cookieSecurityProperties = readCookieSecurityProperties(hostname)
+        val cookieSecurityProperties = readCookieSecurityProperties()
         return aeadCache.compute(hostname) { _, _ ->
             AeadWithExpiration(
                 aead = cookieSecurityProperties.keySet.getPrimitive(Aead::class.java),
@@ -98,9 +98,13 @@ class CookieSerializer(
         }!!.aead
     }
 
-    private fun readCookieSecurityProperties(hostname: Hostname) = runBlocking {
-        val organization = client.getOrganizationByHostname(hostname)
-        client.getCookieSecurityProperties(organization.id)
+    private fun readCookieSecurityProperties(): CookieSecurityProperties {
+        val orgMono = withOrganizationFromContext()
+
+        return runBlocking {
+            val organization = getSuspendedOrganization(orgMono)
+            client.getCookieSecurityProperties(organization.id)
+        }
     }
 
     private fun ByteArray.toBase64(): String = String(Base64.getEncoder().encode(this))

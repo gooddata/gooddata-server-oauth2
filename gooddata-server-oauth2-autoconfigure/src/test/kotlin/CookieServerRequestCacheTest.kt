@@ -20,15 +20,18 @@ import com.google.crypto.tink.JsonKeysetReader
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
 import io.mockk.slot
 import io.mockk.spyk
 import io.mockk.verify
 import io.netty.handler.codec.http.cookie.CookieHeaderNames
 import org.intellij.lang.annotations.Language
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpCookie
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
+import reactor.core.publisher.Mono
 import strikt.api.expectThat
 import strikt.assertions.isEqualTo
 import strikt.assertions.isTrue
@@ -64,8 +67,7 @@ internal class CookieServerRequestCacheTest {
     """
 
     private val client: AuthenticationStoreClient = mockk {
-        coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
-        coEvery { getCookieSecurityProperties("org") } returns CookieSecurityProperties(
+        coEvery { getCookieSecurityProperties(ORG_ID) } returns CookieSecurityProperties(
             keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
             lastRotation = Instant.now(),
             rotationInterval = Duration.ofDays(1),
@@ -151,6 +153,16 @@ internal class CookieServerRequestCacheTest {
         expectThat(uri.blockOptional()) {
             get { isPresent }.isTrue()
             get { get() }.isEqualTo(URI.create(redirect))
+        }
+    }
+
+    companion object {
+        private const val ORG_ID = "org"
+        @JvmStatic
+        @BeforeAll
+        fun init() {
+            mockkStatic(::withOrganizationFromContext)
+            every { withOrganizationFromContext() } returns Mono.just(Organization(ORG_ID))
         }
     }
 }

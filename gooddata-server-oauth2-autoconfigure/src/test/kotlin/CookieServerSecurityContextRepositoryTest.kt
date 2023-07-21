@@ -27,6 +27,7 @@ import com.nimbusds.openid.connect.sdk.claims.UserInfo
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
 import io.mockk.slot
 import io.mockk.spyk
 import io.mockk.verify
@@ -38,6 +39,7 @@ import net.javacrumbs.jsonunit.core.util.ResourceUtils.resource
 import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpCookie
 import org.springframework.security.core.context.SecurityContext
@@ -101,8 +103,7 @@ internal class CookieServerSecurityContextRepositoryTest {
     """
 
     private val client: AuthenticationStoreClient = mockk {
-        coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
-        coEvery { getCookieSecurityProperties("org") } returns CookieSecurityProperties(
+        coEvery { getCookieSecurityProperties(ORG_ID) } returns CookieSecurityProperties(
             keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
             lastRotation = Instant.now(),
             rotationInterval = Duration.ofDays(1),
@@ -413,9 +414,17 @@ internal class CookieServerSecurityContextRepositoryTest {
         private val wireMockServer = WireMockServer(WireMockConfiguration().dynamicPort()).apply {
             start()
         }
+        private const val ORG_ID = "org"
 
-        @AfterAll
         @JvmStatic
+        @BeforeAll
+        fun init() {
+            mockkStatic(::withOrganizationFromContext)
+            every { withOrganizationFromContext() } returns Mono.just(Organization(ORG_ID))
+        }
+
+        @JvmStatic
+        @AfterAll
         fun cleanUp() {
             wireMockServer.stop()
         }

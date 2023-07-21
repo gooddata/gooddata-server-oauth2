@@ -22,7 +22,9 @@ import com.nimbusds.jose.jwk.RSAKey
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
 import net.javacrumbs.jsonunit.core.util.ResourceUtils
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
@@ -31,6 +33,7 @@ import org.springframework.security.oauth2.client.authentication.OAuth2Authentic
 import org.springframework.security.oauth2.server.resource.BearerTokenAuthenticationToken
 import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException
 import org.springframework.web.server.ServerWebExchange
+import reactor.core.publisher.Mono
 import strikt.api.expectThat
 import strikt.api.expectThrows
 import strikt.assertions.isEqualTo
@@ -140,6 +143,26 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
         }
     }
 
+    @Test
+    fun `authentication fails for non-matching private key alg with JWT`() {
+        val exchange: ServerWebExchange = mockk {
+            every { request.uri.host } returns HOST
+        }
+
+        coEvery { client.getOrganizationByHostname(HOST) } returns Organization(ORG_ID)
+        coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
+
+        val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
+        val manager = resolver.resolve(exchange).block()!!
+
+        val invalidJwt = ResourceUtils.resource("jwt/jwt_non_matching_alg.txt").readText()
+        expectThrows<JwtVerificationException> {
+            manager.authenticate(BearerTokenAuthenticationToken(invalidJwt)).block()
+        }.and {
+            get { message }.isEqualTo("The JWT contains invalid claims.")
+        }
+    }
+
     @ParameterizedTest
     @ValueSource(strings = ["jku", "x5u", "jwk", "x5c"])
     fun `authentication fails for JWT with invalid fields`(parameterName: String) {
@@ -184,8 +207,9 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
         }
     }
 
-    @Test
-    fun `test auth failed for missing name attribute`() {
+    @ParameterizedTest
+    @ValueSource(strings = ["iat", "exp", "name", "sub", "iat_and_exp"])
+    fun `test auth failed for missing mandatory attribute`(attribute: String) {
         val exchange: ServerWebExchange = mockk {
             every { request.uri.host } returns HOST
         }
@@ -196,12 +220,12 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!
 
-        val invalidJwt = ResourceUtils.resource("jwt/jwt_missing_name_attr.txt").readText()
-
+        val invalidJwt = ResourceUtils.resource("jwt/jwt_missing_${attribute}_attr.txt").readText()
         expectThrows<JwtVerificationException> {
             manager.authenticate(BearerTokenAuthenticationToken(invalidJwt)).block()
         }.and {
-            get { message }.isEqualTo("The JWT contains invalid claims.")
+            val invalidClaims = attribute.split("_and_")
+            get { message }.isEqualTo(JwtVerificationException.invalidClaimsMessage(invalidClaims))
         }
     }
 
@@ -237,20 +261,27 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
         val id: String,
         val value: String,
         val algorithm: Algorithm = Algorithm.parse("RS256"),
-        val useAs: KeyUse = KeyUse.SIGNATURE
+        val useAs: KeyUse = KeyUse.SIGNATURE,
     )
 
     companion object {
         private const val HOST = "localhost"
         private const val ORG_ID = "organizationId"
-        private const val USER_ID = "userId"
+        private const val USER_ID = "demo.key001"
         private const val TOKEN = "supersecuretoken"
-        private const val PUBLIC_KEY_ID = "key.1"
+        private const val PUBLIC_KEY_ID = "kid001_rs256"
 
         private val PUBLIC_KEY_VALUE = ResourceUtils.resource("jwt/jwk_public_key.txt").readText()
         private val PUBLIC_KEY = PublicKey(PUBLIC_KEY_ID, PUBLIC_KEY_VALUE)
 
         private val VALID_JWT = ResourceUtils.resource("jwt/jwt_valid.txt").readText()
         private val EXPIRED_JWT = ResourceUtils.resource("jwt/jwt_expired.txt").readText()
+
+        @JvmStatic
+        @BeforeAll
+        fun init() {
+            mockkStatic(::withOrganizationFromContext)
+            every { withOrganizationFromContext() } returns Mono.just(Organization(ORG_ID))
+        }
     }
 }

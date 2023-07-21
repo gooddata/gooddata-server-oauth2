@@ -18,23 +18,26 @@ class CustomDelegatingReactiveAuthenticationManager(
             withAction("login")
             withState("started")
         }
-        return Flux.fromIterable(delegates)
-            .concatMap { delegate ->
-                delegate.authenticate(authentication)
-            }
-            .doOnError { t ->
-                logger.logError(t) {
-                    withAction("login")
-                    withState("error")
+        return withOrganizationFromContext().flatMap { organization ->
+            val orgId = organization?.id ?: ""
+            Flux.fromIterable(delegates)
+                .concatMap { delegate ->
+                    delegate.authenticate(authentication)
                 }
-            }.next()
-            .doOnNext {
-                logger.logInfo {
-                    withMessage { "User authenticated" }
-                    withAction("login")
-                    withState("finished")
-                    withUserId(it.userId())
+                .doOnError { t ->
+                    logger.logError(t) {
+                        withAction("login")
+                        withState("error")
+                    }
+                }.next()
+                .doOnNext {
+                    logger.logInfo {
+                        withMessage { "User authenticated" }
+                        withAction("login")
+                        withState("finished")
+                        withOrganizationId(orgId)
+                    }
                 }
-            }
+        }
     }
 }

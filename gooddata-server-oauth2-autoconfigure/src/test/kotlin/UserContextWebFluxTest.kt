@@ -23,6 +23,8 @@ import com.ninjasquad.springmockk.SpykBean
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
@@ -30,6 +32,8 @@ import kotlinx.coroutines.reactor.ReactorContext
 import kotlinx.coroutines.reactor.asCoroutineContext
 import net.javacrumbs.jsonunit.core.util.ResourceUtils
 import org.intellij.lang.annotations.Language
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest
@@ -99,19 +103,37 @@ class UserContextWebFluxTest(
         }
     """
 
+    @BeforeEach
+    fun setup() {
+        mockkStatic(::withOrganizationFromContext)
+    }
+
+    @AfterEach
+    fun tearDown() {
+        unmockkStatic(::withOrganizationFromContext)
+    }
+
     @Test
     fun `filter works with cookies`() {
         everyValidSecurityContext()
         everyValidOrganization()
+        every { withOrganizationFromContext() } returns Mono.just(
+            Organization(
+                ORG_ID,
+                oauthClientId = "clientId",
+                oauthClientSecret = "clientSecret",
+            )
+        )
+
         coEvery {
             authenticationStoreClient.getUserByAuthenticationId(
-                "organizationTestId",
+                ORG_ID,
                 SUB_CLAIM_VALUE
             )
         } returns User(
             "userTestId",
         )
-        coEvery { authenticationStoreClient.getCookieSecurityProperties("organizationTestId") } returns
+        coEvery { authenticationStoreClient.getCookieSecurityProperties(ORG_ID) } returns
             CookieSecurityProperties(
                 keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
                 lastRotation = Instant.now(),
@@ -140,13 +162,13 @@ class UserContextWebFluxTest(
         everyValidOrganization()
         coEvery {
             authenticationStoreClient.getUserByAuthenticationId(
-                "organizationTestId",
+                ORG_ID,
                 SUB_CLAIM_VALUE
             )
         } returns User(
             "userTestId",
         )
-        coEvery { authenticationStoreClient.getCookieSecurityProperties("organizationTestId") } returns
+        coEvery { authenticationStoreClient.getCookieSecurityProperties(ORG_ID) } returns
             CookieSecurityProperties(
                 keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
                 lastRotation = Instant.now(),
@@ -172,15 +194,16 @@ class UserContextWebFluxTest(
             oauthClientSecret = "clientSecret",
             allowedOrigins = listOf("https://localhost:8443"),
         )
+        every { withOrganizationFromContext() } returns Mono.just(ORGANIZATION)
         coEvery {
             authenticationStoreClient.getUserByAuthenticationId(
-                "organizationTestId",
+                ORG_ID,
                 SUB_CLAIM_VALUE
             )
         } returns User(
             "userId",
         )
-        coEvery { authenticationStoreClient.getCookieSecurityProperties("organizationTestId") } returns
+        coEvery { authenticationStoreClient.getCookieSecurityProperties(ORG_ID) } returns
             CookieSecurityProperties(
                 keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
                 lastRotation = Instant.now(),
@@ -201,6 +224,7 @@ class UserContextWebFluxTest(
     @Test
     fun `filter redirects without cookies`() {
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
+        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } returns ORGANIZATION
 
         webClient.get().uri("http://localhost/")
             .exchange()
@@ -212,6 +236,7 @@ class UserContextWebFluxTest(
     @Test
     fun `filter redirects appLogin without cookies`() {
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
+        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } returns ORGANIZATION
 
         webClient.get().uri("http://localhost/appLogin?redirectTo=/api/profile")
             .exchange()
@@ -223,6 +248,12 @@ class UserContextWebFluxTest(
     @Test
     fun `filter redirects without cookies and XMLHttpRequest`() {
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
+        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } returns Organization(
+            id = ORG_ID,
+            oauthClientId = "clientId",
+            oauthClientSecret = "clientSecret",
+            allowedOrigins = listOf("https://localhost:8443"),
+        )
 
         webClient.get().uri("http://localhost/")
             .header("X-Requested-With", "XMLHttpRequest")
@@ -235,7 +266,7 @@ class UserContextWebFluxTest(
     @Test
     fun `cookies fail with error in organization retrieval`() {
         everyValidSecurityContext()
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } throws RuntimeException("msg")
+        every { withOrganizationFromContext() } throws RuntimeException("msg")
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
@@ -282,7 +313,7 @@ class UserContextWebFluxTest(
         everyValidSecurityContext()
         everyValidOrganization()
         coEvery {
-            authenticationStoreClient.getUserByAuthenticationId("organizationTestId", SUB_CLAIM_VALUE)
+            authenticationStoreClient.getUserByAuthenticationId(ORG_ID, SUB_CLAIM_VALUE)
         } returns null
 
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
@@ -309,7 +340,7 @@ class UserContextWebFluxTest(
         everyValidOrganization()
         coEvery {
             authenticationStoreClient.getUserByAuthenticationId(
-                "organizationTestId",
+                ORG_ID,
                 SUB_CLAIM_VALUE
             )
         } returns User(
@@ -333,7 +364,7 @@ class UserContextWebFluxTest(
     fun `filter works with bearer token`() {
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
         everyValidOrganization()
-        coEvery { authenticationStoreClient.getUserByApiToken("organizationTestId", "supersecuretoken") } returns User(
+        coEvery { authenticationStoreClient.getUserByApiToken(ORG_ID, "supersecuretoken") } returns User(
             "userTestId",
         )
 
@@ -347,7 +378,8 @@ class UserContextWebFluxTest(
     @Test
     fun `bearer token fails with error organization`() {
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } throws RuntimeException("msg")
+        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } throws
+            RuntimeException("msg")
 
         webClient.get().uri("http://localhost/")
             .header("Authorization", "Bearer supersecuretoken")
@@ -367,7 +399,6 @@ class UserContextWebFluxTest(
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
         coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } throws
             ResponseStatusException(HttpStatus.NOT_FOUND, "Hostname is not registered")
-
         webClient.get().uri("http://localhost/")
             .header("Authorization", "Bearer supersecuretoken")
             .exchange()
@@ -385,7 +416,7 @@ class UserContextWebFluxTest(
     fun `bearer token fails with missing API token`() {
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
         everyValidOrganization()
-        coEvery { authenticationStoreClient.getUserByApiToken("organizationTestId", "supersecuretoken") } throws
+        coEvery { authenticationStoreClient.getUserByApiToken(ORG_ID, "supersecuretoken") } throws
             InvalidBearerTokenException("msg")
 
         webClient.get().uri("http://localhost/")
@@ -438,7 +469,8 @@ class UserContextWebFluxTest(
     @Test
     fun `error from organization fails to redirect to OIDC`() {
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } throws RuntimeException("msg")
+        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } throws
+            RuntimeException("msg")
 
         webClient.get().uri("http://localhost/oauth2/authorization/localhost")
             .exchange()
@@ -457,6 +489,12 @@ class UserContextWebFluxTest(
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
         every { serverSecurityContextRepository.save(any(), null) } returns Mono.empty()
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.empty()
+        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } returns Organization(
+            id = ORG_ID,
+            oauthClientId = "clientId",
+            oauthClientSecret = "clientSecret",
+            allowedOrigins = listOf("https://localhost:8443"),
+        )
 
         webClient.get().uri("http://localhost/logout")
             .exchange()
@@ -472,7 +510,7 @@ class UserContextWebFluxTest(
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.empty()
         everyValidOrganization()
         coEvery {
-            authenticationStoreClient.getUserByAuthenticationId("organizationTestId", SUB_CLAIM_VALUE)
+            authenticationStoreClient.getUserByAuthenticationId(ORG_ID, SUB_CLAIM_VALUE)
         } returns User("userTestId")
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
@@ -490,6 +528,8 @@ class UserContextWebFluxTest(
     fun `POST logout ends with 405`() {
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
         every { serverSecurityContextRepository.save(any(), null) } returns Mono.empty()
+        everyValidOrganization()
+        every { withOrganizationFromContext() } returns Mono.just(ORGANIZATION)
 
         webClient.post().uri("http://localhost/logout")
             .exchange()
@@ -501,6 +541,8 @@ class UserContextWebFluxTest(
     fun `POST logout all ends with 405`() {
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
         every { serverSecurityContextRepository.save(any(), null) } returns Mono.empty()
+        everyValidOrganization()
+        every { withOrganizationFromContext() } returns Mono.just(ORGANIZATION)
 
         webClient.post().uri("http://localhost/logout/all")
             .exchange()
@@ -534,7 +576,7 @@ class UserContextWebFluxTest(
 
     private fun everyValidOrganization() {
         coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } returns Organization(
-            "organizationTestId",
+            ORG_ID,
             oauthClientId = "clientId",
             oauthClientSecret = "clientSecret",
         )
@@ -593,5 +635,12 @@ class UserContextWebFluxTest(
     companion object {
         private const val SUB_CLAIM_VALUE = "sub|123"
         private const val NAME_CLAIM_VALUE = "sub"
+        private const val ORG_ID = "organizationTestId"
+        private val ORGANIZATION = Organization(
+            id = ORG_ID,
+            oauthClientId = "clientId",
+            oauthClientSecret = "clientSecret",
+            allowedOrigins = listOf("https://localhost:8443"),
+        )
     }
 }

@@ -21,17 +21,20 @@ import com.google.crypto.tink.JsonKeysetReader
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
 import io.mockk.slot
 import io.mockk.verify
 import io.netty.handler.codec.http.cookie.CookieHeaderNames
 import net.javacrumbs.jsonunit.core.util.ResourceUtils.resource
 import org.intellij.lang.annotations.Language
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpCookie
 import org.springframework.http.ResponseCookie
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest
 import org.springframework.util.CollectionUtils
 import org.springframework.web.server.ServerWebExchange
+import reactor.core.publisher.Mono
 import strikt.api.expectThat
 import strikt.assertions.isEqualTo
 import strikt.assertions.isFalse
@@ -49,7 +52,6 @@ internal class ReactiveCookieServiceTest {
     }
 
     private val client: AuthenticationStoreClient = mockk {
-        coEvery { getOrganizationByHostname(HOSTNAME) } returns Organization(ORG_ID)
         coEvery { getCookieSecurityProperties(ORG_ID) } returns COOKIE_SECURITY_PROPS
     }
 
@@ -199,5 +201,12 @@ internal class ReactiveCookieServiceTest {
             lastRotation = Instant.now(),
             rotationInterval = Duration.ofDays(1),
         )
+
+        @JvmStatic
+        @BeforeAll
+        fun init() {
+            mockkStatic(::withOrganizationFromContext)
+            every { withOrganizationFromContext() } returns Mono.just(Organization(ORG_ID))
+        }
     }
 }

@@ -16,11 +16,11 @@
 package com.gooddata.oauth2.server
 
 import io.mockk.Called
-import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
 import io.mockk.verify
-import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
@@ -50,15 +50,6 @@ internal class AppLoginRedirectProcessorTest {
     }
     private val defaultFun = mockk<() -> Mono<Void>> {
         every { this@mockk.invoke() } returns Mono.empty()
-    }
-
-    @BeforeEach
-    internal fun setUp() {
-        val organization = Organization(
-            id = "organizationId",
-            allowedOrigins = ALLOWED_ORIGINS
-        )
-        coEvery { client.getOrganizationByHostname("localhost") } returns organization
     }
 
     @Test
@@ -313,5 +304,17 @@ internal class AppLoginRedirectProcessorTest {
 
         @JvmStatic
         fun hosts() = ALLOWED_ORIGINS + GLOBAL_ALLOWED_URI
+
+        @JvmStatic
+        @BeforeAll
+        fun init() {
+            mockkStatic(::withOrganizationFromContext)
+            every { withOrganizationFromContext() } returns Mono.just(
+                Organization(
+                    id = "organizationId",
+                    allowedOrigins = ALLOWED_ORIGINS
+                )
+            )
+        }
     }
 }

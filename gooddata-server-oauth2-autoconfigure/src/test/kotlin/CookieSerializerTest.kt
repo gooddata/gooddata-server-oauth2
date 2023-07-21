@@ -24,7 +24,9 @@ import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.netty.handler.codec.http.cookie.CookieHeaderNames
 import org.intellij.lang.annotations.Language
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import reactor.core.publisher.Mono
 import strikt.api.expectCatching
 import strikt.api.expectThat
 import strikt.api.expectThrows
@@ -57,8 +59,7 @@ internal class CookieSerializerTest {
     """
 
     private val client: AuthenticationStoreClient = mockk {
-        coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
-        coEvery { getCookieSecurityProperties("org") } returns CookieSecurityProperties(
+        coEvery { getCookieSecurityProperties(ORG_ID) } returns CookieSecurityProperties(
             keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
             lastRotation = Instant.now(),
             rotationInterval = Duration.ofDays(1),
@@ -145,8 +146,8 @@ internal class CookieSerializerTest {
         mockkStatic(Instant::class)
 
         val client: AuthenticationStoreClient = mockk {
-            coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
-            coEvery { getCookieSecurityProperties("org") } answers {
+            coEvery { getOrganizationByHostname("localhost") } returns Organization(ORG_ID)
+            coEvery { getCookieSecurityProperties(ORG_ID) } answers {
                 CookieSecurityProperties(
                     keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
                     lastRotation = Instant.now(),
@@ -168,17 +169,17 @@ internal class CookieSerializerTest {
 
         // Called with no cache - read from backend
         cookieSerializer.encodeCookie("localhost", "")
-        coVerify(exactly = 1) { client.getCookieSecurityProperties("org") }
+        coVerify(exactly = 1) { client.getCookieSecurityProperties(ORG_ID) }
 
         // Called before rotationInterval and before TTL - use cache
         every { Instant.now() } returns Instant.ofEpochSecond(9)
         cookieSerializer.encodeCookie("localhost", "")
-        coVerify(exactly = 1) { client.getCookieSecurityProperties("org") }
+        coVerify(exactly = 1) { client.getCookieSecurityProperties(ORG_ID) }
 
         // Call after rotationInterval and before TTL - read from backend
         every { Instant.now() } returns Instant.ofEpochSecond(11)
         cookieSerializer.encodeCookie("localhost", "")
-        coVerify(exactly = 2) { client.getCookieSecurityProperties("org") }
+        coVerify(exactly = 2) { client.getCookieSecurityProperties(ORG_ID) }
     }
 
     @Test
@@ -186,8 +187,8 @@ internal class CookieSerializerTest {
         mockkStatic(Instant::class)
 
         val client: AuthenticationStoreClient = mockk {
-            coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
-            coEvery { getCookieSecurityProperties("org") } answers {
+            coEvery { getOrganizationByHostname("localhost") } returns Organization(ORG_ID)
+            coEvery { getCookieSecurityProperties(ORG_ID) } answers {
                 CookieSecurityProperties(
                     keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
                     lastRotation = Instant.now(),
@@ -209,16 +210,27 @@ internal class CookieSerializerTest {
 
         // Called with no cache - read from backend
         cookieSerializer.encodeCookie("localhost", "")
-        coVerify(exactly = 1) { client.getCookieSecurityProperties("org") }
+        coVerify(exactly = 1) { client.getCookieSecurityProperties(ORG_ID) }
 
         // Called before rotationInterval and after TTL - read from backend
         every { Instant.now() } returns Instant.ofEpochSecond(9)
         cookieSerializer.encodeCookie("localhost", "")
-        coVerify(exactly = 2) { client.getCookieSecurityProperties("org") }
+        coVerify(exactly = 2) { client.getCookieSecurityProperties(ORG_ID) }
 
         // Call after rotationInterval and after TTL - read from backend
         every { Instant.now() } returns Instant.ofEpochSecond(20)
         cookieSerializer.encodeCookie("localhost", "")
-        coVerify(exactly = 3) { client.getCookieSecurityProperties("org") }
+        coVerify(exactly = 3) { client.getCookieSecurityProperties(ORG_ID) }
+    }
+
+    companion object {
+        private const val ORG_ID = "org"
+
+        @JvmStatic
+        @BeforeAll
+        fun init() {
+            mockkStatic(::withOrganizationFromContext)
+            every { withOrganizationFromContext() } returns Mono.just(Organization(ORG_ID))
+        }
     }
 }

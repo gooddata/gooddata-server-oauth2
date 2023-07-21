@@ -15,8 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.reactor.mono
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository
 import reactor.core.publisher.Mono
@@ -26,18 +24,20 @@ import reactor.core.publisher.Mono
  * Client registrations are identified by request's hostname.
  */
 class HostBasedReactiveClientRegistrationRepository(
-    private val authenticationStoreClient: AuthenticationStoreClient,
     private val properties: HostBasedClientRegistrationRepositoryProperties,
     private val clientRegistrationBuilderCache: ClientRegistrationBuilderCache,
 ) : ReactiveClientRegistrationRepository {
 
-    override fun findByRegistrationId(registrationId: String): Mono<ClientRegistration> = mono(Dispatchers.Unconfined) {
+    override fun findByRegistrationId(registrationId: String): Mono<ClientRegistration> =
+        withOrganizationFromContext().flatMap {
+            Mono.just(registrationId.buildRegistration(it))
+        }
+
+    private fun String.buildRegistration(organization: Organization) =
         buildClientRegistration(
-            // we store hostname in registrationId
-            registrationId = registrationId,
-            organization = authenticationStoreClient.getOrganizationByHostname(registrationId),
+            registrationId = this,
+            organization = organization,
             properties = properties,
             clientRegistrationBuilderCache = clientRegistrationBuilderCache
         )
-    }
 }

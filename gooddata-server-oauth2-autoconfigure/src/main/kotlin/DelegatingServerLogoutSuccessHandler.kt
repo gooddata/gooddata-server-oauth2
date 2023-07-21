@@ -14,7 +14,7 @@ import reactor.core.publisher.Mono
  * Delegates to a collection of {@link ServerLogoutSuccessHandler} implementations.
  */
 class DelegatingServerLogoutSuccessHandler(
-    vararg delegates: ServerLogoutSuccessHandler
+    vararg delegates: ServerLogoutSuccessHandler,
 ) : ServerLogoutSuccessHandler {
 
     private val logger = KotlinLogging.logger {}
@@ -23,14 +23,17 @@ class DelegatingServerLogoutSuccessHandler(
     override fun onLogoutSuccess(exchange: WebFilterExchange, authentication: Authentication): Mono<Void> =
         Flux.fromIterable(delegates).concatMap { delegate ->
             delegate.onLogoutSuccess(exchange, authentication)
-        }.then(logSuccess(authentication))
+        }.then(logLogout(authentication))
 
-    private fun logSuccess(authentication: Authentication): Mono<Void> {
-        logger.logInfo {
-            withMessage { "User logout" }
-            withAction("logout")
-            withUserId(authentication.userId())
+    private fun logLogout(authentication: Authentication): Mono<Void> =
+        withOrganizationFromContext().flatMap {
+            val orgId = it?.id ?: ""
+            logger.logInfo {
+                withMessage { "User logout" }
+                withAction("logout")
+                withUserId(authentication.userId())
+                withOrganizationId(orgId)
+            }
+            Mono.empty()
         }
-        return Mono.empty()
-    }
 }

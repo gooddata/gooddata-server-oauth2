@@ -15,20 +15,24 @@
  */
 package com.gooddata.oauth2.server
 
+import com.gooddata.oauth2.server.JwtVerificationException.Companion.invalidClaimsMessage
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.jwk.JWKSet
-import com.nimbusds.jose.proc.BadJOSEException
+import com.nimbusds.jwt.SignedJWT
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
+import mu.KotlinLogging
 import org.springframework.security.authentication.ReactiveAuthenticationManager
 import org.springframework.security.authentication.ReactiveAuthenticationManagerResolver
 import org.springframework.security.core.Authentication
+import org.springframework.security.oauth2.core.OAuth2TokenValidator
+import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.jwt.JwtException
 import org.springframework.security.oauth2.server.resource.BearerTokenAuthenticationToken
-import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException
 import org.springframework.security.oauth2.server.resource.authentication.JwtReactiveAuthenticationManager
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
+import java.text.ParseException
 
 /**
  * [ReactiveAuthenticationManagerResolver] that is able to authenticate bearer tokens.
@@ -38,10 +42,8 @@ class BearerTokenReactiveAuthenticationManagerResolver(
 ) : ReactiveAuthenticationManagerResolver<ServerWebExchange> {
 
     override fun resolve(exchange: ServerWebExchange): Mono<ReactiveAuthenticationManager> =
-        Mono.just(exchange).map { webExchange ->
-            val organizationProvider = {
-                mono { client.getOrganizationByHostname(webExchange.request.uri.host) }
-            }
+        Mono.just(exchange).map {
+            val organizationProvider = { withOrganizationFromContext() }
             CustomDelegatingReactiveAuthenticationManager(
                 JwtAuthenticationManager(client, organizationProvider),
                 PersistentApiTokenAuthenticationManager(client, organizationProvider)
@@ -75,41 +77,37 @@ private class PersistentApiTokenAuthenticationManager(
 private class JwtAuthenticationManager(
     private val client: AuthenticationStoreClient,
     private val organizationProvider: () -> Mono<Organization>,
+    private val jwtTokenValidator: OAuth2TokenValidator<Jwt> = CustomOAuth2Validator(),
 ) : ReactiveAuthenticationManager {
 
-    companion object {
-        private const val base64Regex = "[A-Za-z0-9+/_-]+={0,2}"
-        private val jwtBearerTokenRegex = Regex("^$base64Regex\\.$base64Regex\\.$base64Regex")
-    }
+    private val logger = KotlinLogging.logger {}
 
     override fun authenticate(authentication: Authentication?): Mono<Authentication> {
         return Mono.justOrEmpty(authentication)
             .filter { authentication is BearerTokenAuthenticationToken }
             .cast(BearerTokenAuthenticationToken::class.java)
             .filter(::isJwtBearerToken)
-            .flatMap { jwtToken ->
-                val decoder = prepareJwtDecoder(
-                    getJwkSet(),
-                    setOf(JWSAlgorithm.RS256, JWSAlgorithm.RS384, JWSAlgorithm.RS512)
-                )
-                decoder.setJwtValidator(CustomOAuth2Validator())
-                JwtReactiveAuthenticationManager(decoder).authenticate(jwtToken)
-                    .onErrorMap({ it.cause is JwtException }) { ex ->
-                        if (ex is InvalidBearerTokenException) {
-                            if (ex.message!!.startsWith("An error occurred while attempting to decode the Jwt")) {
-                                JwtDecodeException()
-                            } else {
-                                JwtVerificationException()
-                            }
-                        } else {
-                            when (ex.cause?.cause) {
-                                is InternalJwtExpiredException -> JwtExpiredException()
-                                is BadJOSEException -> JwtVerificationException()
-                                else -> ex
-                            }
-                        }
-                    }
+            .flatMap(::authenticate)
+    }
+
+    private fun authenticate(jwtToken: BearerTokenAuthenticationToken): Mono<Authentication>? {
+        val decoder = prepareJwtDecoder(getJwkSet(), supportedJwsAlgorithms)
+            .apply { setJwtValidator(jwtTokenValidator) }
+        return JwtReactiveAuthenticationManager(decoder).authenticate(jwtToken)
+            .onErrorMap({ it.cause is JwtException }) { ex ->
+                logger.logError(ex) {
+                    withAction("authentication")
+                    withMessage { "JWT authentication failed: ${ex.message}" }
+                    withState("error")
+                }
+                parseJwtException(ex, jwtToken)
             }
+    }
+
+    private fun parseJwtException(ex: Throwable, jwtToken: BearerTokenAuthenticationToken) = when (ex.cause?.cause) {
+        is ParseException -> JwtDecodeException()
+        is InternalJwtExpiredException -> JwtExpiredException()
+        else -> JwtVerificationException(invalidClaimsMessage(jwtToken.missingMandatoryClaims()))
     }
 
     private fun isJwtBearerToken(authToken: BearerTokenAuthenticationToken) =
@@ -118,6 +116,20 @@ private class JwtAuthenticationManager(
     private fun getJwkSet(): Mono<JWKSet> = organizationProvider().flatMap { organization ->
         mono {
             client.getJwks(organization.id).let(::JWKSet)
+        }
+    }
+
+    companion object {
+        private const val BASE_64_REGEX = "[A-Za-z0-9+/_-]+={0,2}"
+        private val jwtBearerTokenRegex = Regex("^$BASE_64_REGEX\\.$BASE_64_REGEX\\.$BASE_64_REGEX")
+        private val supportedJwsAlgorithms = setOf(JWSAlgorithm.RS256, JWSAlgorithm.RS384, JWSAlgorithm.RS512)
+        private val mandatoryClaims = listOf("name", "sub", "iat", "exp")
+
+        private fun BearerTokenAuthenticationToken.missingMandatoryClaims(): List<String> = try {
+            val tokenClaims = SignedJWT.parse(token).jwtClaimsSet.claims.keys
+            mandatoryClaims.minus(tokenClaims)
+        } catch (ex: ParseException) {
+            emptyList()
         }
     }
 }
