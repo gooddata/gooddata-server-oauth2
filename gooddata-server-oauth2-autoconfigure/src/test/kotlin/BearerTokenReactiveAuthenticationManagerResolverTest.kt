@@ -160,6 +160,26 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
         }
     }
 
+    @Test
+    fun `authentication fails for non-matching public key`() {
+        val exchange: ServerWebExchange = mockk {
+            every { request.uri.host } returns HOST
+        }
+
+        coEvery { client.getOrganizationByHostname(HOST) } returns Organization(ORG_ID)
+        coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
+
+        val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
+        val manager = resolver.resolve(exchange).block()!!
+
+        val invalidJwt = ResourceUtils.resource("jwt/jwt_non_matching_key.txt").readText()
+        expectThrows<JwtSignatureException> {
+            manager.authenticate(BearerTokenAuthenticationToken(invalidJwt)).block()
+        }.and {
+            get { message }.isEqualTo("We are unable to verify signature.")
+        }
+    }
+
     @ParameterizedTest
     @ValueSource(strings = ["jku", "x5u", "jwk", "x5c"])
     fun `authentication fails for JWT with invalid fields`(parameterName: String) {
@@ -174,6 +194,28 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
         val manager = resolver.resolve(exchange).block()!!
 
         val invalidJwt = ResourceUtils.resource("jwt/jwt_invalid_par_$parameterName.txt").readText()
+
+        expectThrows<JwtVerificationException> {
+            manager.authenticate(BearerTokenAuthenticationToken(invalidJwt)).block()
+        }.and {
+            get { message }.isEqualTo("The JWT contains invalid claims.")
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["name", "sub", "jti"])
+    fun `authentication fails for JWT with invalid fields pattern`(parameterName: String) {
+        val exchange: ServerWebExchange = mockk {
+            every { request.uri.host } returns HOST
+        }
+
+        coEvery { client.getOrganizationByHostname(HOST) } returns Organization(ORG_ID)
+        coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
+
+        val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
+        val manager = resolver.resolve(exchange).block()!!
+
+        val invalidJwt = ResourceUtils.resource("jwt/jwt_invalid_$parameterName.txt").readText()
 
         expectThrows<JwtVerificationException> {
             manager.authenticate(BearerTokenAuthenticationToken(invalidJwt)).block()
