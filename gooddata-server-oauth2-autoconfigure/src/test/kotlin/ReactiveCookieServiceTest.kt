@@ -59,6 +59,7 @@ internal class ReactiveCookieServiceTest {
 
     @Test
     fun `creates cookie`() {
+        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
         cookieService.createCookie(exchange, COOKIE_NAME, COOKIE_VALUE)
 
         val slot = slot<ResponseCookie>()
@@ -67,7 +68,7 @@ internal class ReactiveCookieServiceTest {
         expectThat(slot.captured) {
             get(ResponseCookie::getName).isEqualTo(COOKIE_NAME)
             get(ResponseCookie::getValue).describedAs("is properly encoded")
-                .get { cookieSerializer.decodeCookie(HOSTNAME, this) }.isEqualTo(COOKIE_VALUE)
+                .get { cookieSerializer.decodeCookie(exchange, this) }.isEqualTo(COOKIE_VALUE)
             get(ResponseCookie::getPath).isEqualTo("/")
             get(ResponseCookie::isHttpOnly).isTrue()
             get(ResponseCookie::isSecure).isFalse()
@@ -97,7 +98,7 @@ internal class ReactiveCookieServiceTest {
     fun `decodes cookie from empty exchange`() {
         every { exchange.request.cookies } returns CollectionUtils.toMultiValueMap(emptyMap())
 
-        val value = cookieService.decodeCookie(exchange.request, COOKIE_NAME)
+        val value = cookieService.decodeCookie(exchange, COOKIE_NAME)
 
         expectThat(value.blockOptional()) {
             get(Optional<String>::isEmpty).isTrue()
@@ -106,11 +107,12 @@ internal class ReactiveCookieServiceTest {
 
     @Test
     fun `decodes cookie from invalid exchange`() {
+        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
         every { exchange.request.cookies } returns CollectionUtils.toMultiValueMap(
             mapOf(COOKIE_NAME to listOf(HttpCookie(COOKIE_NAME, "something")))
         )
 
-        val value = cookieService.decodeCookie(exchange.request, COOKIE_NAME)
+        val value = cookieService.decodeCookie(exchange, COOKIE_NAME)
 
         expectThat(value.blockOptional()) {
             get(Optional<String>::isEmpty).isTrue()
@@ -119,12 +121,13 @@ internal class ReactiveCookieServiceTest {
 
     @Test
     fun `decodes cookie from exchange`() {
-        val encodedValue = cookieSerializer.encodeCookie(HOSTNAME, COOKIE_VALUE)
+        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
+        val encodedValue = cookieSerializer.encodeCookie(exchange, COOKIE_VALUE)
         every { exchange.request.cookies } returns CollectionUtils.toMultiValueMap(
             mapOf(COOKIE_NAME to listOf(HttpCookie(COOKIE_NAME, encodedValue)))
         )
 
-        val value = cookieService.decodeCookie(exchange.request, COOKIE_NAME)
+        val value = cookieService.decodeCookie(exchange, COOKIE_NAME)
 
         expectThat(value.blockOptional()) {
             get(Optional<String>::isPresent).isTrue()
@@ -134,12 +137,13 @@ internal class ReactiveCookieServiceTest {
 
     @Test
     fun `decodes and cannot parse cookie from exchange`() {
-        val encodedValue = cookieSerializer.encodeCookie(HOSTNAME, COOKIE_VALUE)
+        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
+        val encodedValue = cookieSerializer.encodeCookie(exchange, COOKIE_VALUE)
         every { exchange.request.cookies } returns CollectionUtils.toMultiValueMap(
             mapOf(COOKIE_NAME to listOf(HttpCookie(COOKIE_NAME, encodedValue)))
         )
 
-        val value = cookieService.decodeCookie<OAuth2AuthorizationRequest>(exchange.request, COOKIE_NAME, mapper)
+        val value = cookieService.decodeCookie<OAuth2AuthorizationRequest>(exchange, COOKIE_NAME, mapper)
 
         expectThat(value.blockOptional()) {
             get(Optional<OAuth2AuthorizationRequest>::isEmpty).isTrue()
@@ -149,11 +153,12 @@ internal class ReactiveCookieServiceTest {
     @Test
     fun `decodes and parses cookie from exchange`() {
         val body = resource("mock_authorization_request.json").readText()
+        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
         every { exchange.request.cookies } returns CollectionUtils.toMultiValueMap(
-            mapOf(COOKIE_NAME to listOf(HttpCookie(COOKIE_NAME, cookieSerializer.encodeCookie(HOSTNAME, body))))
+            mapOf(COOKIE_NAME to listOf(HttpCookie(COOKIE_NAME, cookieSerializer.encodeCookie(exchange, body))))
         )
 
-        val value = cookieService.decodeCookie<OAuth2AuthorizationRequest>(exchange.request, COOKIE_NAME, mapper)
+        val value = cookieService.decodeCookie<OAuth2AuthorizationRequest>(exchange, COOKIE_NAME, mapper)
 
         expectThat(value.blockOptional()) {
             get(Optional<OAuth2AuthorizationRequest>::isPresent).isTrue()

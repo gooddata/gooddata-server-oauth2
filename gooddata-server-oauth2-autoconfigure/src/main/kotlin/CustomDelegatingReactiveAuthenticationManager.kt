@@ -13,28 +13,33 @@ class CustomDelegatingReactiveAuthenticationManager(
     private val delegates = delegates.toList()
 
     override fun authenticate(authentication: Authentication): Mono<Authentication> {
-        logger.logInfo {
-            withMessage { "User attempts to authenticate" }
-            withAction("login")
-            withState("started")
+        return getOrganizationFromContext().flatMap { organization ->
+            val orgId = organization?.id ?: ""
+            logger.logInfo {
+                withMessage { "User attempts to authenticate" }
+                withAction("login")
+                withState("started")
+                withOrganizationId(orgId)
+            }
+            Flux.fromIterable(delegates)
+                .concatMap { delegate ->
+                    delegate.authenticate(authentication)
+                }
+                .doOnError { t ->
+                    logger.logError(t) {
+                        withAction("login")
+                        withState("error")
+                        withOrganizationId(orgId)
+                    }
+                }.next()
+                .doOnNext {
+                    logger.logInfo {
+                        withMessage { "User authenticated" }
+                        withAction("login")
+                        withState("finished")
+                        withOrganizationId(orgId)
+                    }
+                }
         }
-        return Flux.fromIterable(delegates)
-            .concatMap { delegate ->
-                delegate.authenticate(authentication)
-            }
-            .doOnError { t ->
-                logger.logError(t) {
-                    withAction("login")
-                    withState("error")
-                }
-            }.next()
-            .doOnNext {
-                logger.logInfo {
-                    withMessage { "User authenticated" }
-                    withAction("login")
-                    withState("finished")
-                    withUserId(it.userId())
-                }
-            }
     }
 }

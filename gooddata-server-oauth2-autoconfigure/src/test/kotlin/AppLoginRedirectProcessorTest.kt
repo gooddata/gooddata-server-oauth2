@@ -15,12 +15,11 @@
  */
 package com.gooddata.oauth2.server
 
+import com.gooddata.oauth2.server.OrganizationWebFilter.Companion.orgContextWrite
 import io.mockk.Called
-import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
@@ -52,15 +51,6 @@ internal class AppLoginRedirectProcessorTest {
         every { this@mockk.invoke() } returns Mono.empty()
     }
 
-    @BeforeEach
-    internal fun setUp() {
-        val organization = Organization(
-            id = "organizationId",
-            allowedOrigins = ALLOWED_ORIGINS
-        )
-        coEvery { client.getOrganizationByHostname("localhost") } returns organization
-    }
-
     @Test
     fun `redirect to relative path is processed`() {
         every { exchange.request } returns mockk {
@@ -69,6 +59,7 @@ internal class AppLoginRedirectProcessorTest {
             every { path } returns REQUEST_PATH
             every { queryParams } returns MultiValueMapAdapter(mapOf(AppLoginUri.REDIRECT_TO to listOf("/some/path")))
         }
+        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns ORGANIZATION
 
         processor.process(exchange, processFun, defaultFun).block()
         verify { processFun("/some/path") }
@@ -99,9 +90,10 @@ internal class AppLoginRedirectProcessorTest {
                 mapOf(AppLoginUri.REDIRECT_TO to listOf("http://local/some/path"))
             )
         }
+        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns ORGANIZATION
 
         expectException(
-            { processor.process(exchange, processFun, defaultFun).block() },
+            { processor.process(exchange, processFun, defaultFun).orgContextWrite(ORGANIZATION).block() },
             "A redirection to the specified address not allowed."
         )
 
@@ -119,8 +111,9 @@ internal class AppLoginRedirectProcessorTest {
             every { queryParams } returns
                 MultiValueMapAdapter(mapOf(AppLoginUri.REDIRECT_TO to listOf("$host/some/path")))
         }
+        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns ORGANIZATION
 
-        processor.process(exchange, processFun, defaultFun).block()
+        processor.process(exchange, processFun, defaultFun).orgContextWrite(ORGANIZATION).block()
         verify { processFun("$host/some/path") }
         verify { defaultFun wasNot Called }
     }
@@ -136,8 +129,9 @@ internal class AppLoginRedirectProcessorTest {
                 mapOf(AppLoginUri.REDIRECT_TO to listOf("$host/some/../path"))
             )
         }
+        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns ORGANIZATION
 
-        processor.process(exchange, processFun, defaultFun).block()
+        processor.process(exchange, processFun, defaultFun).orgContextWrite(ORGANIZATION).block()
         verify { processFun("$host/path") }
         verify { defaultFun wasNot Called }
     }
@@ -152,9 +146,10 @@ internal class AppLoginRedirectProcessorTest {
                 mapOf(AppLoginUri.REDIRECT_TO to listOf("http://local/some/../path"))
             )
         }
+        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns ORGANIZATION
 
         expectException(
-            { processor.process(exchange, processFun, defaultFun).block() },
+            { processor.process(exchange, processFun, defaultFun).orgContextWrite(ORGANIZATION).block() },
             "A redirection to the specified address not allowed."
         )
 
@@ -217,7 +212,7 @@ internal class AppLoginRedirectProcessorTest {
         }
 
         expectException(
-            { processor.process(exchange, processFun, defaultFun).block() },
+            { processor.process(exchange, processFun, defaultFun).orgContextWrite(ORGANIZATION).block() },
             "A redirection to the specified address not allowed."
         )
 
@@ -252,7 +247,7 @@ internal class AppLoginRedirectProcessorTest {
         }
 
         expectException(
-            { processor.process(exchange, processFun, defaultFun).block() },
+            { processor.process(exchange, processFun, defaultFun).orgContextWrite(ORGANIZATION).block() },
             "A redirection to the specified address not allowed."
         )
 
@@ -310,6 +305,10 @@ internal class AppLoginRedirectProcessorTest {
         private const val ORGANIZATION_ALLOWED_URI2 = "http://domain.cz:1234"
 
         private val ALLOWED_ORIGINS = listOf(ORGANIZATION_ALLOWED_URI, ORGANIZATION_ALLOWED_URI2)
+        private val ORGANIZATION = Organization(
+            id = "organizationId",
+            allowedOrigins = ALLOWED_ORIGINS
+        )
 
         @JvmStatic
         fun hosts() = ALLOWED_ORIGINS + GLOBAL_ALLOWED_URI

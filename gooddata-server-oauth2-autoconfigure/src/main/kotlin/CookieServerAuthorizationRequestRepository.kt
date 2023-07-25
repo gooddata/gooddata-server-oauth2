@@ -37,7 +37,7 @@ class CookieServerAuthorizationRequestRepository(
         return Mono.just(exchange)
             .flatMap { webExchange ->
                 cookieService.decodeCookie<OAuth2AuthorizationRequest>(
-                    webExchange.request,
+                    webExchange,
                     SPRING_SEC_OAUTH2_AUTHZ_RQ,
                     mapper,
                 )

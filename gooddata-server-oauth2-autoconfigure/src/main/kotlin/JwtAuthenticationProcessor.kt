@@ -36,7 +36,7 @@ import java.time.Instant
 class JwtAuthenticationProcessor(
     private val client: AuthenticationStoreClient,
     private val serverLogoutHandler: ServerLogoutHandler,
-    private val reactorUserContextProvider: ReactorUserContextProvider
+    private val reactorUserContextProvider: ReactorUserContextProvider,
 ) : AuthenticationProcessor<JwtAuthenticationToken>(reactorUserContextProvider) {
 
     private val logger = KotlinLogging.logger {}
@@ -46,9 +46,10 @@ class JwtAuthenticationProcessor(
         authenticationToken: JwtAuthenticationToken,
         exchange: ServerWebExchange,
         chain: WebFilterChain,
-    ): Mono<Void> = mono { client.getOrganizationByHostname(exchange.request.uri.host) }
-        .flatMap { organization -> validateJwtToken(authenticationToken, organization) }
-        .flatMap { organization ->
+    ): Mono<Void> =
+        getOrganizationFromContext().flatMap { organization ->
+            validateJwtToken(authenticationToken, organization)
+        }.flatMap { organization ->
             getUserForJwtToken(exchange, chain, authenticationToken, organization).flatMap { user ->
                 val userName = authenticationToken.tokenAttributeOrNull("name").toString()
                 withUserContext(organization, user, userName) {
@@ -59,7 +60,7 @@ class JwtAuthenticationProcessor(
 
     private fun validateJwtToken(
         token: JwtAuthenticationToken,
-        organization: Organization
+        organization: Organization,
     ): Mono<Organization> {
         val tokenHash = hashStringWithMD5(token.token.tokenValue)
         val jwtId = token.tokenAttributeOrNull(JWTClaimNames.JWT_ID).toString()

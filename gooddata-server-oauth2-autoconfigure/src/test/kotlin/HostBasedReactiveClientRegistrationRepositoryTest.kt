@@ -15,38 +15,31 @@
  */
 package com.gooddata.oauth2.server
 
-import io.mockk.coEvery
-import io.mockk.mockk
+import com.gooddata.oauth2.server.OrganizationWebFilter.Companion.orgContextWrite
 import org.junit.jupiter.api.Test
-import org.springframework.http.HttpStatus
 import org.springframework.security.oauth2.client.registration.ClientRegistration
-import org.springframework.web.server.ResponseStatusException
 import strikt.api.expectThat
 import strikt.api.expectThrows
 import strikt.assertions.isEqualTo
 import strikt.assertions.isTrue
-import java.lang.RuntimeException
 import java.util.Optional
 
 internal class HostBasedReactiveClientRegistrationRepositoryTest {
 
-    private val client: AuthenticationStoreClient = mockk()
-
     private val repository = HostBasedReactiveClientRegistrationRepository(
-        client,
         HostBasedClientRegistrationRepositoryProperties("remote", "local"),
         CaffeineClientRegistrationCache()
     )
 
     @Test
     fun `gets client registration for existing organization`() {
-        coEvery { client.getOrganizationByHostname(any()) } returns Organization(
-            "id",
+        val organization = Organization(
+            "orgId",
             oauthClientId = "clientId",
             oauthClientSecret = "clientSecret",
         )
 
-        val registration = repository.findByRegistrationId("existingId")
+        val registration = repository.findByRegistrationId("existingId").orgContextWrite(organization)
 
         expectThat(registration.blockOptional()) {
             get(Optional<ClientRegistration>::isPresent).isTrue()
@@ -64,22 +57,9 @@ internal class HostBasedReactiveClientRegistrationRepositoryTest {
 
     @Test
     fun `finds no client registration for missing organization`() {
-        coEvery { client.getOrganizationByHostname(any()) } throws ResponseStatusException(HttpStatus.NOT_FOUND)
-
         val registration = repository.findByRegistrationId("nonExistentId")
 
-        expectThrows<ResponseStatusException> {
-            registration.awaitOrNull()
-        }
-    }
-
-    @Test
-    fun `hard error is propagated`() {
-        coEvery { client.getOrganizationByHostname(any()) } throws RuntimeException("error")
-
-        val registration = repository.findByRegistrationId("nonExistentId")
-
-        expectThrows<RuntimeException> {
+        expectThrows<MissingOrganizationContextException> {
             registration.awaitOrNull()
         }
     }

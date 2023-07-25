@@ -101,8 +101,8 @@ internal class CookieServerSecurityContextRepositoryTest {
     """
 
     private val client: AuthenticationStoreClient = mockk {
-        coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
-        coEvery { getCookieSecurityProperties("org") } returns CookieSecurityProperties(
+        coEvery { getOrganizationByHostname("localhost") } returns Organization(ORG_ID)
+        coEvery { getCookieSecurityProperties(ORG_ID) } returns CookieSecurityProperties(
             keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
             lastRotation = Instant.now(),
             rotationInterval = Duration.ofDays(1),
@@ -113,7 +113,9 @@ internal class CookieServerSecurityContextRepositoryTest {
 
     private val cookieService = spyk(ReactiveCookieService(properties, cookieSerializer))
 
-    private val exchange: ServerWebExchange = mockk()
+    private val exchange: ServerWebExchange = mockk {
+        every { request.uri.host } returns "localhost"
+    }
 
     private val jwkCache = CaffeineJwkCache()
 
@@ -195,7 +197,7 @@ internal class CookieServerSecurityContextRepositoryTest {
 
     @Test
     fun `should not load context when nonsense is stored in cookies`() {
-        every { exchange.attributes } returns emptyMap()
+        every { exchange.attributes } returns provideAttributesMap()
         every { exchange.request.uri } returns URI.create("http://localhost")
         every { exchange.request.cookies } returns toMultiValueMap(
             mapOf(SPRING_SEC_SECURITY_CONTEXT to listOf(HttpCookie(SPRING_SEC_SECURITY_CONTEXT, "something")))
@@ -210,7 +212,7 @@ internal class CookieServerSecurityContextRepositoryTest {
 
     @Test
     fun `should not load context from cookie if registration id is not mapped`() {
-        every { exchange.attributes } returns emptyMap()
+        every { exchange.attributes } returns provideAttributesMap()
         every { exchange.request.uri } returns URI.create("http://localhost")
         mockSecurityContextCookie(resource("oauth2_authentication_token.json").readText())
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.empty()
@@ -224,8 +226,8 @@ internal class CookieServerSecurityContextRepositoryTest {
 
     @Test
     fun `should load context from cookie`() {
-        val exchangeAttributes = mutableMapOf<String, Any>()
-        every { exchange.attributes } returns exchangeAttributes
+        val attributesMap = provideAttributesMap()
+        every { exchange.attributes } returns attributesMap
         every { exchange.request.uri } returns URI.create("http://localhost")
         mockSecurityContextCookie(resource("oauth2_authentication_token_long.json").readText())
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.just(
@@ -256,7 +258,7 @@ internal class CookieServerSecurityContextRepositoryTest {
                 .get(OAuth2AuthenticationToken::getAuthorizedClientRegistrationId)
                 .isEqualTo("localhost")
         }
-        expectThat(exchangeAttributes).containsKey(OAUTH_TOKEN_CACHE_KEY)
+        expectThat(attributesMap).containsKey(OAUTH_TOKEN_CACHE_KEY)
     }
 
     @Test
@@ -271,8 +273,8 @@ internal class CookieServerSecurityContextRepositoryTest {
 
     @Test
     fun `should load context with refreshed token after its expiration`() {
-        val exchangeAttributes = mutableMapOf<String, Any>()
-        every { exchange.attributes } returns exchangeAttributes
+        val attributesMap = provideAttributesMap()
+        every { exchange.attributes } returns attributesMap
         every { exchange.request.uri } returns URI.create("http://localhost")
         mockSecurityContextCookie(resource("oauth2_authentication_token.json").readText())
         every { cookieService.createCookie(any(), any(), any()) } returns Unit
@@ -313,12 +315,12 @@ internal class CookieServerSecurityContextRepositoryTest {
         expectThat(context).isNotNull().get { authentication }
             .isA<OAuth2AuthenticationToken>()
             .get { principal.name }.isEqualTo("newTokenUserSub")
-        expectThat(exchangeAttributes).containsKey(OAUTH_TOKEN_CACHE_KEY)
+        expectThat(attributesMap).containsKey(OAUTH_TOKEN_CACHE_KEY)
     }
 
     @Test
     fun `should invalidate cookies when token refresh returns empty response`() {
-        every { exchange.attributes } returns emptyMap()
+        every { exchange.attributes } returns provideAttributesMap()
         every { exchange.request.uri } returns URI.create("http://localhost")
         mockSecurityContextCookie(resource("oauth2_authentication_token.json").readText())
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.just(mockk())
@@ -345,7 +347,7 @@ internal class CookieServerSecurityContextRepositoryTest {
 
     @Test
     fun `should invalidate cookies when token refresh does not contain ID token`() {
-        every { exchange.attributes } returns emptyMap()
+        every { exchange.attributes } returns provideAttributesMap()
         every { exchange.request.uri } returns URI.create("http://localhost")
         mockSecurityContextCookie(resource("oauth2_authentication_token.json").readText())
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.just(mockk())
@@ -372,7 +374,7 @@ internal class CookieServerSecurityContextRepositoryTest {
 
     @Test
     fun `should invalidate cookies when common error occurred during token decoding`() {
-        every { exchange.attributes } returns emptyMap()
+        every { exchange.attributes } returns provideAttributesMap()
         every { exchange.request.uri } returns URI.create("http://localhost")
         mockSecurityContextCookie(resource("oauth2_authentication_token.json").readText())
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.just(mockk())
@@ -400,7 +402,7 @@ internal class CookieServerSecurityContextRepositoryTest {
                 SPRING_SEC_SECURITY_CONTEXT to listOf(
                     HttpCookie(
                         SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(
-                            "localhost",
+                            exchange,
                             tokenJson
                         )
                     )
@@ -409,7 +411,12 @@ internal class CookieServerSecurityContextRepositoryTest {
         )
     }
 
+    private fun provideAttributesMap() = mutableMapOf<String, Any>(
+        OrganizationWebFilter.ORGANIZATION_CACHE_KEY to Organization(ORG_ID)
+    )
+
     companion object {
+        private const val ORG_ID = "org"
         private val wireMockServer = WireMockServer(WireMockConfiguration().dynamicPort()).apply {
             start()
         }

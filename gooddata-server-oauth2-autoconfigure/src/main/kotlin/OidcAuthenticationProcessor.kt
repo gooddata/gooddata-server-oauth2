@@ -15,7 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import java.time.Instant
 import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
 import org.springframework.http.HttpStatus
@@ -28,6 +27,7 @@ import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilterChain
 import reactor.core.publisher.Mono
+import java.time.Instant
 
 /**
  * If `SecurityContext` contains [OAuth2AuthenticationToken] the [OidcAuthenticationProcessor] handles the
@@ -44,7 +44,7 @@ class OidcAuthenticationProcessor(
     private val client: AuthenticationStoreClient,
     private val authenticationEntryPoint: ServerAuthenticationEntryPoint,
     private val serverLogoutHandler: ServerLogoutHandler,
-    private val reactorUserContextProvider: ReactorUserContextProvider
+    private val reactorUserContextProvider: ReactorUserContextProvider,
 ) : AuthenticationProcessor<OAuth2AuthenticationToken>(reactorUserContextProvider) {
 
     private val logger = KotlinLogging.logger {}
@@ -53,24 +53,23 @@ class OidcAuthenticationProcessor(
         authenticationToken: OAuth2AuthenticationToken,
         exchange: ServerWebExchange,
         chain: WebFilterChain,
-    ): Mono<Void> = mono {
-        getUserContextForAuthenticationToken(client, authenticationToken)
-    }.flatMap { userContext ->
-        if (userContext.user == null) {
-            logger.info { "Session was logged out" }
-            serverLogoutHandler.logout(WebFilterExchange(exchange, chain), authenticationToken).then(
-                if (userContext.restartAuthentication) {
-                    authenticationEntryPoint.commence(exchange, null)
-                } else {
-                    Mono.error(ResponseStatusException(HttpStatus.NOT_FOUND, "User is not registered"))
+    ): Mono<Void> =
+        getUserContextForAuthenticationToken(client, authenticationToken).flatMap { userContext ->
+            if (userContext.user == null) {
+                logger.info { "Session was logged out" }
+                serverLogoutHandler.logout(WebFilterExchange(exchange, chain), authenticationToken).then(
+                    if (userContext.restartAuthentication) {
+                        authenticationEntryPoint.commence(exchange, null)
+                    } else {
+                        Mono.error(ResponseStatusException(HttpStatus.NOT_FOUND, "User is not registered"))
+                    }
+                )
+            } else {
+                withUserContext(userContext.organization, userContext.user, authenticationToken.name) {
+                    chain.filter(exchange)
                 }
-            )
-        } else {
-            withUserContext(userContext.organization, userContext.user, authenticationToken.name) {
-                chain.filter(exchange)
             }
         }
-    }
 
     /**
      * Takes provided [OAuth2AuthenticationToken] and tries to retrieve [Organization] and [User] that correspond to it.
@@ -83,24 +82,26 @@ class OidcAuthenticationProcessor(
      * @return user context
      *
      */
-    private suspend fun getUserContextForAuthenticationToken(
+    private fun getUserContextForAuthenticationToken(
         authenticationStoreClient: AuthenticationStoreClient,
         authenticationToken: OAuth2AuthenticationToken,
-    ): UserContext {
-        val organization =
-            authenticationStoreClient.getOrganizationByHostname(authenticationToken.authorizedClientRegistrationId)
-        return authenticationStoreClient.getUserByAuthenticationId(
-            organization.id,
-            authenticationToken.principal.attributes[IdTokenClaimNames.SUB] as String
-        )?.let { user ->
-            val tokenIssuedAtTime = authenticationToken.principal.attributes[IdTokenClaimNames.IAT] as Instant
-            val lastLogoutAllTimestamp = user.lastLogoutAllTimestamp
-            val isValid = lastLogoutAllTimestamp == null || tokenIssuedAtTime.isAfter(lastLogoutAllTimestamp)
-            if (isValid) {
-                UserContext(organization, user, restartAuthentication = false)
-            } else {
-                UserContext(organization, user = null, restartAuthentication = true)
+    ): Mono<UserContext> {
+        return getOrganizationFromContext().flatMap { organization ->
+            mono {
+                authenticationStoreClient.getUserByAuthenticationId(
+                    organization.id,
+                    authenticationToken.principal.attributes[IdTokenClaimNames.SUB] as String
+                )?.let { user ->
+                    val tokenIssuedAtTime = authenticationToken.principal.attributes[IdTokenClaimNames.IAT] as Instant
+                    val lastLogoutAllTimestamp = user.lastLogoutAllTimestamp
+                    val isValid = lastLogoutAllTimestamp == null || tokenIssuedAtTime.isAfter(lastLogoutAllTimestamp)
+                    if (isValid) {
+                        UserContext(organization, user, restartAuthentication = false)
+                    } else {
+                        UserContext(organization, user = null, restartAuthentication = true)
+                    }
+                } ?: UserContext(organization, user = null, restartAuthentication = false)
             }
-        } ?: UserContext(organization, user = null, restartAuthentication = false)
+        }
     }
 }

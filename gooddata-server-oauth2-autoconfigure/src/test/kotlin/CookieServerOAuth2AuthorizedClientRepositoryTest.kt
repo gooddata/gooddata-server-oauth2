@@ -81,8 +81,8 @@ internal class CookieServerOAuth2AuthorizedClientRepositoryTest {
     """
 
     private val client: AuthenticationStoreClient = mockk {
-        coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
-        coEvery { getCookieSecurityProperties("org") } returns CookieSecurityProperties(
+        coEvery { getOrganizationByHostname("localhost") } returns Organization(ORG_ID)
+        coEvery { getCookieSecurityProperties(ORG_ID) } returns CookieSecurityProperties(
             keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
             lastRotation = Instant.now(),
             rotationInterval = Duration.ofDays(1),
@@ -95,7 +95,9 @@ internal class CookieServerOAuth2AuthorizedClientRepositoryTest {
 
     private val principal: Authentication = mockk()
 
-    private val exchange: ServerWebExchange = mockk()
+    private val exchange: ServerWebExchange = mockk() {
+        every { request.uri.host } returns "localhost"
+    }
 
     private val repository = CookieServerOAuth2AuthorizedClientRepository(clientRegistrationRepository, cookieService)
 
@@ -116,6 +118,7 @@ internal class CookieServerOAuth2AuthorizedClientRepositoryTest {
     @Test
     fun `should not load client when nonsense is stored in cookies`() {
         every { exchange.request.uri } returns URI.create("http://localhost")
+        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
         every { exchange.request.cookies } returns toMultiValueMap(
             mapOf(SPRING_SEC_OAUTH2_AUTHZ_CLIENT to listOf(HttpCookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, "something")))
         )
@@ -133,12 +136,13 @@ internal class CookieServerOAuth2AuthorizedClientRepositoryTest {
     fun `should not load client from cookie if registration id does not match`() {
         val body = resource("simplified_oauth2_authorized_client.json").readText()
         every { exchange.request.uri } returns URI.create("http://localhost")
+        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
         every { exchange.request.cookies } returns toMultiValueMap(
             mapOf(
                 SPRING_SEC_OAUTH2_AUTHZ_CLIENT to listOf(
                     HttpCookie(
                         SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
-                        cookieSerializer.encodeCookie("localhost", body),
+                        cookieSerializer.encodeCookie(exchange, body),
                     )
                 )
             )
@@ -155,12 +159,13 @@ internal class CookieServerOAuth2AuthorizedClientRepositoryTest {
     fun `should load client from cookie`() {
         val body = resource("simplified_oauth2_authorized_client.json").readText()
         every { exchange.request.uri } returns URI.create("http://localhost")
+        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
         every { exchange.request.cookies } returns toMultiValueMap(
             mapOf(
                 SPRING_SEC_OAUTH2_AUTHZ_CLIENT to listOf(
                     HttpCookie(
                         SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
-                        cookieSerializer.encodeCookie("localhost", body),
+                        cookieSerializer.encodeCookie(exchange, body),
                     )
                 )
             )
@@ -234,5 +239,9 @@ internal class CookieServerOAuth2AuthorizedClientRepositoryTest {
         }
 
         verify(exactly = 1) { cookieService.invalidateCookie(exchange, SPRING_SEC_OAUTH2_AUTHZ_CLIENT) }
+    }
+
+    companion object {
+        const val ORG_ID = "org"
     }
 }

@@ -15,7 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -79,7 +78,7 @@ class AppLoginRedirectProcessor(
      */
     private val appLoginRedirectToMatcher = ServerWebExchangeMatcher { serverWebExchange ->
         serverWebExchange.redirectToOrError()
-            .filterWhen { redirectTo -> canRedirect(redirectTo, serverWebExchange) }
+            .filterWhen { redirectTo -> canRedirect(redirectTo) }
             .flatMap { redirectTo ->
                 ServerWebExchangeMatcher.MatchResult.match(
                     mapOf(AppLoginUri.REDIRECT_TO to redirectTo.toASCIIString())
@@ -145,12 +144,11 @@ class AppLoginRedirectProcessor(
         }
     }
 
-    private fun canRedirect(redirectTo: URI, serverWebExchange: ServerWebExchange): Mono<Boolean> {
+    private fun canRedirect(redirectTo: URI): Mono<Boolean> {
         val uri = redirectTo.normalizeToRedirectToPattern()
-        val organizationHost = serverWebExchange.request.uri.host
         return Mono.just(true)
             .filter { uri.isAllowedGlobally() || redirectTo.isLocal() }
-            .switchIfEmpty(uri.isAllowedForOrganization(organizationHost))
+            .switchIfEmpty(uri.isAllowedForOrganization())
             .doOnNext { canRedirect ->
                 if (!canRedirect) {
                     logger.trace { "URI \"$uri\" can't be redirected" }
@@ -165,15 +163,19 @@ class AppLoginRedirectProcessor(
             .fragment(null)
             .build().toUri()
 
-    private fun URI.isAllowedForOrganization(organizationHost: String): Mono<Boolean> =
-        mono { authenticationStoreClient.getOrganizationByHostname(organizationHost) }
-            .flatMap { organization -> Mono.justOrEmpty(organization.allowedOrigins?.map(::URI)) }
-            .map { allowedOrigins -> allowedOrigins.any { this == it.normalizeToRedirectToPattern() } }
-            .defaultIfEmpty(false)
+    private fun URI.isAllowedForOrganization(): Mono<Boolean> =
+        getOrganizationFromContext().flatMap { organization ->
+            organization.isUriAllowed(this)
+        }
 
     private fun URI.isAllowedGlobally() = this == properties.allowRedirect
 
     private fun URI.isLocal() = normalizeToRedirectToPattern() == EMPTY_URI && path.startsWith("/")
+
+    private fun Organization.isUriAllowed(uri: URI): Mono<Boolean> =
+        Mono.justOrEmpty(this.allowedOrigins?.map(::URI))
+            .map { allowedOrigins -> allowedOrigins?.any { uri == it.normalizeToRedirectToPattern() } ?: false }
+            .defaultIfEmpty(false)
 
     companion object {
         private val EMPTY_URI = URI.create("")

@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server
 
+import com.gooddata.oauth2.server.OrganizationWebFilter.Companion.orgContextWrite
 import com.nimbusds.jose.Algorithm
 import com.nimbusds.jose.jwk.JWK
 import com.nimbusds.jose.jwk.KeyUse
@@ -41,42 +42,45 @@ import strikt.assertions.isTrue
 internal class BearerTokenReactiveAuthenticationManagerResolverTest {
 
     private val client: AuthenticationStoreClient = mockk()
+    private val exchange: ServerWebExchange = mockk {
+        every { request.uri.host } returns HOST
+    }
 
     @Test
     fun `authenticates incorrect token type`() {
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(mockk()).block()!!
 
-        expectThat(manager.authenticate(mockk<OAuth2AuthenticationToken>()).block()) { isNull() }
+        expectThat(
+            manager.authenticate(mockk<OAuth2AuthenticationToken>())
+                .orgContextWrite(ORGANIZATION)
+                .block()
+        ) { isNull() }
     }
 
     @Test
     fun `authenticates incorrect bearer token`() {
-        val exchange: ServerWebExchange = mockk {
-            every { request.uri.host } returns HOST
-        }
-        coEvery { client.getOrganizationByHostname(HOST) } returns Organization(ORG_ID)
         coEvery { client.getUserByApiToken(ORG_ID, "invalid") } throws InvalidBearerTokenException("")
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!
 
         expectThrows<InvalidBearerTokenException> {
-            manager.authenticate(BearerTokenAuthenticationToken("invalid")).awaitOrNull()
+            manager.authenticate(BearerTokenAuthenticationToken("invalid"))
+                .orgContextWrite(ORGANIZATION)
+                .awaitOrNull()
         }
     }
 
     @Test
     fun `authenticates valid bearer token`() {
-        val exchange: ServerWebExchange = mockk {
-            every { request.uri.host } returns HOST
-        }
-        coEvery { client.getOrganizationByHostname(HOST) } returns Organization(ORG_ID)
         coEvery { client.getUserByApiToken(ORG_ID, TOKEN) } returns User(USER_ID)
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!
 
-        val authenticated = manager.authenticate(BearerTokenAuthenticationToken(TOKEN)).block()
+        val authenticated = manager.authenticate(BearerTokenAuthenticationToken(TOKEN))
+            .orgContextWrite(ORGANIZATION)
+            .block()
         expectThat(authenticated) {
             isNotNull().get(Authentication::isAuthenticated).isTrue()
         }
@@ -84,11 +88,6 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
 
     @Test
     fun `authenticates valid bearer JWT token`() {
-        val exchange: ServerWebExchange = mockk {
-            every { request.uri.host } returns HOST
-        }
-
-        coEvery { client.getOrganizationByHostname(HOST) } returns Organization(ORG_ID)
         coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
@@ -96,7 +95,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
 
         val authenticated = manager.authenticate(
             BearerTokenAuthenticationToken(VALID_JWT)
-        ).block()
+        ).orgContextWrite(ORGANIZATION).block()
         expectThat(authenticated) {
             isNotNull().get(Authentication::isAuthenticated).isTrue()
         }
@@ -104,18 +103,13 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
 
     @Test
     fun `authentication fails when no JWK configured for the organization`() {
-        val exchange: ServerWebExchange = mockk {
-            every { request.uri.host } returns HOST
-        }
-
-        coEvery { client.getOrganizationByHostname(HOST) } returns Organization(ORG_ID)
         coEvery { client.getJwks(ORG_ID) } returns emptyList()
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!
 
         expectThrows<JwtVerificationException> {
-            manager.authenticate(BearerTokenAuthenticationToken(VALID_JWT)).block()
+            manager.authenticate(BearerTokenAuthenticationToken(VALID_JWT)).orgContextWrite(ORGANIZATION).block()
         }.and {
             get { message }.isEqualTo("The JWT contains invalid claims.")
         }
@@ -123,18 +117,15 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
 
     @Test
     fun `authentication fails for expired JWT`() {
-        val exchange: ServerWebExchange = mockk {
-            every { request.uri.host } returns HOST
-        }
-
-        coEvery { client.getOrganizationByHostname(HOST) } returns Organization(ORG_ID)
         coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!
 
         expectThrows<JwtExpiredException> {
-            manager.authenticate(BearerTokenAuthenticationToken(EXPIRED_JWT)).block()
+            manager.authenticate(BearerTokenAuthenticationToken(EXPIRED_JWT))
+                .orgContextWrite(ORGANIZATION)
+                .block()
         }.and {
             get { message }.isEqualTo("The JWT is expired.")
         }
@@ -142,11 +133,6 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
 
     @Test
     fun `authentication fails for non-matching private key alg with JWT`() {
-        val exchange: ServerWebExchange = mockk {
-            every { request.uri.host } returns HOST
-        }
-
-        coEvery { client.getOrganizationByHostname(HOST) } returns Organization(ORG_ID)
         coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
@@ -154,7 +140,9 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
 
         val invalidJwt = ResourceUtils.resource("jwt/jwt_non_matching_alg.txt").readText()
         expectThrows<JwtVerificationException> {
-            manager.authenticate(BearerTokenAuthenticationToken(invalidJwt)).block()
+            manager.authenticate(BearerTokenAuthenticationToken(invalidJwt))
+                .orgContextWrite(ORGANIZATION)
+                .block()
         }.and {
             get { message }.isEqualTo("The JWT contains invalid claims.")
         }
@@ -162,10 +150,6 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
 
     @Test
     fun `authentication fails for non-matching public key`() {
-        val exchange: ServerWebExchange = mockk {
-            every { request.uri.host } returns HOST
-        }
-
         coEvery { client.getOrganizationByHostname(HOST) } returns Organization(ORG_ID)
         coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
 
@@ -174,7 +158,9 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
 
         val invalidJwt = ResourceUtils.resource("jwt/jwt_non_matching_key.txt").readText()
         expectThrows<JwtSignatureException> {
-            manager.authenticate(BearerTokenAuthenticationToken(invalidJwt)).block()
+            manager.authenticate(BearerTokenAuthenticationToken(invalidJwt))
+                .orgContextWrite(ORGANIZATION)
+                .block()
         }.and {
             get { message }.isEqualTo("We are unable to verify signature.")
         }
@@ -183,11 +169,6 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
     @ParameterizedTest
     @ValueSource(strings = ["jku", "x5u", "jwk", "x5c"])
     fun `authentication fails for JWT with invalid fields`(parameterName: String) {
-        val exchange: ServerWebExchange = mockk {
-            every { request.uri.host } returns HOST
-        }
-
-        coEvery { client.getOrganizationByHostname(HOST) } returns Organization(ORG_ID)
         coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
@@ -196,7 +177,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
         val invalidJwt = ResourceUtils.resource("jwt/jwt_invalid_par_$parameterName.txt").readText()
 
         expectThrows<JwtVerificationException> {
-            manager.authenticate(BearerTokenAuthenticationToken(invalidJwt)).block()
+            manager.authenticate(BearerTokenAuthenticationToken(invalidJwt)).orgContextWrite(ORGANIZATION).block()
         }.and {
             get { message }.isEqualTo("The JWT contains invalid claims.")
         }
@@ -205,10 +186,6 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
     @ParameterizedTest
     @ValueSource(strings = ["name", "sub", "jti"])
     fun `authentication fails for JWT with invalid fields pattern`(parameterName: String) {
-        val exchange: ServerWebExchange = mockk {
-            every { request.uri.host } returns HOST
-        }
-
         coEvery { client.getOrganizationByHostname(HOST) } returns Organization(ORG_ID)
         coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
 
@@ -218,7 +195,9 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
         val invalidJwt = ResourceUtils.resource("jwt/jwt_invalid_$parameterName.txt").readText()
 
         expectThrows<JwtVerificationException> {
-            manager.authenticate(BearerTokenAuthenticationToken(invalidJwt)).block()
+            manager.authenticate(BearerTokenAuthenticationToken(invalidJwt))
+                .orgContextWrite(ORGANIZATION)
+                .block()
         }.and {
             get { message }.isEqualTo("The JWT contains invalid claims.")
         }
@@ -227,11 +206,6 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
     @ParameterizedTest
     @ValueSource(strings = ["jwt_invalid_type.txt", "jwt_missing_kid_header.txt"])
     fun `test auth failed for invalid header`(jwtSourceFile: String) {
-        val exchange: ServerWebExchange = mockk {
-            every { request.uri.host } returns HOST
-        }
-
-        coEvery { client.getOrganizationByHostname(HOST) } returns Organization(ORG_ID)
         coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
@@ -240,7 +214,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
         val invalidJwt = ResourceUtils.resource("jwt/$jwtSourceFile").readText()
 
         expectThrows<JwtVerificationException> {
-            manager.authenticate(BearerTokenAuthenticationToken(invalidJwt)).block()
+            manager.authenticate(BearerTokenAuthenticationToken(invalidJwt)).orgContextWrite(ORGANIZATION).block()
         }.and {
             get { message }.isEqualTo("The JWT contains invalid claims.")
         }
@@ -249,19 +223,14 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
     @ParameterizedTest
     @ValueSource(strings = ["iat", "exp", "name", "sub", "iat_and_exp"])
     fun `test auth failed for missing mandatory attribute`(attribute: String) {
-        val exchange: ServerWebExchange = mockk {
-            every { request.uri.host } returns HOST
-        }
-
-        coEvery { client.getOrganizationByHostname(HOST) } returns Organization(ORG_ID)
         coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
-        val manager = resolver.resolve(exchange).block()!!
+        val manager = resolver.resolve(exchange).orgContextWrite(ORGANIZATION).block()!!
 
         val invalidJwt = ResourceUtils.resource("jwt/jwt_missing_${attribute}_attr.txt").readText()
         expectThrows<JwtVerificationException> {
-            manager.authenticate(BearerTokenAuthenticationToken(invalidJwt)).block()
+            manager.authenticate(BearerTokenAuthenticationToken(invalidJwt)).orgContextWrite(ORGANIZATION).block()
         }.and {
             val invalidClaims = attribute.split("_and_")
             get { message }.isEqualTo(JwtVerificationException.invalidClaimsMessage(invalidClaims))
@@ -270,18 +239,15 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
 
     @Test
     fun `test auth failed if unable to decode JWT`() {
-        val exchange: ServerWebExchange = mockk {
-            every { request.uri.host } returns HOST
-        }
-
-        coEvery { client.getOrganizationByHostname(HOST) } returns Organization(ORG_ID)
         coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!
 
         expectThrows<JwtDecodeException> {
-            manager.authenticate(BearerTokenAuthenticationToken("djgAM4sk4.kso1SRmcf.12Kkcml0")).block()
+            manager.authenticate(BearerTokenAuthenticationToken("djgAM4sk4.kso1SRmcf.12Kkcml0"))
+                .orgContextWrite(ORGANIZATION)
+                .block()
         }.and {
             get { message }.isEqualTo("We are unable to decode JWT.")
         }
@@ -300,7 +266,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
         val id: String,
         val value: String,
         val algorithm: Algorithm = Algorithm.parse("RS256"),
-        val useAs: KeyUse = KeyUse.SIGNATURE
+        val useAs: KeyUse = KeyUse.SIGNATURE,
     )
 
     companion object {
@@ -315,5 +281,6 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
 
         private val VALID_JWT = ResourceUtils.resource("jwt/jwt_valid.txt").readText()
         private val EXPIRED_JWT = ResourceUtils.resource("jwt/jwt_expired.txt").readText()
+        private val ORGANIZATION = Organization(ORG_ID)
     }
 }

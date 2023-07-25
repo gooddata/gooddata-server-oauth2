@@ -25,6 +25,8 @@ import io.mockk.mockkStatic
 import io.netty.handler.codec.http.cookie.CookieHeaderNames
 import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest
+import org.springframework.mock.web.server.MockServerWebExchange
 import strikt.api.expectCatching
 import strikt.api.expectThat
 import strikt.api.expectThrows
@@ -37,6 +39,15 @@ import java.time.Instant
 import java.util.Base64
 
 internal class CookieSerializerTest {
+    private val exchange = MockServerWebExchange
+        .from(MockServerHttpRequest.get("http://localhost/requestURI"))
+
+    init {
+        exchange.attributes.putAll(
+            mutableMapOf(OrganizationWebFilter.ORGANIZATION_CACHE_KEY to Organization("org"))
+        )
+    }
+
     @Language("JSON")
     private val keyset = """
         {
@@ -57,7 +68,6 @@ internal class CookieSerializerTest {
     """
 
     private val client: AuthenticationStoreClient = mockk {
-        coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
         coEvery { getCookieSecurityProperties("org") } returns CookieSecurityProperties(
             keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
             lastRotation = Instant.now(),
@@ -74,8 +84,9 @@ internal class CookieSerializerTest {
 
     @Test
     fun `output is base64 encoded`() {
+        exchange.attributes.putAll(mutableMapOf(OrganizationWebFilter.ORGANIZATION_CACHE_KEY to Organization("org")))
         val encoded = cookieSerializer.encodeCookie(
-            "localhost",
+            exchange,
             arrayOf<Byte>(0, 1, 2, 3, 4, 20, 21, 50, 80, 127, -128, -127, -5, -1).toString()
         )
         expectCatching {
@@ -87,7 +98,7 @@ internal class CookieSerializerTest {
     fun `invalid base64 value throws error`() {
         val invalidValue = "not a base 64 value !@#$%^&*()_+"
         expectThrows<IllegalArgumentException> {
-            cookieSerializer.decodeCookie("localhost", invalidValue)
+            cookieSerializer.decodeCookie(exchange, invalidValue)
         }
     }
 
@@ -95,7 +106,7 @@ internal class CookieSerializerTest {
     fun `invalid encrypted value throws error`() {
         val invalidValue = String(Base64.getEncoder().encode("some not-correctly-encrypted value".toByteArray()))
         expectThrows<IllegalArgumentException> {
-            cookieSerializer.decodeCookie("localhost", invalidValue)
+            cookieSerializer.decodeCookie(exchange, invalidValue)
         }
     }
 
@@ -105,13 +116,14 @@ internal class CookieSerializerTest {
          * Size of input to test - bigger the value, more reliable test
          */
         val inputSize = 65536
+
         /**
          * Heuristic parameter - increase in case of flapping test
          */
         val acceptedErrorInPercents = 50.0
 
         val input = ByteArray(inputSize) { 0 }
-        val encoded = cookieSerializer.encodeCookie("localhost", String(input))
+        val encoded = cookieSerializer.encodeCookie(exchange, String(input))
         val encrypted = Base64.getDecoder().decode(encoded.toByteArray())
         val byteSize = Byte.MAX_VALUE - Byte.MIN_VALUE + 1
         val frequencyTable = IntArray(byteSize) { 0 }
@@ -136,7 +148,7 @@ internal class CookieSerializerTest {
     @Test
     fun `is possible to decrypt encrypted value`() {
         val input = "testingValue"
-        val transformed = cookieSerializer.decodeCookie("localhost", cookieSerializer.encodeCookie("localhost", input))
+        val transformed = cookieSerializer.decodeCookie(exchange, cookieSerializer.encodeCookie(exchange, input))
         expectThat(transformed).isEqualTo(input)
     }
 
@@ -167,17 +179,17 @@ internal class CookieSerializerTest {
         every { Instant.now() } returns Instant.ofEpochSecond(0)
 
         // Called with no cache - read from backend
-        cookieSerializer.encodeCookie("localhost", "")
+        cookieSerializer.encodeCookie(exchange, "")
         coVerify(exactly = 1) { client.getCookieSecurityProperties("org") }
 
         // Called before rotationInterval and before TTL - use cache
         every { Instant.now() } returns Instant.ofEpochSecond(9)
-        cookieSerializer.encodeCookie("localhost", "")
+        cookieSerializer.encodeCookie(exchange, "")
         coVerify(exactly = 1) { client.getCookieSecurityProperties("org") }
 
         // Call after rotationInterval and before TTL - read from backend
         every { Instant.now() } returns Instant.ofEpochSecond(11)
-        cookieSerializer.encodeCookie("localhost", "")
+        cookieSerializer.encodeCookie(exchange, "")
         coVerify(exactly = 2) { client.getCookieSecurityProperties("org") }
     }
 
@@ -208,17 +220,17 @@ internal class CookieSerializerTest {
         every { Instant.now() } returns Instant.ofEpochSecond(0)
 
         // Called with no cache - read from backend
-        cookieSerializer.encodeCookie("localhost", "")
+        cookieSerializer.encodeCookie(exchange, "")
         coVerify(exactly = 1) { client.getCookieSecurityProperties("org") }
 
         // Called before rotationInterval and after TTL - read from backend
         every { Instant.now() } returns Instant.ofEpochSecond(9)
-        cookieSerializer.encodeCookie("localhost", "")
+        cookieSerializer.encodeCookie(exchange, "")
         coVerify(exactly = 2) { client.getCookieSecurityProperties("org") }
 
         // Call after rotationInterval and after TTL - read from backend
         every { Instant.now() } returns Instant.ofEpochSecond(20)
-        cookieSerializer.encodeCookie("localhost", "")
+        cookieSerializer.encodeCookie(exchange, "")
         coVerify(exactly = 3) { client.getCookieSecurityProperties("org") }
     }
 }

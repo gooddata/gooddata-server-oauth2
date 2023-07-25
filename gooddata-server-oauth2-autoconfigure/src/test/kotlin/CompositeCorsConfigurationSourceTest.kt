@@ -34,6 +34,7 @@ class CompositeCorsConfigurationSourceTest {
     @Test
     fun `getCorsConfiguration returns AllowedHost for null exchange request uri host`() {
         every { corsConfigurationSource.getCorsConfiguration(exchange) } returns null
+        every { organizationCorsConfigurationSource.getOrganizationCorsConfiguration(exchange) } returns null
 
         val request = mockk<ServerHttpRequest>()
         every { request.uri } returns URI("http", null, "/path", null)
@@ -45,12 +46,10 @@ class CompositeCorsConfigurationSourceTest {
     @Test
     fun `getCorsConfiguration returns AllowedHost when no configuration found in sources`() {
         every { corsConfigurationSource.getCorsConfiguration(exchange) } returns null
-
+        every { organizationCorsConfigurationSource.getOrganizationCorsConfiguration(exchange) } returns null
         val request = mockk<ServerHttpRequest>()
         every { request.uri } returns URI("http", ORGANIZATION_HOST, "/path", null)
         every { exchange.request } returns request
-
-        every { organizationCorsConfigurationSource.getOrganizationCorsConfiguration(ORGANIZATION_HOST) } returns null
 
         expectAllowedHosts()
     }
@@ -66,7 +65,7 @@ class CompositeCorsConfigurationSourceTest {
         val organizationCorsConfiguration = CorsConfiguration()
 
         every {
-            organizationCorsConfigurationSource.getOrganizationCorsConfiguration(ORGANIZATION_HOST)
+            organizationCorsConfigurationSource.getOrganizationCorsConfiguration(exchange)
         } returns organizationCorsConfiguration
 
         expectThat(compositeCorsConfigurationSource.getCorsConfiguration(exchange))
@@ -83,7 +82,7 @@ class CompositeCorsConfigurationSourceTest {
 
         val organizationCorsConfiguration = CorsConfiguration()
         every {
-            organizationCorsConfigurationSource.getOrganizationCorsConfiguration(ORGANIZATION_HOST)
+            organizationCorsConfigurationSource.getOrganizationCorsConfiguration(exchange)
         } returns organizationCorsConfiguration
 
         val corsConfiguration = CorsConfiguration()

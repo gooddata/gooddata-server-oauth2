@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server
 
+import com.gooddata.oauth2.server.OrganizationWebFilter.Companion.orgContextWrite
 import com.nimbusds.jwt.JWTClaimNames
 import com.nimbusds.openid.connect.sdk.claims.UserInfo
 import io.mockk.InternalPlatformDsl.toStr
@@ -44,17 +45,7 @@ import java.time.Instant
 
 class JwtAuthenticationProcessorTest {
 
-    companion object {
-        private const val TOKEN = "token"
-        private const val TOKEN_MD5_HASH = "6128148bc7c7abd76b32789d4962f7e4"
-        private const val USER_ID = "sub"
-        private const val ORGANIZATION_ID = "organizationId"
-        private const val TOKEN_ID = "tokenId"
-    }
-
-    private val client: AuthenticationStoreClient = mockk {
-        coEvery { getOrganizationByHostname("hostname") } returns Organization(ORGANIZATION_ID)
-    }
+    private val client: AuthenticationStoreClient = mockk()
 
     private val authenticationEntryPoint: ServerAuthenticationEntryPoint = mockk()
     private val serverLogoutHandler: ServerLogoutHandler = mockk()
@@ -85,7 +76,9 @@ class JwtAuthenticationProcessorTest {
         coEvery { client.isValidJwt(ORGANIZATION_ID, USER_ID, TOKEN_MD5_HASH, TOKEN_ID) }.returns(true)
         coEvery { userContextProvider.getContextView(any(), any(), any()) } returns Context.empty()
 
-        jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain).block()
+        jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain)
+            .orgContextWrite(ORGANIZATION)
+            .block()
 
         verify { serverLogoutHandler wasNot called }
         verify { authenticationEntryPoint wasNot called }
@@ -108,7 +101,9 @@ class JwtAuthenticationProcessorTest {
         coEvery { client.isValidJwt(ORGANIZATION_ID, USER_ID, TOKEN_MD5_HASH, null.toStr()) }.returns(true)
         coEvery { userContextProvider.getContextView(any(), any(), any()) } returns Context.empty()
 
-        jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain).block()
+        jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain)
+            .orgContextWrite(ORGANIZATION)
+            .block()
 
         verify { serverLogoutHandler wasNot called }
         verify { authenticationEntryPoint wasNot called }
@@ -126,7 +121,9 @@ class JwtAuthenticationProcessorTest {
         )
 
         expectThrows<JwtDisabledException> {
-            jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain).block()
+            jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain)
+                .orgContextWrite(ORGANIZATION)
+                .block()
         }.and {
             get { message }.isEqualTo("The JWT is disabled by logout / logout all.")
         }
@@ -142,7 +139,9 @@ class JwtAuthenticationProcessorTest {
         coEvery { client.isValidJwt(ORGANIZATION_ID, USER_ID, TOKEN_MD5_HASH, TOKEN_ID) }.returns(false)
 
         expectThrows<JwtDisabledException> {
-            jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain).block()
+            jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain)
+                .orgContextWrite(ORGANIZATION)
+                .block()
         }.and {
             get { message }.isEqualTo("The JWT is disabled by logout / logout all.")
         }
@@ -162,4 +161,12 @@ class JwtAuthenticationProcessorTest {
             IdTokenClaimNames.IAT to Instant.EPOCH,
         ),
     ) = Jwt(tokenValue, issuedAt, expireAt, headers, claims)
+    companion object {
+        private const val TOKEN = "token"
+        private const val TOKEN_MD5_HASH = "6128148bc7c7abd76b32789d4962f7e4"
+        private const val USER_ID = "sub"
+        private const val ORGANIZATION_ID = "organizationId"
+        private const val TOKEN_ID = "tokenId"
+        private val ORGANIZATION = Organization(ORGANIZATION_ID)
+    }
 }

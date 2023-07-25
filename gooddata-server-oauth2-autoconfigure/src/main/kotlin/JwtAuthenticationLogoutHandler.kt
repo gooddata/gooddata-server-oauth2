@@ -45,9 +45,7 @@ class JwtAuthenticationLogoutHandler(
             .filter { authentication is JwtAuthenticationToken }
             .cast(JwtAuthenticationToken::class.java)
             .flatMap { jwtToken ->
-                mono {
-                    client.getOrganizationByHostname(exchange.exchange.request.uri.host)
-                }.flatMap { organization ->
+                getOrganizationFromContext().flatMap { organization ->
                     val jwtId = jwtToken.token.id
                     val jwtValidTo = LocalDateTime.ofInstant(jwtToken.token.expiresAt, ZoneOffset.UTC)
                     val tokenHash = hashStringWithMD5(jwtToken.token.tokenValue)
