@@ -82,3 +82,11 @@ class JwtDecodeException : OAuth2AuthenticationException(
         "https://tools.ietf.org/html/rfc6750#section-3.1"
     )
 )
+
+class JwtSignatureException : OAuth2AuthenticationException(
+    OAuth2Error(
+        OAuth2ErrorCodes.INVALID_TOKEN,
+        "We are unable to verify signature.",
+        "https://tools.ietf.org/html/rfc6750#section-3.1"
+    )
+)
