@@ -16,6 +16,7 @@
 package com.gooddata.oauth2.server
 
 import com.gooddata.oauth2.server.LogKey.ACTION
+import com.gooddata.oauth2.server.LogKey.AUTH_ID
 import com.gooddata.oauth2.server.LogKey.EXCEPTION
 import com.gooddata.oauth2.server.LogKey.ORG_ID
 import com.gooddata.oauth2.server.LogKey.STATE
@@ -30,6 +31,8 @@ import mu.KLogger
 import org.slf4j.Logger
 import org.slf4j.Marker
 import org.slf4j.MarkerFactory
+import org.springframework.security.core.Authentication
+import reactor.core.publisher.Mono
 
 val GD_API_MARKER: Marker = MarkerFactory.getMarker("GD_STRUCT_LOG")
 
@@ -42,6 +45,27 @@ fun KLogger.logInfo(block: LogBuilder.() -> Unit) {
 fun KLogger.logError(exception: Throwable, block: LogBuilder.() -> Unit) {
     if (isErrorEnabled) {
         log(this, block, ERROR, exception)
+    }
+}
+
+fun logAuthenticationWitOrgIdAndUserId(
+    client: AuthenticationStoreClient,
+    authentication: Authentication?,
+    logger: KLogger,
+    logBody: LogBuilder.() -> Unit,
+): Mono<Void> {
+    return getOrganizationFromContext().flatMap { organization ->
+        findAuthenticatedUser(client, organization.id, authentication)
+            .switchIfEmpty(Mono.just(User("<unauthorized user>")))
+            .flatMap { user ->
+                logger.logInfo {
+                    logBody()
+                    withOrganizationId(organization.id)
+                    withUserId(user.id)
+                    withAuthenticationId(authentication?.getAuthenticationId() ?: "")
+                }
+                Mono.empty()
+            }
     }
 }
 
@@ -87,6 +111,10 @@ class LogBuilder internal constructor(val logLevel: LogLevel) {
         params[ORG_ID] = orgId
     }
 
+    fun withAuthenticationId(authenticationId: String) {
+        params[AUTH_ID] = authenticationId
+    }
+
     internal fun writeTo(logger: Logger) {
         log(logger, logLevel, message(), paramsToArray())
     }
@@ -114,4 +142,5 @@ enum class LogKey(val keyName: String) {
     STATE("state"),
     USER_ID("userId"),
     ORG_ID("orgId"),
+    AUTH_ID("authenticationId"),
 }

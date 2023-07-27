@@ -19,7 +19,10 @@ package com.gooddata.oauth2.server
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
-import java.util.stream.Stream
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.mockk
 import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -30,12 +33,19 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import org.springframework.http.HttpStatus
+import org.springframework.security.core.Authentication
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
+import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.web.server.ResponseStatusException
 import strikt.api.expect
 import strikt.api.expectThat
 import strikt.assertions.containsExactlyInAnyOrder
 import strikt.assertions.endsWith
 import strikt.assertions.isEqualTo
+import strikt.assertions.isNotNull
+import strikt.assertions.isNull
+import java.util.stream.Stream
 
 internal class AuthenticationUtilsTest {
 
@@ -130,7 +140,7 @@ internal class AuthenticationUtilsTest {
     fun `build client registration with invalid issuer`(
         case: String,
         issuerLocation: String,
-        messageSpecification: String
+        messageSpecification: String,
     ) {
         val customIssuerId = "someCustomIssuerId"
         organization = Organization(
@@ -170,6 +180,78 @@ internal class AuthenticationUtilsTest {
         assertEquals(HttpStatus.UNAUTHORIZED, ex.status)
     }
 
+    @Test
+    fun `find user authenticated by UserContextAuthenticationToken`() {
+        val token = UserContextAuthenticationToken(Organization(ORGANIZATION_ID), User(USER_ID))
+
+        val result = findAuthenticatedUser(mockk(), ORGANIZATION_ID, token).block()
+
+        expectThat(result) {
+            isNotNull().and { get { id }.isEqualTo(USER_ID) }
+        }
+    }
+
+    @Test
+    fun `find user authenticated by JwtAuthenticationToken`() {
+        val tokenName = "jwtToken"
+        val token: JwtAuthenticationToken = mockk {
+            every { name } returns tokenName
+        }
+        val client: AuthenticationStoreClient = mockk {
+            coEvery { getUserById(ORGANIZATION_ID, tokenName) } returns User(USER_ID)
+        }
+
+        val result = findAuthenticatedUser(client, ORGANIZATION_ID, token).block()
+
+        coVerify(exactly = 1) { client.getUserById(any(), any()) }
+        expectThat(result) {
+            isNotNull().and { get { id }.isEqualTo(USER_ID) }
+        }
+    }
+
+    @Test
+    fun `find user authenticated by OAuth2AuthenticationToken`() {
+        val subClaim = "sub"
+        val token: OAuth2AuthenticationToken = mockk {
+            every { principal.attributes[IdTokenClaimNames.SUB] } returns subClaim
+        }
+        val client: AuthenticationStoreClient = mockk {
+            coEvery { getUserByAuthenticationId(ORGANIZATION_ID, subClaim) } returns User(USER_ID)
+        }
+
+        val result = findAuthenticatedUser(client, ORGANIZATION_ID, token).block()
+
+        coVerify(exactly = 1) { client.getUserByAuthenticationId(any(), any()) }
+        expectThat(result) {
+            isNotNull().and { get { id }.isEqualTo(USER_ID) }
+        }
+    }
+
+    @Test
+    fun `find user authenticated by not specified token`() {
+        val token: Authentication = mockk()
+
+        val result = findAuthenticatedUser(mockk(), ORGANIZATION_ID, token).block()
+
+        expectThat(result).isNull()
+    }
+
+    @Test
+    fun `user not found by OAuth2AuthenticationToken`() {
+        val subClaim = "sub"
+        val token: OAuth2AuthenticationToken = mockk {
+            every { principal.attributes[IdTokenClaimNames.SUB] } returns subClaim
+        }
+        val client: AuthenticationStoreClient = mockk {
+            coEvery { getUserByAuthenticationId(ORGANIZATION_ID, subClaim) } returns null
+        }
+
+        val result = findAuthenticatedUser(client, ORGANIZATION_ID, token).block()
+
+        coVerify(exactly = 1) { client.getUserByAuthenticationId(any(), any()) }
+        expectThat(result).isNull()
+    }
+
     private fun mockOidcIssuer(): String {
         wireMockServer.stubFor(
             WireMock.get(WireMock.urlEqualTo(OIDC_CONFIG_PATH)).willReturn(
@@ -185,7 +267,7 @@ internal class AuthenticationUtilsTest {
         private const val CLIENT_ID = "clientId"
         private const val CLIENT_SECRET = "secret"
         private const val OIDC_CONFIG_PATH = "/.well-known/openid-configuration"
-
+        private const val USER_ID = "userId"
         private val wireMockServer = WireMockServer(WireMockConfiguration().dynamicPort()).apply {
             start()
         }

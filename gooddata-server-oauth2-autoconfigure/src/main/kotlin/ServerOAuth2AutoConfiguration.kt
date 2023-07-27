@@ -15,8 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import java.net.URI
-import java.util.Base64
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.AutoConfigureBefore
@@ -65,6 +63,8 @@ import org.springframework.util.ClassUtils
 import org.springframework.web.client.RestTemplate
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource
 import org.springframework.web.reactive.config.EnableWebFlux
+import java.net.URI
+import java.util.Base64
 
 @Configuration
 @EnableConfigurationProperties(
@@ -84,6 +84,11 @@ class ServerOAuth2AutoConfiguration {
      */
     @EnableWebFluxSecurity
     class EnabledSecurity
+
+    @Bean
+    fun authSuccessHandler(
+        authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>,
+    ) = LoggingRedirectServerAuthenticationSuccessHandler(authenticationStoreClient.`object`)
 
     @Bean
     fun cookieSerializer(
@@ -253,7 +258,8 @@ class ServerOAuth2AutoConfiguration {
             },
             // Keep Auth0 handler as last one in OIDC handlers
             Auth0LogoutHandler(clientRegistrationRepository, auth0CustomDomain),
-            JwtAuthenticationLogoutHandler(authenticationStoreClient.`object`)
+            JwtAuthenticationLogoutHandler(authenticationStoreClient.`object`),
+            client = authenticationStoreClient.`object`,
         )
 
         return serverHttpSecurity.securityContextRepository(serverSecurityContextRepository).configure {
@@ -291,6 +297,7 @@ class ServerOAuth2AutoConfiguration {
                 authenticationFailureHandler = ServerOAuth2FailureHandler()
                 authenticationManager = loginAuthManager
                 authorizationRequestResolver = urlSafeStateAuthorizationRequestResolver
+                authenticationSuccessHandler = authSuccessHandler(authenticationStoreClient)
             }
             oauth2Client { }
             exceptionHandling {
@@ -341,9 +348,9 @@ class ServerOAuth2AutoConfiguration {
                 },
                 SecurityWebFiltersOrder.EXCEPTION_TRANSLATION
             )
-            addFilterAfter(
+            addFilterAt(
                 AppLoginWebFilter(appLoginRedirectProcessor),
-                SecurityWebFiltersOrder.AUTHORIZATION
+                SecurityWebFiltersOrder.LAST
             )
             addFilterAt(
                 OrganizationWebFilter(
