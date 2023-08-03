@@ -39,7 +39,6 @@ class CompositeCorsConfigurationSource(
 
     private fun getOrganizationConfiguration(
         exchange: ServerWebExchange
-    ): CorsConfiguration? = exchange.request.uri.host?.let { host ->
-        organizationCorsConfigurationSource.getOrganizationCorsConfiguration(host)
-    }
+    ): CorsConfiguration? =
+        organizationCorsConfigurationSource.getOrganizationCorsConfiguration(exchange)
 }

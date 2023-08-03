@@ -17,6 +17,7 @@
 
 package com.gooddata.oauth2.server
 
+import com.gooddata.oauth2.server.OrganizationWebFilter.Companion.orgContextWrite
 import io.mockk.called
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -70,8 +71,8 @@ class OidcAuthenticationProcessorTest {
             "hostname"
         )
 
-        coEvery { client.getOrganizationByHostname("hostname") } returns Organization("organizationId")
-        coEvery { client.getUserByAuthenticationId("organizationId", "sub") } returns User(
+        coEvery { client.getOrganizationByHostname("hostname") } returns Organization(ORG_ID)
+        coEvery { client.getUserByAuthenticationId(ORG_ID, "sub") } returns User(
             "userId",
         )
         coEvery { userContextProvider.getContextView(any(), any(), any()) } returns Context.empty()
@@ -80,12 +81,14 @@ class OidcAuthenticationProcessorTest {
             every { filter(any()) } returns Mono.empty()
         }
 
-        oidcAuthenticationProcessor.authenticate(authenticationToken, mockk(), webFilterChain).block()
+        oidcAuthenticationProcessor.authenticate(authenticationToken, mockk(), webFilterChain)
+            .orgContextWrite(ORGANIZATION)
+            .block()
 
         verify { serverLogoutHandler wasNot called }
         verify { authenticationEntryPoint wasNot called }
         verify(exactly = 1) { webFilterChain.filter(any()) }
-        coVerify(exactly = 1) { userContextProvider.getContextView("organizationId", "userId", "sub") }
+        coVerify(exactly = 1) { userContextProvider.getContextView(ORG_ID, "userId", "sub") }
     }
 
     @Test
@@ -110,19 +113,26 @@ class OidcAuthenticationProcessorTest {
 
         every { serverLogoutHandler.logout(any(), any()) } returns Mono.empty()
         every { authenticationEntryPoint.commence(any(), any()) } returns Mono.empty()
-        coEvery { client.getOrganizationByHostname("hostname") } returns Organization("organizationId")
-        coEvery { client.getUserByAuthenticationId("organizationId", "sub") } returns User(
+        coEvery { client.getOrganizationByHostname("hostname") } returns Organization(ORG_ID)
+        coEvery { client.getUserByAuthenticationId(ORG_ID, "sub") } returns User(
             "userId",
             lastLogoutAllTimestamp = Instant.ofEpochSecond(1),
         )
 
         val webFilterChain = mockk<WebFilterChain>()
 
-        oidcAuthenticationProcessor.authenticate(authenticationToken, mockk(), webFilterChain).block()
+        oidcAuthenticationProcessor.authenticate(authenticationToken, mockk(), webFilterChain)
+            .orgContextWrite(ORGANIZATION)
+            .block()
 
         verify(exactly = 1) { serverLogoutHandler.logout(any(), any()) }
         verify(exactly = 1) { authenticationEntryPoint.commence(any(), any()) }
         verify { webFilterChain wasNot called }
         verify { userContextProvider wasNot called }
+    }
+
+    companion object {
+        val ORG_ID = "organizationId"
+        val ORGANIZATION = Organization(ORG_ID)
     }
 }

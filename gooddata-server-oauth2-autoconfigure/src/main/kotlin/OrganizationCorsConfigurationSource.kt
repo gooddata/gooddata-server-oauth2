@@ -16,10 +16,9 @@
 
 package com.gooddata.oauth2.server
 
-import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 import org.springframework.web.cors.CorsConfiguration
-import org.springframework.web.server.ResponseStatusException
+import org.springframework.web.server.ServerWebExchange
 
 /**
  * CORS configuration source which provides configuration based organization configuration .
@@ -30,19 +29,8 @@ class OrganizationCorsConfigurationSource(private val authenticationStoreClient:
     private val logger = KotlinLogging.logger {}
 
     @Suppress("TooGenericExceptionCaught")
-    fun getOrganizationCorsConfiguration(serverName: String) = try {
-        runBlocking {
-            authenticationStoreClient.getOrganizationByHostname(serverName)
-        }.let {
-            it.allowedOrigins?.toCorsConfiguration()
-        }
-    } catch (e: ResponseStatusException) {
-        logger.debug("Organization with hostname '$serverName' not found.", e)
-        null
-    } catch (e: Exception) {
-        logger.error("Cannot retrieve organization with hostname '$serverName'.", e)
-        null
-    }
+    fun getOrganizationCorsConfiguration(exchange: ServerWebExchange) =
+        exchange.getOrganizationFromAttributes().allowedOrigins?.toCorsConfiguration()
 }
 
 /**

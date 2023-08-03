@@ -43,6 +43,7 @@ class LogoutAllServerLogoutHandler(
                         withMessage { "Logout all" }
                         withAction("logoutAll")
                         withUserId(it.userId)
+                        withOrganizationId(it.organizationId)
                     }
                 }
         }.then()

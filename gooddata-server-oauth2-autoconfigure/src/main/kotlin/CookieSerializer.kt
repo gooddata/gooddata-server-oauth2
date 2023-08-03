@@ -18,6 +18,7 @@ package com.gooddata.oauth2.server
 import com.google.crypto.tink.Aead
 import com.google.crypto.tink.aead.AeadConfig
 import kotlinx.coroutines.runBlocking
+import org.springframework.web.server.ServerWebExchange
 import java.security.GeneralSecurityException
 import java.time.Instant
 import java.util.Base64
@@ -53,8 +54,8 @@ class CookieSerializer(
     /**
      * Convert cookie from internal string serialization to external string serialization.
      */
-    fun encodeCookie(hostname: Hostname, internalCookie: String): String {
-        val aead = getAead(hostname)
+    fun encodeCookie(exchange: ServerWebExchange, internalCookie: String): String {
+        val aead = getAead(exchange)
         val encryptedCookie = aead.encrypt(internalCookie.toByteArray(), null)
         return encryptedCookie.toBase64()
     }
@@ -65,8 +66,8 @@ class CookieSerializer(
      *
      * @throws IllegalArgumentException when decryption fails
      */
-    fun decodeCookie(hostname: Hostname, externalCookie: String): String {
-        val aead = getAead(hostname)
+    fun decodeCookie(exchange: ServerWebExchange, externalCookie: String): String {
+        val aead = getAead(exchange)
         val encryptedCookie = externalCookie.fromBase64()
         val internalCookie = try {
             aead.decrypt(encryptedCookie, null)
@@ -79,18 +80,18 @@ class CookieSerializer(
     /**
      * Get [Aead] from cache (if still valid) or from [AuthenticationStoreClient].
      */
-    private fun getAead(hostname: Hostname): Aead {
+    private fun getAead(exchange: ServerWebExchange): Aead {
         val now = Instant.now()
-        return getAeadFromCache(hostname, now) ?: resolveAndCacheAead(hostname, now)
+        return getAeadFromCache(exchange, now) ?: resolveAndCacheAead(exchange, now)
     }
 
-    private fun getAeadFromCache(hostname: Hostname, now: Instant): Aead? =
-        aeadCache[hostname]?.let { aead -> aead.getValidAead(now) }
+    private fun getAeadFromCache(exchange: ServerWebExchange, now: Instant): Aead? =
+        aeadCache[exchange.request.uri.host]?.let { aead -> aead.getValidAead(now) }
 
-    private fun resolveAndCacheAead(hostname: Hostname, now: Instant): Aead {
+    private fun resolveAndCacheAead(exchange: ServerWebExchange, now: Instant): Aead {
         // process before compute() method for not blocking cache
-        val cookieSecurityProperties = readCookieSecurityProperties(hostname)
-        return aeadCache.compute(hostname) { _, _ ->
+        val cookieSecurityProperties = readCookieSecurityProperties(exchange)
+        return aeadCache.compute(exchange.request.uri.host) { _, _ ->
             AeadWithExpiration(
                 aead = cookieSecurityProperties.keySet.getPrimitive(Aead::class.java),
                 validTo = minOf(cookieSecurityProperties.validTo, cookieServiceProperties.validTo(now))
@@ -98,10 +99,10 @@ class CookieSerializer(
         }!!.aead
     }
 
-    private fun readCookieSecurityProperties(hostname: Hostname) = runBlocking {
-        val organization = client.getOrganizationByHostname(hostname)
-        client.getCookieSecurityProperties(organization.id)
-    }
+    private fun readCookieSecurityProperties(exchange: ServerWebExchange): CookieSecurityProperties =
+        runBlocking {
+            client.getCookieSecurityProperties(exchange.getOrganizationFromAttributes().id)
+        }
 
     private fun ByteArray.toBase64(): String = String(Base64.getEncoder().encode(this))
 

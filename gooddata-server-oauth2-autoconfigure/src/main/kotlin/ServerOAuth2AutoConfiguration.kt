@@ -116,7 +116,7 @@ class ServerOAuth2AutoConfiguration {
         properties: HostBasedClientRegistrationRepositoryProperties,
         clientRegistrationBuilderCache: ClientRegistrationBuilderCache,
     ): ReactiveClientRegistrationRepository =
-        HostBasedReactiveClientRegistrationRepository(client.`object`, properties, clientRegistrationBuilderCache)
+        HostBasedReactiveClientRegistrationRepository(properties, clientRegistrationBuilderCache)
 
     @ConditionalOnMissingBean(ClientRegistrationBuilderCache::class)
     @Bean
@@ -344,6 +344,12 @@ class ServerOAuth2AutoConfiguration {
             addFilterAfter(
                 AppLoginWebFilter(appLoginRedirectProcessor),
                 SecurityWebFiltersOrder.AUTHORIZATION
+            )
+            addFilterAt(
+                OrganizationWebFilter(
+                    authenticationStoreClient.`object`
+                ),
+                SecurityWebFiltersOrder.FIRST
             )
         }
     }

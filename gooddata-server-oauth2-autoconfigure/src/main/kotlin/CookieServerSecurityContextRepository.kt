@@ -104,7 +104,7 @@ class CookieServerSecurityContextRepository(
     private fun ServerWebExchange.loadTokenFromCookie() = Mono.just(this)
         .flatMap { exchange ->
             cookieService.decodeCookie<OAuth2AuthenticationToken>(
-                exchange.request,
+                exchange,
                 SPRING_SEC_SECURITY_CONTEXT,
                 mapper,
             )

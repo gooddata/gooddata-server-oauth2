@@ -29,6 +29,8 @@ import org.junit.jupiter.api.Test
 import org.springframework.http.HttpCookie
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
+import org.springframework.util.CollectionUtils
+import org.springframework.web.server.ServerWebExchange
 import strikt.api.expectThat
 import strikt.assertions.isEqualTo
 import strikt.assertions.isTrue
@@ -64,8 +66,7 @@ internal class CookieServerRequestCacheTest {
     """
 
     private val client: AuthenticationStoreClient = mockk {
-        coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
-        coEvery { getCookieSecurityProperties("org") } returns CookieSecurityProperties(
+        coEvery { getCookieSecurityProperties(ORG_ID) } returns CookieSecurityProperties(
             keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
             lastRotation = Instant.now(),
             rotationInterval = Duration.ofDays(1),
@@ -126,9 +127,13 @@ internal class CookieServerRequestCacheTest {
 
     @Test
     fun `should not load redirect URI when nonsense is stored in cookies`() {
-        val exchange = MockServerWebExchange.from(
-            MockServerHttpRequest.get("http://localhost/").cookie(HttpCookie(SPRING_REDIRECT_URI, "something"))
-        )
+        val exchange = mockk<ServerWebExchange> {
+            every { request.uri.host } returns "localhost"
+            every { attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
+            every { request.cookies } returns CollectionUtils.toMultiValueMap(
+                mapOf(SPRING_REDIRECT_URI to listOf(HttpCookie(SPRING_REDIRECT_URI, "something")))
+            )
+        }
 
         val uri = cache.getRedirectUri(exchange)
 
@@ -139,10 +144,15 @@ internal class CookieServerRequestCacheTest {
 
     @Test
     fun `should load redirect URI from cookie`() {
+        val webExchange = mockk<ServerWebExchange> {
+            every { request.uri.host } returns "localhost"
+            every { attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
+        }
+
         val redirect = "/requestURI?query=true"
         val exchange = MockServerWebExchange.from(
             MockServerHttpRequest.get("http://localhost/").cookie(
-                HttpCookie(SPRING_REDIRECT_URI, cookieSerializer.encodeCookie("localhost", redirect))
+                HttpCookie(SPRING_REDIRECT_URI, cookieSerializer.encodeCookie(webExchange, redirect))
             )
         )
 
@@ -152,5 +162,9 @@ internal class CookieServerRequestCacheTest {
             get { isPresent }.isTrue()
             get { get() }.isEqualTo(URI.create(redirect))
         }
+    }
+
+    companion object {
+        const val ORG_ID = "org"
     }
 }

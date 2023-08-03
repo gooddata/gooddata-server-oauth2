@@ -43,13 +43,10 @@ class BearerTokenReactiveAuthenticationManagerResolver(
 ) : ReactiveAuthenticationManagerResolver<ServerWebExchange> {
 
     override fun resolve(exchange: ServerWebExchange): Mono<ReactiveAuthenticationManager> =
-        Mono.just(exchange).map { webExchange ->
-            val organizationProvider = {
-                mono { client.getOrganizationByHostname(webExchange.request.uri.host) }
-            }
+        Mono.just(exchange).map {
             CustomDelegatingReactiveAuthenticationManager(
-                JwtAuthenticationManager(client, organizationProvider),
-                PersistentApiTokenAuthenticationManager(client, organizationProvider)
+                JwtAuthenticationManager(client),
+                PersistentApiTokenAuthenticationManager(client)
             )
         }
 }
@@ -59,7 +56,6 @@ class BearerTokenReactiveAuthenticationManagerResolver(
  */
 private class PersistentApiTokenAuthenticationManager(
     private val client: AuthenticationStoreClient,
-    private val organizationProvider: () -> Mono<Organization>,
 ) : ReactiveAuthenticationManager {
 
     override fun authenticate(authentication: Authentication?): Mono<Authentication> =
@@ -67,7 +63,7 @@ private class PersistentApiTokenAuthenticationManager(
             .filter { authentication is BearerTokenAuthenticationToken }
             .cast(BearerTokenAuthenticationToken::class.java)
             .flatMap { authToken ->
-                organizationProvider().flatMap { organization ->
+                getOrganizationFromContext().flatMap { organization ->
                     mono(Dispatchers.Unconfined) { client.getUserByApiToken(organization.id, authToken.token) }
                         .map { user -> UserContextAuthenticationToken(organization, user) }
                 }
@@ -79,7 +75,6 @@ private class PersistentApiTokenAuthenticationManager(
  */
 private class JwtAuthenticationManager(
     private val client: AuthenticationStoreClient,
-    private val organizationProvider: () -> Mono<Organization>,
     private val jwtTokenValidator: OAuth2TokenValidator<Jwt> = CustomOAuth2Validator(),
 ) : ReactiveAuthenticationManager {
 
@@ -117,7 +112,7 @@ private class JwtAuthenticationManager(
     private fun isJwtBearerToken(authToken: BearerTokenAuthenticationToken) =
         jwtBearerTokenRegex.matches(authToken.token.trim())
 
-    private fun getJwkSet(): Mono<JWKSet> = organizationProvider().flatMap { organization ->
+    private fun getJwkSet(): Mono<JWKSet> = getOrganizationFromContext().flatMap { organization ->
         mono {
             client.getJwks(organization.id).let(::JWKSet)
         }

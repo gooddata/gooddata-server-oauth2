@@ -52,7 +52,7 @@ class CookieServerOAuth2AuthorizedClientRepository(
         return Mono.just(exchange)
             .flatMap { serverWebExchange ->
                 cookieService.decodeCookie<SimplifiedOAuth2AuthorizedClient>(
-                    serverWebExchange.request,
+                    serverWebExchange,
                     SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
                     mapper,
                 )

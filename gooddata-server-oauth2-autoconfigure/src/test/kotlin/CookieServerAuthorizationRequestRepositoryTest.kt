@@ -49,25 +49,6 @@ internal class CookieServerAuthorizationRequestRepositoryTest {
         Duration.ofDays(1)
     )
 
-    @Language("JSON")
-    private val keyset = """
-        {
-            "primaryKeyId": 482808123,
-            "key": [
-                {
-                    "keyData": {
-                        "typeUrl": "type.googleapis.com/google.crypto.tink.AesGcmKey",
-                        "keyMaterialType": "SYMMETRIC",
-                        "value": "GiBpR+IuA4xWtq5ZijTXae/Y9plMy0TMMc97wqdOrK7ndA=="
-                    },
-                    "outputPrefixType": "TINK",
-                    "keyId": 482808123,
-                    "status": "ENABLED"
-                }
-            ]
-        }
-    """
-
     private val client: AuthenticationStoreClient = mockk {
         coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
         coEvery { getCookieSecurityProperties("org") } returns CookieSecurityProperties(
@@ -79,7 +60,9 @@ internal class CookieServerAuthorizationRequestRepositoryTest {
 
     private val cookieSerializer = CookieSerializer(properties, client)
 
-    private val exchange: ServerWebExchange = mockk()
+    private val exchange: ServerWebExchange = mockk {
+        every { request.uri.host } returns "localhost"
+    }
 
     private val cookieService = spyk(ReactiveCookieService(properties, cookieSerializer))
 
@@ -103,6 +86,8 @@ internal class CookieServerAuthorizationRequestRepositoryTest {
         every { exchange.request.cookies } returns toMultiValueMap(
             mapOf(SPRING_SEC_OAUTH2_AUTHZ_RQ to listOf(HttpCookie(SPRING_SEC_OAUTH2_AUTHZ_RQ, "something")))
         )
+        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
+        coEvery { client.getCookieSecurityProperties(ORG_ID) } returns COOKIE_PROPERTIES
 
         val request = repository.loadAuthorizationRequest(exchange)
 
@@ -116,10 +101,12 @@ internal class CookieServerAuthorizationRequestRepositoryTest {
         val body = resource("oauth2_authorization_request.json").readText()
 
         every { exchange.request.uri } returns URI.create("http://localhost")
+        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
+        coEvery { client.getCookieSecurityProperties(ORG_ID) } returns COOKIE_PROPERTIES
         every { exchange.request.cookies } returns toMultiValueMap(
             mapOf(
                 SPRING_SEC_OAUTH2_AUTHZ_RQ to listOf(
-                    HttpCookie(SPRING_SEC_OAUTH2_AUTHZ_RQ, cookieSerializer.encodeCookie("localhost", body))
+                    HttpCookie(SPRING_SEC_OAUTH2_AUTHZ_RQ, cookieSerializer.encodeCookie(exchange, body))
                 )
             )
         )
@@ -163,6 +150,8 @@ internal class CookieServerAuthorizationRequestRepositoryTest {
         every { exchange.request.cookies } returns toMultiValueMap(
             mapOf(SPRING_SEC_OAUTH2_AUTHZ_RQ to listOf(HttpCookie(SPRING_SEC_OAUTH2_AUTHZ_RQ, "some invalid content")))
         )
+        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
+        coEvery { client.getCookieSecurityProperties(ORG_ID) } returns COOKIE_PROPERTIES
         every { cookieService.invalidateCookie(any(), any()) } returns Unit
 
         val request = repository.removeAuthorizationRequest(exchange)
@@ -178,10 +167,12 @@ internal class CookieServerAuthorizationRequestRepositoryTest {
     fun `should remove request if there is some problem reading it`() {
         val body = resource("oauth2_authorization_request.json").readText()
         every { exchange.request.uri } returns URI.create("http://localhost")
+        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
+        coEvery { client.getCookieSecurityProperties(ORG_ID) } returns COOKIE_PROPERTIES
         every { exchange.request.cookies } returns toMultiValueMap(
             mapOf(
                 SPRING_SEC_OAUTH2_AUTHZ_RQ to listOf(
-                    HttpCookie(SPRING_SEC_OAUTH2_AUTHZ_RQ, cookieSerializer.encodeCookie("localhost", body))
+                    HttpCookie(SPRING_SEC_OAUTH2_AUTHZ_RQ, cookieSerializer.encodeCookie(exchange, body))
                 )
             )
         )
@@ -196,5 +187,34 @@ internal class CookieServerAuthorizationRequestRepositoryTest {
 
         // one for loaded request, one for terminal
         verify(exactly = 2) { cookieService.invalidateCookie(exchange, SPRING_SEC_OAUTH2_AUTHZ_RQ) }
+    }
+
+    companion object {
+        private const val ORG_ID = "orgId"
+
+        @Language("JSON")
+        private val keyset = """
+        {
+            "primaryKeyId": 482808123,
+            "key": [
+                {
+                    "keyData": {
+                        "typeUrl": "type.googleapis.com/google.crypto.tink.AesGcmKey",
+                        "keyMaterialType": "SYMMETRIC",
+                        "value": "GiBpR+IuA4xWtq5ZijTXae/Y9plMy0TMMc97wqdOrK7ndA=="
+                    },
+                    "outputPrefixType": "TINK",
+                    "keyId": 482808123,
+                    "status": "ENABLED"
+                }
+            ]
+        }
+    """
+
+        val COOKIE_PROPERTIES = CookieSecurityProperties(
+            keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
+            lastRotation = Instant.now(),
+            rotationInterval = Duration.ofDays(1),
+        )
     }
 }

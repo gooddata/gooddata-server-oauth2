@@ -48,7 +48,7 @@ class CookieServerRequestCache(private val cookieService: ReactiveCookieService)
 
     override fun getRedirectUri(exchange: ServerWebExchange): Mono<URI> =
         Mono.just(exchange)
-            .flatMap { cookieService.decodeCookie(it.request, SPRING_REDIRECT_URI) }
+            .flatMap { cookieService.decodeCookie(it, SPRING_REDIRECT_URI) }
             .map { URI.create(it) }
 
     override fun removeMatchingRequest(exchange: ServerWebExchange): Mono<ServerHttpRequest> {
