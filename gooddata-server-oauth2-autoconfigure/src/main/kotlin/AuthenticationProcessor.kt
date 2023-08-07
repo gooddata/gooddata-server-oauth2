@@ -47,5 +47,7 @@ sealed class AuthenticationProcessor<in authenticationToken : AbstractAuthentica
         user: User,
         name: String?,
         monoProvider: () -> Mono<T>,
-    ): Mono<T> = monoProvider().contextWrite(reactorUserContextProvider.getContextView(organization.id, user.id, name))
+    ): Mono<T> = monoProvider().contextWrite(
+        reactorUserContextProvider.getContextView(organization.id, user.id, name, user.usedTokenId)
+    )
 }

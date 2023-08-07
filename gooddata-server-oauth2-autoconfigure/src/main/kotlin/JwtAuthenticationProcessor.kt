@@ -52,6 +52,7 @@ class JwtAuthenticationProcessor(
         }.flatMap { organization ->
             getUserForJwtToken(exchange, chain, authenticationToken, organization).flatMap { user ->
                 val userName = authenticationToken.tokenAttributeOrNull("name").toString()
+                // JWT tokenId shall not be logged in the scope of NAS-4936
                 withUserContext(organization, user, userName) {
                     chain.filter(exchange)
                 }

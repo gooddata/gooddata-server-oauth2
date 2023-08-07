@@ -41,7 +41,7 @@ interface UserContextHolder<UserContextT : AuthenticationUserContext> {
      * Sets and stores provided information as a new authenticated user context and returns it in a form of coroutine
      * context element.
      */
-    suspend fun setContext(organizationId: String, userId: String, userName: String?): ReactorContext
+    suspend fun setContext(organizationId: String, userId: String, userName: String?, tokenId: String?): ReactorContext
 }
 
 /**
@@ -63,9 +63,10 @@ fun interface ReactorUserContextProvider {
      * @param[organizationId] the user's organization
      * @param[userId] the ID of the user
      * @param[userName] the name of the user
+     * @param[tokenId] the ID of the ApiToken or null for other tokens
      * @return [ContextView] containing the user's context
      */
-    fun getContextView(organizationId: String, userId: String, userName: String?): ContextView
+    fun getContextView(organizationId: String, userId: String, userName: String?, tokenId: String?): ContextView
 }
 
 /**
@@ -82,4 +83,9 @@ interface AuthenticationUserContext {
      * Authenticated user's ID.
      */
     val userId: String
+
+    /**
+     * ID of the apiToken
+     */
+    val tokenId: String?
 }

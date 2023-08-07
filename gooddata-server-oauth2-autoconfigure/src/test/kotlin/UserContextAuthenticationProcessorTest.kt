@@ -33,7 +33,7 @@ class UserContextAuthenticationProcessorTest {
 
     @Test
     fun `bearer context is stored`() {
-        coEvery { userContextProvider.getContextView(any(), any(), any()) } returns Context.empty()
+        coEvery { userContextProvider.getContextView(any(), any(), any(), any()) } returns Context.empty()
 
         val authenticationToken = UserContextAuthenticationToken(
             Organization("organizationId"),
@@ -47,6 +47,6 @@ class UserContextAuthenticationProcessorTest {
         userContextAuthenticationProcessor.authenticate(authenticationToken, mockk(), webFilterChain).block()
 
         verify(exactly = 1) { webFilterChain.filter(any()) }
-        coVerify(exactly = 1) { userContextProvider.getContextView("organizationId", "userId", null) }
+        coVerify(exactly = 1) { userContextProvider.getContextView("organizationId", "userId", null, any()) }
     }
 }

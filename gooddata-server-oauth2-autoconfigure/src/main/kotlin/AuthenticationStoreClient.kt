@@ -19,6 +19,7 @@ import com.nimbusds.jose.jwk.JWK
 import java.time.Instant
 import java.time.LocalDateTime
 import org.springframework.http.HttpStatus
+import org.springframework.security.oauth2.server.resource.BearerTokenAuthenticationToken
 import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException
 import org.springframework.web.server.ResponseStatusException
 
@@ -165,10 +166,12 @@ data class Organization(
  *
  * @property id the ID of this end-user within the persistent storage
  * @property lastLogoutAllTimestamp timestamp, when this end-user hit "Logout From All Sessions" last time
+ * @property id of ApiToken, if found by [BearerTokenAuthenticationToken], null for other cases
  *
  * @see AuthenticationStoreClient
  */
 data class User(
     val id: String,
     val lastLogoutAllTimestamp: Instant? = null,
+    val usedTokenId: String? = null,
 )
