@@ -14,12 +14,11 @@ class CustomDelegatingReactiveAuthenticationManager(
 
     override fun authenticate(authentication: Authentication): Mono<Authentication> {
         return getOrganizationFromContext().flatMap { organization ->
-            val orgId = organization?.id ?: ""
             logger.logInfo {
                 withMessage { "User attempts to authenticate" }
                 withAction("login")
                 withState("started")
-                withOrganizationId(orgId)
+                withOrganizationId(organization.id)
             }
             Flux.fromIterable(delegates)
                 .concatMap { delegate ->
@@ -29,17 +28,9 @@ class CustomDelegatingReactiveAuthenticationManager(
                     logger.logError(t) {
                         withAction("login")
                         withState("error")
-                        withOrganizationId(orgId)
+                        withOrganizationId(organization.id)
                     }
                 }.next()
-                .doOnNext {
-                    logger.logInfo {
-                        withMessage { "User authenticated" }
-                        withAction("login")
-                        withState("finished")
-                        withOrganizationId(orgId)
-                    }
-                }
         }
     }
 }

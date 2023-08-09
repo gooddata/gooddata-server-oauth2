@@ -132,7 +132,7 @@ class OidcAuthenticationProcessorTest {
     }
 
     companion object {
-        val ORG_ID = "organizationId"
+        const val ORG_ID = "organizationId"
         val ORGANIZATION = Organization(ORG_ID)
     }
 }

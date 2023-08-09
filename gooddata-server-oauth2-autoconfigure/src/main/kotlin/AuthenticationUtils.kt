@@ -30,19 +30,23 @@ import com.nimbusds.jwt.proc.JWTClaimsSetVerifier
 import com.nimbusds.oauth2.sdk.Scope
 import com.nimbusds.openid.connect.sdk.OIDCScopeValue
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata
+import kotlinx.coroutines.reactor.mono
 import net.minidev.json.JSONObject
 import org.springframework.core.convert.ConversionService
 import org.springframework.core.convert.TypeDescriptor
 import org.springframework.core.convert.converter.Converter
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ClientRegistrations
 import org.springframework.security.oauth2.core.AuthenticationMethod
 import org.springframework.security.oauth2.core.AuthorizationGrantType
 import org.springframework.security.oauth2.core.converter.ClaimConversionService
+import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
 import org.springframework.security.oauth2.jwt.MappedJwtClaimSetConverter
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.web.server.ResponseStatusException
 import reactor.core.publisher.Mono
 import java.security.MessageDigest
@@ -84,7 +88,8 @@ fun buildClientRegistration(
             } catch (ex: RuntimeException) {
                 when (ex) {
                     is IllegalArgumentException,
-                    is IllegalStateException -> throw ResponseStatusException(
+                    is IllegalStateException,
+                    -> throw ResponseStatusException(
                         HttpStatus.UNAUTHORIZED,
                         "Authorization failed for given issuer \"${organization.oauthIssuerLocation}\". ${ex.message}"
                     )
@@ -257,10 +262,41 @@ private fun ClientRegistration.Builder.withDexConfig(
  */
 fun String.removeIllegalCharacters(): String = filter(::isLegalChar)
 
-fun Authentication.userId(): String = when (this) {
-    is UserContextAuthenticationToken -> user.id
-    else -> this.name
-}
+fun findAuthenticatedUser(
+    client: AuthenticationStoreClient,
+    organizationId: String,
+    authentication: Authentication?,
+): Mono<User> =
+    when (authentication) {
+        is UserContextAuthenticationToken -> Mono.just(authentication.user)
+        is JwtAuthenticationToken -> getUserForJwt(client, organizationId, authentication)
+        is OAuth2AuthenticationToken -> getUserForOAuth2(client, organizationId, authentication)
+        else -> Mono.empty()
+    }
+
+fun getUserForJwt(
+    client: AuthenticationStoreClient,
+    organizationId: String,
+    token: JwtAuthenticationToken,
+): Mono<User> =
+    mono { client.getUserById(organizationId, token.name) }
+
+fun getUserForOAuth2(
+    client: AuthenticationStoreClient,
+    organizationId: String,
+    token: OAuth2AuthenticationToken,
+): Mono<User> =
+    mono {
+        client.getUserByAuthenticationId(organizationId, token.getAuthenticationId())
+    }
+
+fun Authentication.getAuthenticationId(): String =
+    when (this) {
+        is UserContextAuthenticationToken -> this.user.id
+        is OAuth2AuthenticationToken -> this.principal.attributes[IdTokenClaimNames.SUB] as String
+        is JwtAuthenticationToken -> this.name
+        else -> ""
+    }
 
 /**
  * Detect if character is legal according to OAuth2 specification
