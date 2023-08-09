@@ -60,6 +60,7 @@ dependencies {
     testImplementation("com.ninja-squad:springmockk:${springMockkVersion}")
     testImplementation("io.mockk:mockk:${mockkVersion}")
     testImplementation("io.projectreactor:reactor-tools")
+    testImplementation("io.projectreactor:reactor-test")
     testImplementation("io.strikt:strikt-core")
     testImplementation("net.javacrumbs.json-unit:json-unit:${jsonUnitVersion}")
     testImplementation("org.jetbrains.kotlin:kotlin-reflect")

@@ -24,7 +24,6 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import java.time.Instant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.jupiter.api.Test
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
@@ -32,11 +31,14 @@ import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
 import org.springframework.security.oauth2.core.oidc.OidcIdToken
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority
+import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException
 import org.springframework.security.web.server.ServerAuthenticationEntryPoint
 import org.springframework.security.web.server.authentication.logout.ServerLogoutHandler
 import org.springframework.web.server.WebFilterChain
 import reactor.core.publisher.Mono
+import reactor.test.StepVerifier
 import reactor.util.context.Context
+import java.time.Instant
 
 class OidcAuthenticationProcessorTest {
 
@@ -53,6 +55,7 @@ class OidcAuthenticationProcessorTest {
 
     @Test
     fun `user context is stored for Oidc authentication`() {
+        val organization = Organization(ORG_ID)
         val idToken = OidcIdToken(
             "tokenValue",
             Instant.EPOCH,
@@ -71,7 +74,7 @@ class OidcAuthenticationProcessorTest {
             "hostname"
         )
 
-        coEvery { client.getOrganizationByHostname("hostname") } returns Organization(ORG_ID)
+        coEvery { client.getOrganizationByHostname("hostname") } returns organization
         coEvery { client.getUserByAuthenticationId(ORG_ID, "sub") } returns User(
             "userId",
         )
@@ -81,14 +84,101 @@ class OidcAuthenticationProcessorTest {
             every { filter(any()) } returns Mono.empty()
         }
 
-        oidcAuthenticationProcessor.authenticate(authenticationToken, mockk(), webFilterChain)
-            .orgContextWrite(ORGANIZATION)
-            .block()
+        val mono = oidcAuthenticationProcessor.authenticate(authenticationToken, mockk(), webFilterChain)
+            .orgContextWrite(organization)
+
+        StepVerifier
+            .create(mono)
+            .verifyComplete()
 
         verify { serverLogoutHandler wasNot called }
         verify { authenticationEntryPoint wasNot called }
         verify(exactly = 1) { webFilterChain.filter(any()) }
         coVerify(exactly = 1) { userContextProvider.getContextView(ORG_ID, "userId", "sub") }
+    }
+
+    @Test
+    fun `user context is stored for Oidc authentication using non-default subject claim`() {
+        val organization = Organization(id = ORG_ID, oauthSubjectIdClaim = OID_SUBJECT_ID_CLAIM_NAME)
+        val idToken = OidcIdToken(
+            "tokenValue",
+            Instant.EPOCH,
+            Instant.EPOCH.plusSeconds(1),
+            mapOf(
+                IdTokenClaimNames.SUB to "non-sub",
+                OID_SUBJECT_ID_CLAIM_NAME to "sub",
+                IdTokenClaimNames.IAT to Instant.EPOCH
+            )
+        )
+        val authenticationToken = OAuth2AuthenticationToken(
+            DefaultOidcUser(
+                listOf(OidcUserAuthority(idToken)),
+                idToken
+            ),
+            emptyList(),
+            "hostname"
+        )
+
+        coEvery { client.getOrganizationByHostname("hostname") } returns organization
+        coEvery { client.getUserByAuthenticationId(ORG_ID, "sub") } returns User(
+            "userId",
+        )
+        coEvery { userContextProvider.getContextView(any(), any(), any()) } returns Context.empty()
+
+        val webFilterChain = mockk<WebFilterChain> {
+            every { filter(any()) } returns Mono.empty()
+        }
+
+        val mono = oidcAuthenticationProcessor.authenticate(authenticationToken, mockk(), webFilterChain)
+            .orgContextWrite(organization)
+
+        StepVerifier
+            .create(mono)
+            .verifyComplete()
+
+        verify { serverLogoutHandler wasNot called }
+        verify { authenticationEntryPoint wasNot called }
+        verify(exactly = 1) { webFilterChain.filter(any()) }
+        coVerify(exactly = 1) { userContextProvider.getContextView(ORG_ID, "userId", "non-sub") }
+    }
+
+    @Test
+    fun `Oidc authentication should fail when subject claim is missing`() {
+        val organization = Organization(id = ORG_ID, oauthSubjectIdClaim = OID_SUBJECT_ID_CLAIM_NAME)
+        val idToken = OidcIdToken(
+            "tokenValue",
+            Instant.EPOCH,
+            Instant.EPOCH.plusSeconds(1),
+            mapOf(
+                IdTokenClaimNames.SUB to "non-sub",
+                IdTokenClaimNames.IAT to Instant.EPOCH
+            )
+        )
+        val authenticationToken = OAuth2AuthenticationToken(
+            DefaultOidcUser(
+                listOf(OidcUserAuthority(idToken)),
+                idToken
+            ),
+            emptyList(),
+            "hostname"
+        )
+
+        coEvery { client.getOrganizationByHostname("hostname") } returns organization
+        coEvery { client.getUserByAuthenticationId(ORG_ID, "sub") } returns User(
+            "userId",
+        )
+        coEvery { userContextProvider.getContextView(any(), any(), any()) } returns Context.empty()
+
+        val webFilterChain = mockk<WebFilterChain> {
+            every { filter(any()) } returns Mono.empty()
+        }
+
+        val mono = oidcAuthenticationProcessor.authenticate(authenticationToken, mockk(), webFilterChain)
+            .orgContextWrite(organization)
+
+        StepVerifier
+            .create(mono)
+            .verifyError(InvalidBearerTokenException::class.java)
     }
 
     @Test
@@ -134,5 +224,6 @@ class OidcAuthenticationProcessorTest {
     companion object {
         const val ORG_ID = "organizationId"
         val ORGANIZATION = Organization(ORG_ID)
+        const val OID_SUBJECT_ID_CLAIM_NAME = "oid"
     }
 }

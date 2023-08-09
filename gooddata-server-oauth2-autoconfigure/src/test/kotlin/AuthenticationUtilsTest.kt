@@ -184,7 +184,7 @@ internal class AuthenticationUtilsTest {
     fun `find user authenticated by UserContextAuthenticationToken`() {
         val token = UserContextAuthenticationToken(Organization(ORGANIZATION_ID), User(USER_ID))
 
-        val result = findAuthenticatedUser(mockk(), ORGANIZATION_ID, token).block()
+        val result = findAuthenticatedUser(mockk(), ORGANIZATION, token).block()
 
         expectThat(result) {
             isNotNull().and { get { id }.isEqualTo(USER_ID) }
@@ -201,7 +201,7 @@ internal class AuthenticationUtilsTest {
             coEvery { getUserById(ORGANIZATION_ID, tokenName) } returns User(USER_ID)
         }
 
-        val result = findAuthenticatedUser(client, ORGANIZATION_ID, token).block()
+        val result = findAuthenticatedUser(client, ORGANIZATION, token).block()
 
         coVerify(exactly = 1) { client.getUserById(any(), any()) }
         expectThat(result) {
@@ -219,7 +219,7 @@ internal class AuthenticationUtilsTest {
             coEvery { getUserByAuthenticationId(ORGANIZATION_ID, subClaim) } returns User(USER_ID)
         }
 
-        val result = findAuthenticatedUser(client, ORGANIZATION_ID, token).block()
+        val result = findAuthenticatedUser(client, ORGANIZATION, token).block()
 
         coVerify(exactly = 1) { client.getUserByAuthenticationId(any(), any()) }
         expectThat(result) {
@@ -231,7 +231,7 @@ internal class AuthenticationUtilsTest {
     fun `find user authenticated by not specified token`() {
         val token: Authentication = mockk()
 
-        val result = findAuthenticatedUser(mockk(), ORGANIZATION_ID, token).block()
+        val result = findAuthenticatedUser(mockk(), ORGANIZATION, token).block()
 
         expectThat(result).isNull()
     }
@@ -246,7 +246,7 @@ internal class AuthenticationUtilsTest {
             coEvery { getUserByAuthenticationId(ORGANIZATION_ID, subClaim) } returns null
         }
 
-        val result = findAuthenticatedUser(client, ORGANIZATION_ID, token).block()
+        val result = findAuthenticatedUser(client, ORGANIZATION, token).block()
 
         coVerify(exactly = 1) { client.getUserByAuthenticationId(any(), any()) }
         expectThat(result).isNull()
@@ -268,6 +268,7 @@ internal class AuthenticationUtilsTest {
         private const val CLIENT_SECRET = "secret"
         private const val OIDC_CONFIG_PATH = "/.well-known/openid-configuration"
         private const val USER_ID = "userId"
+        private val ORGANIZATION = Organization(ORGANIZATION_ID)
         private val wireMockServer = WireMockServer(WireMockConfiguration().dynamicPort()).apply {
             start()
         }

@@ -25,7 +25,7 @@ class DelegatingServerLogoutSuccessHandler(
         Flux.fromIterable(delegates).concatMap { delegate ->
             delegate.onLogoutSuccess(exchange, authentication)
         }.then(
-            logAuthenticationWitOrgIdAndUserId(client, authentication, logger) {
+            logAuthenticationWithOrgIdAndUserId(client, authentication, logger) {
                 withMessage { "User logout" }
                 withAction("logout")
             }

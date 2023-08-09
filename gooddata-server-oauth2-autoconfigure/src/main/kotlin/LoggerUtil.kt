@@ -48,21 +48,21 @@ fun KLogger.logError(exception: Throwable, block: LogBuilder.() -> Unit) {
     }
 }
 
-fun logAuthenticationWitOrgIdAndUserId(
+fun logAuthenticationWithOrgIdAndUserId(
     client: AuthenticationStoreClient,
     authentication: Authentication?,
     logger: KLogger,
     logBody: LogBuilder.() -> Unit,
 ): Mono<Void> {
     return getOrganizationFromContext().flatMap { organization ->
-        findAuthenticatedUser(client, organization.id, authentication)
+        findAuthenticatedUser(client, organization, authentication)
             .switchIfEmpty(Mono.just(User("<unauthorized user>")))
             .flatMap { user ->
                 logger.logInfo {
                     logBody()
                     withOrganizationId(organization.id)
                     withUserId(user.id)
-                    withAuthenticationId(authentication?.getAuthenticationId() ?: "")
+                    withAuthenticationId(authentication?.getAuthenticationId(organization) ?: "")
                 }
                 Mono.empty()
             }

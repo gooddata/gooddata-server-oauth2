@@ -17,7 +17,7 @@ class LoggingRedirectServerAuthenticationSuccessHandler(
     ): Mono<Void> {
         return super.onAuthenticationSuccess(webFilterExchange, authentication)
             .then(
-                logAuthenticationWitOrgIdAndUserId(client, authentication, logger) {
+                logAuthenticationWithOrgIdAndUserId(client, authentication, logger) {
                     withMessage { "User Authenticated" }
                     withAction("login")
                     withState("finished")
