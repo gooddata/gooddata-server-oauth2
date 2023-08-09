@@ -32,8 +32,8 @@ import java.time.Instant
 /**
  * If `SecurityContext` contains [OAuth2AuthenticationToken] the [OidcAuthenticationProcessor] handles the
  * authentication by retrieving [Organization] via `UserContextWebFilter` based on request's hostname and [User]
- * that corresponds to `SUB` attribute from ID token. If the [User] cannot be found the current session is
- * terminated and new authentication flow is triggered.
+ * that corresponds to `SUB` attribute (or [Organization.oauthSubjectIdClaim]) from ID token.
+ * If the [User] cannot be found the current session is terminated and new authentication flow is triggered.
  *
  * [OidcAuthenticationProcessor] also handles global logout from all user sessions. Request's
  * [OAuth2AuthenticationToken] is compared to stored last global logout timestamp and if the token has been issued
@@ -90,7 +90,7 @@ class OidcAuthenticationProcessor(
             mono {
                 authenticationStoreClient.getUserByAuthenticationId(
                     organization.id,
-                    authenticationToken.principal.attributes[IdTokenClaimNames.SUB] as String
+                    authenticationToken.getAuthenticationId(organization.oauthSubjectIdClaim)
                 )?.let { user ->
                     val tokenIssuedAtTime = authenticationToken.principal.attributes[IdTokenClaimNames.IAT] as Instant
                     val lastLogoutAllTimestamp = user.lastLogoutAllTimestamp

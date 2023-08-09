@@ -46,6 +46,7 @@ import org.springframework.security.oauth2.core.converter.ClaimConversionService
 import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
 import org.springframework.security.oauth2.jwt.MappedJwtClaimSetConverter
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder
+import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.web.server.ResponseStatusException
 import reactor.core.publisher.Mono
@@ -264,13 +265,13 @@ fun String.removeIllegalCharacters(): String = filter(::isLegalChar)
 
 fun findAuthenticatedUser(
     client: AuthenticationStoreClient,
-    organizationId: String,
+    organization: Organization,
     authentication: Authentication?,
 ): Mono<User> =
     when (authentication) {
         is UserContextAuthenticationToken -> Mono.just(authentication.user)
-        is JwtAuthenticationToken -> getUserForJwt(client, organizationId, authentication)
-        is OAuth2AuthenticationToken -> getUserForOAuth2(client, organizationId, authentication)
+        is JwtAuthenticationToken -> getUserForJwt(client, organization.id, authentication)
+        is OAuth2AuthenticationToken -> getUserForOAuth2(client, organization, authentication)
         else -> Mono.empty()
     }
 
@@ -283,20 +284,24 @@ fun getUserForJwt(
 
 fun getUserForOAuth2(
     client: AuthenticationStoreClient,
-    organizationId: String,
+    organization: Organization,
     token: OAuth2AuthenticationToken,
 ): Mono<User> =
     mono {
-        client.getUserByAuthenticationId(organizationId, token.getAuthenticationId())
+        client.getUserByAuthenticationId(organization.id, token.getAuthenticationId(organization))
     }
 
-fun Authentication.getAuthenticationId(): String =
+fun Authentication.getAuthenticationId(organization: Organization): String =
     when (this) {
         is UserContextAuthenticationToken -> this.user.id
-        is OAuth2AuthenticationToken -> this.principal.attributes[IdTokenClaimNames.SUB] as String
+        is OAuth2AuthenticationToken -> this.getAuthenticationId(organization.oauthSubjectIdClaim)
         is JwtAuthenticationToken -> this.name
         else -> ""
     }
+
+fun OAuth2AuthenticationToken.getAuthenticationId(claimName: String?): String =
+    (principal.attributes[claimName ?: IdTokenClaimNames.SUB] as String?)
+        ?: throw InvalidBearerTokenException("Token does not contain $claimName claim.")
 
 /**
  * Detect if character is legal according to OAuth2 specification

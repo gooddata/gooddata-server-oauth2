@@ -145,6 +145,8 @@ interface AuthenticationStoreClient {
  * * callback URL with this value: `<hostUrl>/<action>/oauth2/code/<oauthIssuerId>`
  * * standard callback URL: `<hostUrl>/<action>/oauth2/code/<registrationId>` (see
  * [org.springframework.security.oauth2.client.registration.ClientRegistration])
+ * @property oauthSubjectIdClaim name of the claim in ID token that will be used for finding the user in organization.
+ * Defaults to `null` and it means that `sub` claim will be used.
  *
  * @see AuthenticationStoreClient
  */
@@ -155,6 +157,7 @@ data class Organization(
     val oauthClientSecret: String? = null,
     val allowedOrigins: List<String>? = null,
     val oauthIssuerId: String? = null,
+    val oauthSubjectIdClaim: String? = null,
 )
 
 /**
