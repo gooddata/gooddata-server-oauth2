@@ -99,8 +99,8 @@ class CustomOAuth2Validator : OAuth2TokenValidator<Jwt> {
 
     private fun validateMaxLength(token: Jwt, claim: String, maxLength: Int): OAuth2Error? =
         token.claims[claim]
-            .let { it as String }
-            .let {
+            ?.let { it as String }
+            ?.let {
                 if (it.length > maxLength) {
                     OAuth2Error(
                         "${claim}_max_length",
@@ -114,8 +114,8 @@ class CustomOAuth2Validator : OAuth2TokenValidator<Jwt> {
 
     private fun validateRegex(token: Jwt, claim: String, regex: Regex): OAuth2Error? =
         token.claims[claim]
-            .let { it as String }
-            .let {
+            ?.let { it as String }
+            ?.let {
                 if (!regex.matches(it)) {
                     OAuth2Error(
                         "${claim}_regex",
