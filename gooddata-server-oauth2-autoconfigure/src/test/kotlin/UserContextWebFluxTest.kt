@@ -595,8 +595,8 @@ class UserContextWebFluxTest(
         fun userContextHolder() = CoroutineUserContextHolder
 
         @Bean
-        fun reactorUserContextProvider() = ReactorUserContextProvider { organizationId, userId, userName ->
-            Context.of(UserContext::class.java, UserContext(organizationId, userId, userName))
+        fun reactorUserContextProvider() = ReactorUserContextProvider { organizationId, userId, userName, tokenId ->
+            Context.of(UserContext::class.java, UserContext(organizationId, userId, userName, tokenId))
         }
     }
 
@@ -604,6 +604,7 @@ class UserContextWebFluxTest(
         override val organizationId: String,
         override val userId: String,
         val userName: String?,
+        override var tokenId: String? = null,
     ) : AuthenticationUserContext
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -614,10 +615,17 @@ class UserContextWebFluxTest(
                 ?.getOrDefault<UserContext>(UserContext::class.java, null)
         }
 
-        override suspend fun setContext(organizationId: String, userId: String, userName: String?): ReactorContext {
+        override suspend fun setContext(
+            organizationId: String,
+            userId: String,
+            userName: String?,
+            tokenId: String?,
+        ): ReactorContext {
             return (coroutineContext[ReactorContext]?.context ?: Context.empty())
                 .putAll(
-                    Context.of(UserContext::class.java, UserContext(organizationId, userId, userName)) as ContextView
+                    Context.of(
+                        UserContext::class.java, UserContext(organizationId, userId, userName, tokenId)
+                    ) as ContextView
                 )
                 .asCoroutineContext()
         }

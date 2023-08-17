@@ -34,6 +34,7 @@ import org.springframework.security.oauth2.server.resource.InvalidBearerTokenExc
 import org.springframework.web.server.ServerWebExchange
 import strikt.api.expectThat
 import strikt.api.expectThrows
+import strikt.assertions.isA
 import strikt.assertions.isEqualTo
 import strikt.assertions.isNotNull
 import strikt.assertions.isNull
@@ -73,7 +74,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
 
     @Test
     fun `authenticates valid bearer token`() {
-        coEvery { client.getUserByApiToken(ORG_ID, TOKEN) } returns User(USER_ID)
+        coEvery { client.getUserByApiToken(ORG_ID, TOKEN) } returns User(USER_ID, usedTokenId = "TheToken")
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!
@@ -81,8 +82,12 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
         val authenticated = manager.authenticate(BearerTokenAuthenticationToken(TOKEN))
             .orgContextWrite(ORGANIZATION)
             .block()
+
         expectThat(authenticated) {
             isNotNull().get(Authentication::isAuthenticated).isTrue()
+            isA<UserContextAuthenticationToken>().and {
+                get { user.usedTokenId }.isEqualTo("TheToken")
+            }
         }
     }
 
@@ -273,7 +278,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
         private const val HOST = "localhost"
         private const val ORG_ID = "organizationId"
         private const val USER_ID = "demo.key001"
-        private const val TOKEN = "supersecuretoken"
+        private const val TOKEN = "ZGVtbzpUaGVUb2tlbjpidGVSSG0zYjJqaWtiVUNwZlJ5eTVLSXNiRXhiMHpqSA=="
         private const val PUBLIC_KEY_ID = "kid001_rs256"
 
         private val PUBLIC_KEY_VALUE = ResourceUtils.resource("jwt/jwk_public_key.txt").readText()

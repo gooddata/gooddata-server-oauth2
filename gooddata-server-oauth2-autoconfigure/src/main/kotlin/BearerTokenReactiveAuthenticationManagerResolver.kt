@@ -20,7 +20,6 @@ import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.jwk.JWKSet
 import com.nimbusds.jose.proc.BadJWSException
 import com.nimbusds.jwt.SignedJWT
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
 import org.springframework.security.authentication.ReactiveAuthenticationManager
@@ -64,8 +63,11 @@ private class PersistentApiTokenAuthenticationManager(
             .cast(BearerTokenAuthenticationToken::class.java)
             .flatMap { authToken ->
                 getOrganizationFromContext().flatMap { organization ->
-                    mono(Dispatchers.Unconfined) { client.getUserByApiToken(organization.id, authToken.token) }
-                        .map { user -> UserContextAuthenticationToken(organization, user) }
+                    mono {
+                        client.getUserByApiToken(organization.id, authToken.token)
+                    }.map { user ->
+                        UserContextAuthenticationToken(organization, user)
+                    }
                 }
             }
 }

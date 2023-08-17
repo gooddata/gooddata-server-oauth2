@@ -74,7 +74,7 @@ class JwtAuthenticationProcessorTest {
     fun `user context is stored for jwt authentication`() {
         coEvery { client.getUserById(ORGANIZATION_ID, USER_ID) } returns User(USER_ID)
         coEvery { client.isValidJwt(ORGANIZATION_ID, USER_ID, TOKEN_MD5_HASH, TOKEN_ID) }.returns(true)
-        coEvery { userContextProvider.getContextView(any(), any(), any()) } returns Context.empty()
+        coEvery { userContextProvider.getContextView(any(), any(), any(), any()) } returns Context.empty()
 
         jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain)
             .orgContextWrite(ORGANIZATION)
@@ -83,7 +83,7 @@ class JwtAuthenticationProcessorTest {
         verify { serverLogoutHandler wasNot called }
         verify { authenticationEntryPoint wasNot called }
         verify(exactly = 1) { webFilterChain.filter(any()) }
-        coVerify(exactly = 1) { userContextProvider.getContextView(ORGANIZATION_ID, USER_ID, "sub|123") }
+        coVerify(exactly = 1) { userContextProvider.getContextView(ORGANIZATION_ID, USER_ID, "sub|123", null) }
     }
 
     @Test
@@ -99,7 +99,7 @@ class JwtAuthenticationProcessorTest {
 
         coEvery { client.getUserById(ORGANIZATION_ID, USER_ID) } returns User(USER_ID)
         coEvery { client.isValidJwt(ORGANIZATION_ID, USER_ID, TOKEN_MD5_HASH, null.toStr()) }.returns(true)
-        coEvery { userContextProvider.getContextView(any(), any(), any()) } returns Context.empty()
+        coEvery { userContextProvider.getContextView(any(), any(), any(), any()) } returns Context.empty()
 
         jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain)
             .orgContextWrite(ORGANIZATION)
@@ -108,7 +108,7 @@ class JwtAuthenticationProcessorTest {
         verify { serverLogoutHandler wasNot called }
         verify { authenticationEntryPoint wasNot called }
         verify(exactly = 1) { webFilterChain.filter(any()) }
-        coVerify(exactly = 1) { userContextProvider.getContextView(ORGANIZATION_ID, USER_ID, "sub|123") }
+        coVerify(exactly = 1) { userContextProvider.getContextView(ORGANIZATION_ID, USER_ID, "sub|123", any()) }
     }
 
     @Test
