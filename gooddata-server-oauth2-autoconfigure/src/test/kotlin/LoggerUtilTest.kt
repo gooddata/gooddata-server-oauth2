@@ -32,7 +32,7 @@ import java.lang.IllegalArgumentException
 class LoggerUtilTest {
     @Test
     fun `logInfo test`() {
-        val logger = mockk<Logger> {
+        mockk<Logger> {
             every { isInfoEnabled } returns true
         }
         val logBuilder = LogBuilder(LogLevel.INFO)
@@ -56,7 +56,7 @@ class LoggerUtilTest {
 
     @Test
     fun `logError test`() {
-        val logger = mockk<Logger> {
+        mockk<Logger> {
             every { isErrorEnabled } returns true
         }
         val exception = IllegalArgumentException("wrong argument")

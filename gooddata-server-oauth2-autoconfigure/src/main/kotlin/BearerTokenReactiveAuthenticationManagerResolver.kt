@@ -29,6 +29,7 @@ import org.springframework.security.oauth2.core.OAuth2TokenValidator
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.jwt.JwtException
 import org.springframework.security.oauth2.server.resource.BearerTokenAuthenticationToken
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.security.oauth2.server.resource.authentication.JwtReactiveAuthenticationManager
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
@@ -40,7 +41,6 @@ import java.text.ParseException
 class BearerTokenReactiveAuthenticationManagerResolver(
     private val client: AuthenticationStoreClient,
 ) : ReactiveAuthenticationManagerResolver<ServerWebExchange> {
-
     override fun resolve(exchange: ServerWebExchange): Mono<ReactiveAuthenticationManager> =
         Mono.just(exchange).map {
             CustomDelegatingReactiveAuthenticationManager(
@@ -56,6 +56,7 @@ class BearerTokenReactiveAuthenticationManagerResolver(
 private class PersistentApiTokenAuthenticationManager(
     private val client: AuthenticationStoreClient,
 ) : ReactiveAuthenticationManager {
+    private val logger = KotlinLogging.logger { }
 
     override fun authenticate(authentication: Authentication?): Mono<Authentication> =
         Mono.justOrEmpty(authentication)
@@ -66,7 +67,11 @@ private class PersistentApiTokenAuthenticationManager(
                     mono {
                         client.getUserByApiToken(organization.id, authToken.token)
                     }.map { user ->
-                        UserContextAuthenticationToken(organization, user)
+                        UserContextAuthenticationToken(organization, user).also {
+                            logger.logFinishedAuthentication(organization.id, user.id) {
+                                withTokenId(user.usedTokenId)
+                            }
+                        }
                     }
                 }
             }
@@ -91,17 +96,22 @@ private class JwtAuthenticationManager(
     }
 
     private fun authenticate(jwtToken: BearerTokenAuthenticationToken): Mono<Authentication>? {
-        val decoder = prepareJwtDecoder(getJwkSet(), supportedJwsAlgorithms)
-            .apply { setJwtValidator(jwtTokenValidator) }
-        return JwtReactiveAuthenticationManager(decoder).authenticate(jwtToken)
-            .onErrorMap({ it.cause is JwtException }) { ex ->
-                logger.logError(ex) {
-                    withAction("authentication")
-                    withMessage { "JWT authentication failed: ${ex.message}" }
-                    withState("error")
+        return getOrganizationFromContext().flatMap { organization ->
+            val decoder = prepareJwtDecoder(getJwkSet(organization.id), supportedJwsAlgorithms)
+                .apply { setJwtValidator(jwtTokenValidator) }
+            JwtReactiveAuthenticationManager(decoder).authenticate(jwtToken)
+                .onErrorMap({ it.cause is JwtException }) { ex ->
+                    logger.logError(ex) {
+                        withAction("login")
+                        withMessage { "JWT authentication failed: ${ex.message}" }
+                        withState("error")
+                    }
+                    parseJwtException(ex, jwtToken)
                 }
-                parseJwtException(ex, jwtToken)
-            }
+                .doOnNext { token ->
+                    logFinishedJwtAuthentication(organization.id, token)
+                }
+        }
     }
 
     private fun parseJwtException(ex: Throwable, jwtToken: BearerTokenAuthenticationToken) = when (ex.cause?.cause) {
@@ -114,9 +124,18 @@ private class JwtAuthenticationManager(
     private fun isJwtBearerToken(authToken: BearerTokenAuthenticationToken) =
         jwtBearerTokenRegex.matches(authToken.token.trim())
 
-    private fun getJwkSet(): Mono<JWKSet> = getOrganizationFromContext().flatMap { organization ->
+    private fun getJwkSet(organizationId: String): Mono<JWKSet> =
         mono {
-            client.getJwks(organization.id).let(::JWKSet)
+            client.getJwks(organizationId).let(::JWKSet)
+        }
+
+    private fun logFinishedJwtAuthentication(organizationId: String, token: Authentication) {
+        if (token is JwtAuthenticationToken) {
+            mono {
+                client.getUserById(organizationId, token.name)
+            }.map { user ->
+                logger.logFinishedAuthentication(organizationId, user.id) {}
+            }
         }
     }
 
