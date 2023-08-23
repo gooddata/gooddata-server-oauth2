@@ -20,6 +20,7 @@ import com.gooddata.oauth2.server.LogKey.AUTH_ID
 import com.gooddata.oauth2.server.LogKey.EXCEPTION
 import com.gooddata.oauth2.server.LogKey.ORG_ID
 import com.gooddata.oauth2.server.LogKey.STATE
+import com.gooddata.oauth2.server.LogKey.TOKEN_ID
 import com.gooddata.oauth2.server.LogKey.USER_ID
 import io.netty.handler.logging.LogLevel
 import io.netty.handler.logging.LogLevel.DEBUG
@@ -69,6 +70,21 @@ fun logAuthenticationWithOrgIdAndUserId(
     }
 }
 
+fun KLogger.logFinishedAuthentication(
+    orgId: String,
+    userId: String,
+    additionalParam: LogBuilder.() -> Unit,
+) {
+    logInfo {
+        withMessage { "User Authenticated" }
+        withAction("login")
+        withState("finished")
+        withOrganizationId(orgId)
+        withUserId(userId)
+        additionalParam()
+    }
+}
+
 private fun log(logger: Logger, block: LogBuilder.() -> Unit, logLevel: LogLevel) {
     LogBuilder(logLevel)
         .apply(block)
@@ -82,6 +98,7 @@ private fun log(logger: Logger, block: LogBuilder.() -> Unit, logLevel: LogLevel
         .writeTo(logger)
 }
 
+@Suppress("TooManyFunctions")
 class LogBuilder internal constructor(val logLevel: LogLevel) {
     private val params = mutableMapOf<LogKey, Any>()
     private var message: () -> String = { "" }
@@ -115,6 +132,10 @@ class LogBuilder internal constructor(val logLevel: LogLevel) {
         params[AUTH_ID] = authenticationId
     }
 
+    fun withTokenId(tokenId: String?) {
+        params[TOKEN_ID] = tokenId ?: "UNKNOWN"
+    }
+
     internal fun writeTo(logger: Logger) {
         log(logger, logLevel, message(), paramsToArray())
     }
@@ -143,4 +164,5 @@ enum class LogKey(val keyName: String) {
     USER_ID("userId"),
     ORG_ID("orgId"),
     AUTH_ID("authenticationId"),
+    TOKEN_ID("tokenId"),
 }
