@@ -18,6 +18,7 @@ package com.gooddata.oauth2.server
 import com.gooddata.oauth2.server.CustomOAuth2Validator.Companion.notAllowedHeaders
 import com.nimbusds.jose.JOSEObjectType
 import com.nimbusds.jwt.JWTClaimNames
+import com.nimbusds.openid.connect.sdk.claims.PersonClaims
 import org.springframework.security.oauth2.core.OAuth2Error
 import org.springframework.security.oauth2.core.OAuth2TokenValidator
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult
@@ -31,8 +32,7 @@ import org.springframework.security.oauth2.jwt.Jwt
 class CustomOAuth2Validator : OAuth2TokenValidator<Jwt> {
 
     companion object {
-        const val CLAIM_NAME = "name"
-        const val CLAIM_NAME_MAX_LENGTH = 511
+        const val JWT_NAME_MAX_LENGTH = 511
         private const val STRING_255_REGEX = "^(?!\\.)[.A-Za-z0-9_-]{1,255}\$"
         private val string255Regex = Regex(STRING_255_REGEX)
 
@@ -40,7 +40,6 @@ class CustomOAuth2Validator : OAuth2TokenValidator<Jwt> {
         private val notAllowedHeaders = listOf("jku", "x5u", "jwk", "x5c")
         private val mandatoryAttributes = listOf(
             JWTClaimNames.SUBJECT,
-            CLAIM_NAME,
             JWTClaimNames.ISSUED_AT,
             JWTClaimNames.EXPIRATION_TIME)
     }
@@ -64,7 +63,7 @@ class CustomOAuth2Validator : OAuth2TokenValidator<Jwt> {
 
         validateMandatoryClaims(token).let { validationErrors.addAll(it) }
         validateNotAllowedHeaders(token).let { validationErrors.addAll(it) }
-        validateMaxLength(token, CLAIM_NAME, CLAIM_NAME_MAX_LENGTH)?.let { validationErrors.add(it) }
+        validateMaxLength(token, PersonClaims.NAME_CLAIM_NAME, JWT_NAME_MAX_LENGTH)?.let { validationErrors.add(it) }
         validateRegex(token, JWTClaimNames.JWT_ID, string255Regex)?.let { validationErrors.add(it) }
         validateRegex(token, JWTClaimNames.SUBJECT, string255Regex)?.let { validationErrors.add(it) }
 

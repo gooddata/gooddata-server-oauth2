@@ -16,6 +16,7 @@
 package com.gooddata.oauth2.server
 
 import com.nimbusds.jwt.JWTClaimNames
+import com.nimbusds.openid.connect.sdk.claims.PersonClaims
 import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
 import org.springframework.http.HttpStatus
@@ -51,13 +52,18 @@ class JwtAuthenticationProcessor(
             validateJwtToken(authenticationToken, organization)
         }.flatMap { organization ->
             getUserForJwtToken(exchange, chain, authenticationToken, organization).flatMap { user ->
-                val userName = authenticationToken.tokenAttributeOrNull("name").toString()
                 // JWT tokenId shall not be logged in the scope of NAS-4936
-                withUserContext(organization, user, userName) {
+                withUserContext(organization, user, resolveUserName(authenticationToken, user)) {
                     chain.filter(exchange)
                 }
             }
         }
+
+    private fun resolveUserName(
+        authenticationToken: JwtAuthenticationToken,
+        user: User
+    ): String = authenticationToken.tokenAttributeOrNull(PersonClaims.NAME_CLAIM_NAME)?.toString()
+        ?: (user.name ?: user.id)
 
     private fun validateJwtToken(
         token: JwtAuthenticationToken,

@@ -174,4 +174,5 @@ data class User(
     val id: String,
     val lastLogoutAllTimestamp: Instant? = null,
     val usedTokenId: String? = null,
+    val name: String? = null,
 )

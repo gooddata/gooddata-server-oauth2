@@ -226,7 +226,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = ["iat", "exp", "name", "sub", "iat_and_exp"])
+    @ValueSource(strings = ["iat", "exp", "sub", "iat_and_exp"])
     fun `test auth failed for missing mandatory attribute`(attribute: String) {
         coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
 

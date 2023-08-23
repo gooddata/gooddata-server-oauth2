@@ -26,6 +26,9 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import org.springframework.http.HttpHeaders
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
@@ -42,6 +45,7 @@ import strikt.api.expectThrows
 import strikt.assertions.isEqualTo
 import java.net.URI
 import java.time.Instant
+import java.util.stream.Stream
 
 class JwtAuthenticationProcessorTest {
 
@@ -149,6 +153,45 @@ class JwtAuthenticationProcessorTest {
         verify { userContextProvider wasNot called }
     }
 
+    @ParameterizedTest
+    @MethodSource("usernames")
+    fun `user context has resolved user name`(
+        claimName: String?,
+        userName: String?,
+        resolvedName: String,
+    ) {
+        coEvery { client.getUserById(ORGANIZATION_ID, USER_ID) } returns User(id = USER_ID, name = userName)
+        coEvery { client.isValidJwt(ORGANIZATION_ID, USER_ID, TOKEN_MD5_HASH, TOKEN_ID) }.returns(true)
+        coEvery { userContextProvider.getContextView(any(), any(), any(), any()) } returns Context.empty()
+
+        val claims = if (claimName == null) {
+            mapOf(
+                IdTokenClaimNames.SUB to USER_ID,
+                JWTClaimNames.JWT_ID to TOKEN_ID,
+                IdTokenClaimNames.IAT to Instant.EPOCH,
+            )
+        } else {
+            mapOf(
+                UserInfo.NAME_CLAIM_NAME to claimName,
+                IdTokenClaimNames.SUB to USER_ID,
+                JWTClaimNames.JWT_ID to TOKEN_ID,
+                IdTokenClaimNames.IAT to Instant.EPOCH,
+            )
+        }
+
+        val jwt = prepareJwt(claims = claims)
+        val authenticationToken = JwtAuthenticationToken(jwt, emptyList(), "sub")
+
+        jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain)
+            .orgContextWrite(ORGANIZATION)
+            .block()
+
+        verify { serverLogoutHandler wasNot called }
+        verify { authenticationEntryPoint wasNot called }
+        verify(exactly = 1) { webFilterChain.filter(any()) }
+        coVerify(exactly = 1) { userContextProvider.getContextView(ORGANIZATION_ID, USER_ID, resolvedName, null) }
+    }
+
     private fun prepareJwt(
         tokenValue: String = "tokenValue",
         issuedAt: Instant = Instant.parse("2023-02-18T10:15:30.00Z"),
@@ -168,5 +211,29 @@ class JwtAuthenticationProcessorTest {
         private const val ORGANIZATION_ID = "organizationId"
         private const val TOKEN_ID = "tokenId"
         private val ORGANIZATION = Organization(ORGANIZATION_ID)
+
+        @JvmStatic
+        fun usernames() = Stream.of(
+            Arguments.of(
+                null,
+                null,
+                USER_ID,
+            ),
+            Arguments.of(
+                "John Doe",
+                null,
+                "John Doe",
+            ),
+            Arguments.of(
+                null,
+                "Karel Novak",
+                "Karel Novak",
+            ),
+            Arguments.of(
+                "John Doe",
+                "Karel Novak",
+                "John Doe",
+            ),
+        )
     }
 }
