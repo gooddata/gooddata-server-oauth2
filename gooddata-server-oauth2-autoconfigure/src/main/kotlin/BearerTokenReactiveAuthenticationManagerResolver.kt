@@ -68,7 +68,11 @@ private class PersistentApiTokenAuthenticationManager(
                         client.getUserByApiToken(organization.id, authToken.token)
                     }.map { user ->
                         UserContextAuthenticationToken(organization, user).also {
-                            logger.logFinishedAuthentication(organization.id, user.id) {
+                            logger.logFinishedAuthentication(
+                                organization.id,
+                                user.id,
+                                "API Token",
+                            ) {
                                 withTokenId(user.usedTokenId)
                             }
                         }
@@ -103,8 +107,9 @@ private class JwtAuthenticationManager(
                 .onErrorMap({ it.cause is JwtException }) { ex ->
                     logger.logError(ex) {
                         withAction("login")
-                        withMessage { "JWT authentication failed: ${ex.message}" }
+                        withMessage { "authentication failed: ${ex.message}" }
                         withState("error")
+                        withAuthenticationMethod(AUTH_METHOD)
                     }
                     parseJwtException(ex, jwtToken)
                 }
@@ -134,13 +139,14 @@ private class JwtAuthenticationManager(
             mono {
                 client.getUserById(organizationId, token.name)
             }.map { user ->
-                logger.logFinishedAuthentication(organizationId, user.id) {}
+                logger.logFinishedAuthentication(organizationId, user.id, AUTH_METHOD) {}
             }
         }
     }
 
     companion object {
         private const val BASE_64_REGEX = "[A-Za-z0-9+/_-]+={0,2}"
+        private const val AUTH_METHOD = "JWT"
         private val jwtBearerTokenRegex = Regex("^$BASE_64_REGEX\\.$BASE_64_REGEX\\.$BASE_64_REGEX")
         private val supportedJwsAlgorithms = setOf(JWSAlgorithm.RS256, JWSAlgorithm.RS384, JWSAlgorithm.RS512)
         private val mandatoryClaims = listOf("name", "sub", "iat", "exp")

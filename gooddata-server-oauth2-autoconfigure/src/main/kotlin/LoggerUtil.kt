@@ -17,6 +17,7 @@ package com.gooddata.oauth2.server
 
 import com.gooddata.oauth2.server.LogKey.ACTION
 import com.gooddata.oauth2.server.LogKey.AUTH_ID
+import com.gooddata.oauth2.server.LogKey.AUTH_METHOD
 import com.gooddata.oauth2.server.LogKey.EXCEPTION
 import com.gooddata.oauth2.server.LogKey.ORG_ID
 import com.gooddata.oauth2.server.LogKey.STATE
@@ -73,6 +74,7 @@ fun logAuthenticationWithOrgIdAndUserId(
 fun KLogger.logFinishedAuthentication(
     orgId: String,
     userId: String,
+    authMethod: String,
     additionalParam: LogBuilder.() -> Unit,
 ) {
     logInfo {
@@ -81,6 +83,7 @@ fun KLogger.logFinishedAuthentication(
         withState("finished")
         withOrganizationId(orgId)
         withUserId(userId)
+        withAuthenticationMethod(authMethod)
         additionalParam()
     }
 }
@@ -136,6 +139,10 @@ class LogBuilder internal constructor(val logLevel: LogLevel) {
         params[TOKEN_ID] = tokenId ?: "UNKNOWN"
     }
 
+    fun withAuthenticationMethod(method: String) {
+        params[AUTH_METHOD] = method
+    }
+
     internal fun writeTo(logger: Logger) {
         log(logger, logLevel, message(), paramsToArray())
     }
@@ -165,4 +172,5 @@ enum class LogKey(val keyName: String) {
     ORG_ID("orgId"),
     AUTH_ID("authenticationId"),
     TOKEN_ID("tokenId"),
+    AUTH_METHOD("authenticationMethod"),
 }

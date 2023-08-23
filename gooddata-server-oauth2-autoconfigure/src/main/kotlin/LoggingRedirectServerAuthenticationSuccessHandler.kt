@@ -21,6 +21,7 @@ class LoggingRedirectServerAuthenticationSuccessHandler(
                     withMessage { "User Authenticated" }
                     withAction("login")
                     withState("finished")
+                    withAuthenticationMethod("OIDC")
                 }
             )
     }
