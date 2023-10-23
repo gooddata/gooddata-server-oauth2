@@ -4,11 +4,18 @@ import mu.KotlinLogging
 import org.springframework.security.core.Authentication
 import org.springframework.security.web.server.WebFilterExchange
 import org.springframework.security.web.server.authentication.RedirectServerAuthenticationSuccessHandler
+import org.springframework.security.web.server.savedrequest.ServerRequestCache
 import reactor.core.publisher.Mono
 
 class LoggingRedirectServerAuthenticationSuccessHandler(
     private val client: AuthenticationStoreClient,
+    cache: ServerRequestCache
 ) : RedirectServerAuthenticationSuccessHandler() {
+
+    init {
+        setRequestCache(cache)
+    }
+
     private val logger = KotlinLogging.logger { }
 
     override fun onAuthenticationSuccess(

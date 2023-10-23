@@ -86,11 +86,6 @@ class ServerOAuth2AutoConfiguration {
     class EnabledSecurity
 
     @Bean
-    fun authSuccessHandler(
-        authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>,
-    ) = LoggingRedirectServerAuthenticationSuccessHandler(authenticationStoreClient.`object`)
-
-    @Bean
     fun cookieSerializer(
         cookieServiceProperties: CookieServiceProperties,
         authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>,
@@ -262,6 +257,9 @@ class ServerOAuth2AutoConfiguration {
             client = authenticationStoreClient.`object`,
         )
 
+        val authSuccessHandler =
+            LoggingRedirectServerAuthenticationSuccessHandler(authenticationStoreClient.`object`, serverRequestCache)
+
         return serverHttpSecurity.securityContextRepository(serverSecurityContextRepository).configure {
             securityMatcher { serverWebExchange ->
                 NegatedServerWebExchangeMatcher(
@@ -297,7 +295,7 @@ class ServerOAuth2AutoConfiguration {
                 authenticationFailureHandler = ServerOAuth2FailureHandler()
                 authenticationManager = loginAuthManager
                 authorizationRequestResolver = urlSafeStateAuthorizationRequestResolver
-                authenticationSuccessHandler = authSuccessHandler(authenticationStoreClient)
+                authenticationSuccessHandler = authSuccessHandler
             }
             oauth2Client { }
             exceptionHandling {
