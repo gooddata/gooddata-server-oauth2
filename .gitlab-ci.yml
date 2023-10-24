@@ -3,7 +3,7 @@ default:
 variables:
   GRADLE_OPTS: "-Dorg.gradle.daemon=false"
   BUILD_IMAGE_VERSION: "x86_64-debianslim-jdk-11.0.10_9"
-  AWS_ECR_URL: '441851189095.dkr.ecr.eu-central-1.amazonaws.com'
+  AWS_ECR_URL: '020413372491.dkr.ecr.us-east-1.amazonaws.com'
 stages:
   - compliance-check
   - build
