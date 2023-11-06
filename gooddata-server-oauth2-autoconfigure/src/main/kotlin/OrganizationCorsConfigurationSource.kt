@@ -39,10 +39,18 @@ class OrganizationCorsConfigurationSource(private val authenticationStoreClient:
  */
 private fun List<String>.toCorsConfiguration() = CorsConfiguration().apply {
     allowCredentials = true
-    allowedOrigins = this@toCorsConfiguration
     allowedMethods = listOf(CorsConfiguration.ALL)
     allowedHeaders = listOf(CorsConfiguration.ALL)
+    val (originPatterns, origins) = this@toCorsConfiguration.partition(String::isWildcardOrigin)
+    allowedOrigins = origins.takeIf(List<String>::isNotEmpty)
+    allowedOriginPatterns = originPatterns.takeIf(List<String>::isNotEmpty)
 }
+
+/**
+ * Check if the allowed origin is a wildcard. We simply check for the presence of '*' without any validation.
+ * @receiver allowed origin host
+ */
+private fun String.isWildcardOrigin() = contains('*')
 
 /**
  * Convert allowed origin host to CORS configuration allowing all methods, all headers and credentials.
