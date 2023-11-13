@@ -32,7 +32,7 @@ pluginManagement {
 
         id("com.adarshr.test-logger") version "3.2.0"
         id("io.gitlab.arturbosch.detekt") version detektVersion
-        id("io.spring.dependency-management") version "1.0.11.RELEASE"
+        id("io.spring.dependency-management") version "1.1.4"
         id("org.datlowe.maven-publish-auth") version "2.0.2"
         id("org.springframework.boot") version springBootVersion
     }
