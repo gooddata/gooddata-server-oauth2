@@ -1,0 +1,46 @@
+---
+on:
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  ###########################
+  #  BUILD STAGE
+  ###########################
+  build-kotlin:
+    runs-on: infra1-medium
+    steps:
+      - uses: actions/checkout@v3
+      - name: cache
+        uses: actions/cache@v3
+        with:
+          key: kotlin-build
+          path: .gradle
+      - run: |
+          ./gradlew clean build compileTestKotlin -x test --info
+      - name: Archive build outputs
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifact
+          path: '**/build/**/*'
+
+  ###########################
+  #  TEST STAGE
+  ###########################
+  test-kotlin:
+    runs-on: infra1-medium
+    needs: build-kotlin
+    steps:
+      - uses: actions/checkout@v3
+      - name: cache
+        uses: actions/cache/restore@v3
+        with:
+          key: kotlin-build
+          path: .gradle
+      - run: |
+          ./gradlew test --info
+      - name: Archive test outputs
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-artifact
+          path: '**/build/test-results/**/TEST-*.xml'
