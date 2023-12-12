@@ -87,11 +87,29 @@ subprojects {
             }
         }
         repositories {
-            // to be used with `publishLibraryPublicationToGitlabMavenRepository`
-            val gitlabMavenUrl: String by project
-            gitlabMavenRepository(gitlabMavenUrl)
+            maven {
+                name = "gooddata" // Name must match the `server` in `.m2/settings.xml`.
+                // Internal Nexus with write access only from Jenkins slaves/self-hosted runners
+                url = uri("https://nexus.intgdc.com/repository/gooddata")
+
+                credentials {
+                    username = System.getenv("NEXUS_USERNAME")
+                    password = System.getenv("NEXUS_PASSWORD")
+                }
+            }
+            maven {
+                name = "gitlabMaven"
+                // gdc-nas project id
+                url = uri("https://gitlab.com/api/v4/projects/16539767/packages/maven")
+                credentials(HttpHeaderCredentials::class.java) {
+                    name = "Deploy-Token"
+                    value = System.getenv("GITLAB_PACKAGES_UPLOAD_TOKEN")
+                }
+                authentication {
+                    create<HttpHeaderAuthentication>("header")
+                }
+            }
         }
-        version = project.findProperty("release_version") ?: "unspecified"
     }
 
     idea {
