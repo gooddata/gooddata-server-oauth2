@@ -43,11 +43,11 @@ class ReactiveCookieService(
      * Param `value` is base64 encoded.
      */
     fun createCookie(exchange: ServerWebExchange, name: String, value: String) {
-        val cookie = createResponseCookie(
-            exchange.request,
+        val cookie = createResponseCookie(exchange.request,
             name,
             cookieSerializer.encodeCookie(exchange, value),
-            properties.duration
+            properties.duration,
+            true
         )
         exchange.response.addCookie(cookie)
     }
@@ -58,7 +58,7 @@ class ReactiveCookieService(
      */
     fun invalidateCookie(exchange: ServerWebExchange, name: String) {
         logger.debug { "Invalidate cookie name=$name" }
-        val cookie = createResponseCookie(exchange.request, name, null, Duration.ZERO)
+        val cookie = createResponseCookie(exchange.request, name, null, Duration.ZERO, true)
         exchange.response.addCookie(cookie)
     }
 
@@ -66,14 +66,18 @@ class ReactiveCookieService(
         request: ServerHttpRequest,
         name: String,
         value: String?,
-        age: Duration
+        age: Duration,
+        partitioned: Boolean,
     ): ResponseCookie {
         return ResponseCookie.from(name, value ?: "")
             .path(request.path.contextPath().value() + "/")
             .maxAge(age)
             .httpOnly(true)
             .secure(request.isHttps())
-            .sameSite(properties.sameSite.name)
+            .sameSite(
+                properties.sameSite.name
+                    + if (partitioned) "; Partitioned" else ""
+            )
             .build()
     }
 
