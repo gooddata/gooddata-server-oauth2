@@ -64,7 +64,7 @@ fun logAuthenticationWithOrgIdAndUserId(
                     logBody()
                     withOrganizationId(organization.id)
                     withUserId(user.id)
-                    withAuthenticationId(authentication?.getAuthenticationId(organization) ?: "")
+                    withAuthenticationId(authentication?.getClaim(organization) ?: "")
                 }
                 Mono.empty()
             }
