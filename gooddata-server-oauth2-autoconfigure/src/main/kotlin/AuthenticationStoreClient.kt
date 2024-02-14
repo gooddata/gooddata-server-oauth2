@@ -74,6 +74,26 @@ interface AuthenticationStoreClient {
     suspend fun getUserById(organizationId: String, userId: String): User?
 
     /**
+     * Creates [User] that belongs to given `organizationId`
+     * @param organizationId ID of the organization that the user belongs to
+     * @param authenticationId ID identifying the user in OIDC provider
+     * @param firstName first name of the user
+     * @param lastName last name of the user
+     * @param email email of the user
+     * @param userGroups list of user groups where the user belongs to
+     * Returns created [User]
+     */
+    @SuppressWarnings("LongParameterList")
+    suspend fun createUser(
+        organizationId: String,
+        authenticationId: String,
+        firstName: String,
+        lastName: String,
+        email: String,
+        userGroups: List<String>
+    ): User
+
+    /**
      *
      * Retrieves [List<JWK>] that belongs to given `organizationId`
      *
@@ -148,6 +168,7 @@ interface AuthenticationStoreClient {
  * [org.springframework.security.oauth2.client.registration.ClientRegistration])
  * @property oauthSubjectIdClaim name of the claim in ID token that will be used for finding the user in organization.
  * Defaults to `null` and it means that `sub` claim will be used.
+ * @property jitEnabled the switch for enabling/disabling of the JIT provisioning
  *
  * @see AuthenticationStoreClient
  */
@@ -159,6 +180,7 @@ data class Organization(
     val allowedOrigins: List<String>? = null,
     val oauthIssuerId: String? = null,
     val oauthSubjectIdClaim: String? = null,
+    val jitEnabled: Boolean? = null,
 )
 
 /**

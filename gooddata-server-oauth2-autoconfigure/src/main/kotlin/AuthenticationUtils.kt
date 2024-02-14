@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server
 
+import com.gooddata.oauth2.server.OAuthConstants.GD_USER_GROUPS_SCOPE
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.jwk.JWKSet
 import com.nimbusds.jose.jwk.source.JWKSecurityContextJWKSet
@@ -30,6 +31,8 @@ import com.nimbusds.jwt.proc.JWTClaimsSetVerifier
 import com.nimbusds.oauth2.sdk.Scope
 import com.nimbusds.openid.connect.sdk.OIDCScopeValue
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata
+import java.security.MessageDigest
+import java.time.Instant
 import kotlinx.coroutines.reactor.mono
 import net.minidev.json.JSONObject
 import org.springframework.core.convert.ConversionService
@@ -50,8 +53,6 @@ import org.springframework.security.oauth2.server.resource.InvalidBearerTokenExc
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.web.server.ResponseStatusException
 import reactor.core.publisher.Mono
-import java.security.MessageDigest
-import java.time.Instant
 
 /**
  * Constants for OAuth type authentication which are not directly available in the Spring Security.
@@ -64,6 +65,7 @@ object OAuthConstants {
      * @see ClientRegistration
      */
     const val REDIRECT_URL_BASE = "{baseUrl}/{action}/oauth2/code/"
+    const val GD_USER_GROUPS_SCOPE = "gd_user_groups"
 }
 
 /**
@@ -233,10 +235,12 @@ private fun ClientRegistration.resolveSupportedScopes() =
 
 private fun ClientRegistration.Builder.withScopes(supportedScopes: Scope?): ClientRegistration.Builder {
     // in the future, we could check mandatory scopes against the supported ones
-    val mandatoryScopes = listOf(OIDCScopeValue.OPENID, OIDCScopeValue.PROFILE).map(Scope.Value::getValue)
+    val mandatoryScopes =
+        listOf(OIDCScopeValue.OPENID, OIDCScopeValue.PROFILE).map(Scope.Value::getValue)
     val optionalScopes = supportedScopes
-        ?.filter { scope -> scope in listOf(OIDCScopeValue.OFFLINE_ACCESS) }
+        ?.filter { scope -> scope in listOf(OIDCScopeValue.EMAIL, OIDCScopeValue.OFFLINE_ACCESS) }
         ?.map(Scope.Value::getValue)
+        ?.plus(GD_USER_GROUPS_SCOPE)
         ?: listOf()
 
     return scope(mandatoryScopes + optionalScopes)
@@ -288,20 +292,23 @@ fun getUserForOAuth2(
     token: OAuth2AuthenticationToken,
 ): Mono<User> =
     mono {
-        client.getUserByAuthenticationId(organization.id, token.getAuthenticationId(organization))
+        client.getUserByAuthenticationId(organization.id, token.getClaim(organization))
     }
 
-fun Authentication.getAuthenticationId(organization: Organization): String =
+fun Authentication.getClaim(organization: Organization): String =
     when (this) {
         is UserContextAuthenticationToken -> this.user.id
-        is OAuth2AuthenticationToken -> this.getAuthenticationId(organization.oauthSubjectIdClaim)
+        is OAuth2AuthenticationToken -> this.getClaim(organization.oauthSubjectIdClaim)
         is JwtAuthenticationToken -> this.name
         else -> ""
     }
 
-fun OAuth2AuthenticationToken.getAuthenticationId(claimName: String?): String =
+fun OAuth2AuthenticationToken.getClaim(claimName: String?): String =
     (principal.attributes[claimName ?: IdTokenClaimNames.SUB] as String?)
         ?: throw InvalidBearerTokenException("Token does not contain $claimName claim.")
+
+fun OAuth2AuthenticationToken.getClaimList(claimName: String?): List<String> =
+    (principal.attributes[claimName] as List<String>?) ?: emptyList()
 
 /**
  * Detect if character is legal according to OAuth2 specification

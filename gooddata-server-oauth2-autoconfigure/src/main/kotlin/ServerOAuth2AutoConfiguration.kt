@@ -15,6 +15,8 @@
  */
 package com.gooddata.oauth2.server
 
+import java.net.URI
+import java.util.Base64
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.AutoConfigureBefore
@@ -52,6 +54,7 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser
 import org.springframework.security.oauth2.core.user.OAuth2User
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoderFactory
 import org.springframework.security.web.server.SecurityWebFilterChain
+import org.springframework.security.web.server.authentication.DelegatingServerAuthenticationSuccessHandler
 import org.springframework.security.web.server.authentication.logout.DelegatingServerLogoutHandler
 import org.springframework.security.web.server.authentication.logout.LogoutWebFilter
 import org.springframework.security.web.server.context.ServerSecurityContextRepository
@@ -63,8 +66,6 @@ import org.springframework.util.ClassUtils
 import org.springframework.web.client.RestTemplate
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource
 import org.springframework.web.reactive.config.EnableWebFlux
-import java.net.URI
-import java.util.Base64
 
 @Configuration
 @EnableConfigurationProperties(
@@ -257,8 +258,10 @@ class ServerOAuth2AutoConfiguration {
             client = authenticationStoreClient.`object`,
         )
 
-        val authSuccessHandler =
+        val authSuccessHandler = DelegatingServerAuthenticationSuccessHandler(
+            JitProvisioningAuthenticationSuccessHandler(authenticationStoreClient.`object`),
             LoggingRedirectServerAuthenticationSuccessHandler(authenticationStoreClient.`object`, serverRequestCache)
+        )
 
         return serverHttpSecurity.securityContextRepository(serverSecurityContextRepository).configure {
             securityMatcher { serverWebExchange ->

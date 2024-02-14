@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server
 
+import java.time.Instant
 import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
 import org.springframework.http.HttpStatus
@@ -27,7 +28,6 @@ import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilterChain
 import reactor.core.publisher.Mono
-import java.time.Instant
 
 /**
  * If `SecurityContext` contains [OAuth2AuthenticationToken] the [OidcAuthenticationProcessor] handles the
@@ -90,7 +90,7 @@ class OidcAuthenticationProcessor(
             mono {
                 authenticationStoreClient.getUserByAuthenticationId(
                     organization.id,
-                    authenticationToken.getAuthenticationId(organization.oauthSubjectIdClaim)
+                    authenticationToken.getClaim(organization.oauthSubjectIdClaim)
                 )?.let { user ->
                     val tokenIssuedAtTime = authenticationToken.principal.attributes[IdTokenClaimNames.IAT] as Instant
                     val lastLogoutAllTimestamp = user.lastLogoutAllTimestamp

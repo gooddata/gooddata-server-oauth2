@@ -19,10 +19,12 @@ package com.gooddata.oauth2.server
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
+import com.gooddata.oauth2.server.OAuthConstants.GD_USER_GROUPS_SCOPE
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import java.util.stream.Stream
 import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -45,7 +47,6 @@ import strikt.assertions.endsWith
 import strikt.assertions.isEqualTo
 import strikt.assertions.isNotNull
 import strikt.assertions.isNull
-import java.util.stream.Stream
 
 internal class AuthenticationUtilsTest {
 
@@ -106,7 +107,13 @@ internal class AuthenticationUtilsTest {
             that(clientRegistrationProvider()).and {
                 get { registrationId }.isEqualTo(REGISTRATION_ID)
                 get { clientId }.isEqualTo(CLIENT_ID)
-                get { scopes }.containsExactlyInAnyOrder("openid", "profile", "offline_access")
+                get { scopes }.containsExactlyInAnyOrder(
+                    "openid",
+                    "profile",
+                    "email",
+                    "offline_access",
+                    GD_USER_GROUPS_SCOPE
+                )
             }
             that(clientRegistrationProvider()).and {
                 get { registrationId }.isEqualTo(REGISTRATION_ID)
