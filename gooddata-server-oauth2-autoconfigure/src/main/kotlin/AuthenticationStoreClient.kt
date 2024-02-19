@@ -26,6 +26,7 @@ import org.springframework.web.server.ResponseStatusException
 /**
  * `AuthenticationStoreClient` defines methods for retrieving identity objects from persistent storage.
  */
+@SuppressWarnings("TooManyFunctions")
 interface AuthenticationStoreClient {
 
     /**
@@ -81,7 +82,7 @@ interface AuthenticationStoreClient {
      * @param lastName last name of the user
      * @param email email of the user
      * @param userGroups list of user groups where the user belongs to
-     * Returns created [User]
+     * @return created [User]
      */
     @SuppressWarnings("LongParameterList")
     suspend fun createUser(
@@ -92,6 +93,12 @@ interface AuthenticationStoreClient {
         email: String,
         userGroups: List<String>
     ): User
+
+    /**
+     * Patches [User] in the given `organizationId`
+     * @return updated [User]
+     */
+    suspend fun patchUser(organizationId: String, user: User): User
 
     /**
      *
@@ -197,4 +204,8 @@ data class User(
     val lastLogoutAllTimestamp: Instant? = null,
     val usedTokenId: String? = null,
     val name: String? = null,
+    var firstname: String? = null,
+    var lastname: String? = null,
+    var email: String? = null,
+    var userGroups: List<String>? = null,
 )
