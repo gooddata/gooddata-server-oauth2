@@ -307,8 +307,8 @@ fun OAuth2AuthenticationToken.getClaim(claimName: String?): String =
     (principal.attributes[claimName ?: IdTokenClaimNames.SUB] as String?)
         ?: throw InvalidBearerTokenException("Token does not contain $claimName claim.")
 
-fun OAuth2AuthenticationToken.getClaimList(claimName: String?): List<String> =
-    (principal.attributes[claimName] as List<String>?) ?: emptyList()
+fun OAuth2AuthenticationToken.getClaimList(claimName: String?): List<String>? =
+    (principal.attributes[claimName] as List<String>?)
 
 /**
  * Detect if character is legal according to OAuth2 specification

@@ -52,22 +52,33 @@ class JitProvisioningAuthenticationSuccessHandler(
             if (organization.jitEnabled == true) {
                 checkMandatoryClaims(authenticationToken, organization.id)
                 logMessage("Initiating JIT provisioning", "started", organization.id)
-                val user: User? = authenticationStoreClient.getUserByAuthenticationId(
-                    organization.id,
-                    authenticationToken.getClaim(organization.oauthSubjectIdClaim)
-                )
+                val subClaim = authenticationToken.getClaim(organization.oauthSubjectIdClaim)
+                val firstnameClaim = authenticationToken.getClaim(GIVEN_NAME)
+                val lastnameClaim = authenticationToken.getClaim(FAMILY_NAME)
+                val emailClaim = authenticationToken.getClaim(EMAIL)
+                val userGroupsClaim = authenticationToken.getClaimList(GD_USER_GROUPS)
+                val user: User? = authenticationStoreClient.getUserByAuthenticationId(organization.id, subClaim)
                 if (user != null) {
                     logMessage("Checking for user update", "running", organization.id)
-                    // TODO finish user update
+                    if (userDetailsChanged(user, firstnameClaim, lastnameClaim, emailClaim, userGroupsClaim)) {
+                        logMessage("User details changed, patching", "running", organization.id)
+                        user.firstname = firstnameClaim
+                        user.lastname = lastnameClaim
+                        user.email = emailClaim
+                        user.userGroups = userGroupsClaim
+                        authenticationStoreClient.patchUser(organization.id, user)
+                    } else {
+                        logMessage("User not changed, skipping update", "finished", organization.id)
+                    }
                 } else {
                     logMessage("Creating user", "running", organization.id)
                     val provisionedUser = authenticationStoreClient.createUser(
                         organization.id,
-                        authenticationToken.getClaim(organization.oauthSubjectIdClaim),
-                        authenticationToken.getClaim(GIVEN_NAME),
-                        authenticationToken.getClaim(FAMILY_NAME),
-                        authenticationToken.getClaim(EMAIL),
-                        authenticationToken.getClaimList(GD_USER_GROUPS)
+                        subClaim,
+                        firstnameClaim,
+                        lastnameClaim,
+                        emailClaim,
+                        userGroupsClaim ?: emptyList()
                     )
                     logMessage("User ${provisionedUser.id} created in organization", "finished", organization.id)
                 }
@@ -81,20 +92,26 @@ class JitProvisioningAuthenticationSuccessHandler(
      * Thrown when OAuth2AuthenticationToken is missing mandatory claims.
      */
     class MissingMandatoryClaimsException(missingClaims: List<String>) : OAuth2AuthenticationException(
-        OAuth2Error(
-            OAuth2ErrorCodes.INVALID_TOKEN,
-            "Missing mandatory claims: $missingClaims",
-            null
-        )
+        OAuth2Error(OAuth2ErrorCodes.INVALID_TOKEN, "Missing mandatory claims: $missingClaims", null)
     )
 
     private fun checkMandatoryClaims(authenticationToken: OAuth2AuthenticationToken, organizationId: String) {
-        val mandatoryClaims = setOf(GIVEN_NAME, FAMILY_NAME, EMAIL)
         val missingClaims = mandatoryClaims.filter { it !in authenticationToken.principal.attributes }
         if (missingClaims.isNotEmpty()) {
             logMessage("Authentication token is missing mandatory claim(s): $missingClaims", "error", organizationId)
             throw MissingMandatoryClaimsException(missingClaims)
         }
+    }
+
+    private fun userDetailsChanged(
+        user: User,
+        firstname: String,
+        lastname: String,
+        email: String,
+        userGroups: List<String>?
+    ): Boolean {
+        val userGroupsChanged = userGroups != null && user.userGroups?.equalsIgnoreOrder(userGroups) == false
+        return user.firstname != firstname || user.lastname != lastname || user.email != email || userGroupsChanged
     }
 
     private fun logMessage(message: String, state: String, organizationId: String) {
@@ -106,10 +123,13 @@ class JitProvisioningAuthenticationSuccessHandler(
         }
     }
 
+    private fun <T> List<T>.equalsIgnoreOrder(other: List<T>) = this.size == other.size && this.toSet() == other.toSet()
+
     companion object Claims {
         const val GIVEN_NAME = "given_name"
         const val FAMILY_NAME = "family_name"
         const val EMAIL = "email"
         const val GD_USER_GROUPS = "gd_user_groups"
+        val mandatoryClaims = setOf(GIVEN_NAME, FAMILY_NAME, EMAIL)
     }
 }

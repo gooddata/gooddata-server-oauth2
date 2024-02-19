@@ -23,7 +23,11 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import java.util.stream.Stream
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.web.server.WebFilterExchange
 import strikt.api.expectThat
@@ -31,13 +35,6 @@ import strikt.api.expectThrows
 import strikt.assertions.isNull
 
 class JitProvisioningAuthenticationSuccessHandlerTest {
-
-    companion object {
-        private const val ORG_ID = "orgId"
-        private const val SUB = "sub"
-        private const val HOST = "gooddata.com"
-        private const val USER_ID = "userId"
-    }
 
     private val client: AuthenticationStoreClient = mockk()
     private val exchange: WebFilterExchange = mockk {
@@ -117,5 +114,80 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         coVerify { client.getOrganizationByHostname(HOST) }
         coVerify { client.getUserByAuthenticationId(ORG_ID, SUB) }
         coVerify { client.createUser(ORG_ID, SUB, GIVEN_NAME, FAMILY_NAME, EMAIL, emptyList()) }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("users")
+    fun `should test user patching`(
+        case: String,
+        user: User,
+        patchCount: Int
+    ) {
+        // given
+        val handler = JitProvisioningAuthenticationSuccessHandler(client)
+
+        // when
+        coEvery { client.getOrganizationByHostname(HOST) }.returns(
+            Organization(id = ORG_ID, oauthSubjectIdClaim = SUB, jitEnabled = true)
+        )
+        coEvery { client.getUserByAuthenticationId(ORG_ID, SUB) }.returns(user)
+        coEvery { client.patchUser(ORG_ID, any()) } returns mockk()
+
+        // then
+        expectThat(
+            handler.onAuthenticationSuccess(exchange, authentication)
+                .block()
+        ).isNull()
+
+        coVerify { client.getOrganizationByHostname(HOST) }
+        coVerify { client.getUserByAuthenticationId(ORG_ID, SUB) }
+        coVerify(exactly = patchCount) { client.patchUser(ORG_ID, any()) }
+    }
+
+    companion object {
+
+        private const val ORG_ID = "orgId"
+        private const val SUB = "sub"
+        private const val HOST = "gooddata.com"
+        private const val USER_ID = "userId"
+
+        @JvmStatic
+        fun users() = Stream.of(
+            Arguments.of(
+                "should update user when users lastname is changed",
+                User(
+                    USER_ID,
+                    null,
+                    firstname = GIVEN_NAME,
+                    lastname = "NewFamilyName",
+                    email = EMAIL,
+                    userGroups = emptyList()
+                ),
+                1
+            ),
+            Arguments.of(
+                "should update user when users userGroups re changed",
+                User(
+                    USER_ID,
+                    null,
+                    firstname = GIVEN_NAME,
+                    lastname = FAMILY_NAME,
+                    email = EMAIL,
+                    userGroups = listOf("newUserGroup")
+                ),
+                1
+            ),
+            Arguments.of(
+                "should not update user when user details are not changed",
+                User(
+                    USER_ID,
+                    null,
+                    firstname = GIVEN_NAME,
+                    lastname = FAMILY_NAME,
+                    email = EMAIL
+                ),
+                0
+            )
+        )
     }
 }
