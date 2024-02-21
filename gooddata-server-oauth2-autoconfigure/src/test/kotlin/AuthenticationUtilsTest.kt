@@ -86,13 +86,15 @@ internal class AuthenticationUtilsTest {
         }
     }
 
-    @Test
-    fun buildClientRegistrationIssuerLocationWithCache() {
+    @ParameterizedTest
+    @MethodSource("jitEnabledArguments")
+    fun buildClientRegistrationIssuerLocationWithCache(jitEnabled: Boolean, expectedScopes: List<String>) {
         organization = Organization(
             id = ORGANIZATION_ID,
             oauthClientId = CLIENT_ID,
             oauthIssuerLocation = mockOidcIssuer(),
-            oauthClientSecret = CLIENT_SECRET
+            oauthClientSecret = CLIENT_SECRET,
+            jitEnabled = jitEnabled
         )
 
         val clientRegistrationProvider = {
@@ -107,13 +109,7 @@ internal class AuthenticationUtilsTest {
             that(clientRegistrationProvider()).and {
                 get { registrationId }.isEqualTo(REGISTRATION_ID)
                 get { clientId }.isEqualTo(CLIENT_ID)
-                get { scopes }.containsExactlyInAnyOrder(
-                    "openid",
-                    "profile",
-                    "email",
-                    "offline_access",
-                    GD_USER_GROUPS_SCOPE
-                )
+                get { scopes }.containsExactlyInAnyOrder(expectedScopes)
             }
             that(clientRegistrationProvider()).and {
                 get { registrationId }.isEqualTo(REGISTRATION_ID)
@@ -299,6 +295,12 @@ internal class AuthenticationUtilsTest {
                 "https://www.share.bfqa.org/",
                 "Unable to resolve Configuration with the provided Issuer of \"https://www.share.bfqa.org/\"\""
             )
+        )
+
+        @JvmStatic
+        fun jitEnabledArguments() = Stream.of(
+            Arguments.of(true, listOf("openid", "profile", "email", "offline_access", GD_USER_GROUPS_SCOPE)),
+            Arguments.of(false, listOf("openid", "profile", "email", "offline_access"))
         )
 
         @Language("json")

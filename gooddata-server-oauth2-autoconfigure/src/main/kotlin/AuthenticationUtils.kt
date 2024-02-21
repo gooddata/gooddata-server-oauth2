@@ -224,8 +224,7 @@ private fun ClientRegistration.Builder.buildWithIssuerConfig(
         .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
         .userNameAttributeName("name")
     val supportedScopes = withIssuerConfigBuilder.build().resolveSupportedScopes()
-
-    return withIssuerConfigBuilder.withScopes(supportedScopes).build()
+    return withIssuerConfigBuilder.withScopes(supportedScopes, organization.jitEnabled).build()
 }
 
 private fun ClientRegistration.resolveSupportedScopes() =
@@ -233,17 +232,18 @@ private fun ClientRegistration.resolveSupportedScopes() =
         .takeIf(JSONObject::isNotEmpty)
         ?.let { confMetadata -> OIDCProviderMetadata.parse(confMetadata).scopes }
 
-private fun ClientRegistration.Builder.withScopes(supportedScopes: Scope?): ClientRegistration.Builder {
+private fun ClientRegistration.Builder.withScopes(
+    supportedScopes: Scope?,
+    jitEnabled: Boolean?
+): ClientRegistration.Builder {
     // in the future, we could check mandatory scopes against the supported ones
-    val mandatoryScopes =
-        listOf(OIDCScopeValue.OPENID, OIDCScopeValue.PROFILE).map(Scope.Value::getValue)
+    val mandatoryScopes = listOf(OIDCScopeValue.OPENID, OIDCScopeValue.PROFILE).map(Scope.Value::getValue)
+    val userGroupsScope = if (jitEnabled == true) listOf(GD_USER_GROUPS_SCOPE) else listOf()
     val optionalScopes = supportedScopes
         ?.filter { scope -> scope in listOf(OIDCScopeValue.EMAIL, OIDCScopeValue.OFFLINE_ACCESS) }
         ?.map(Scope.Value::getValue)
-        ?.plus(GD_USER_GROUPS_SCOPE)
         ?: listOf()
-
-    return scope(mandatoryScopes + optionalScopes)
+    return scope(mandatoryScopes + optionalScopes + userGroupsScope)
 }
 
 /**
