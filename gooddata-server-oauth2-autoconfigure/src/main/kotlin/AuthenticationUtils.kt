@@ -65,7 +65,7 @@ object OAuthConstants {
      * @see ClientRegistration
      */
     const val REDIRECT_URL_BASE = "{baseUrl}/{action}/oauth2/code/"
-    const val GD_USER_GROUPS_SCOPE = "gd_user_groups"
+    const val GD_USER_GROUPS_SCOPE = "urn.gooddata.scope/user_groups"
 }
 
 /**
