@@ -129,7 +129,7 @@ class JitProvisioningAuthenticationSuccessHandler(
         const val GIVEN_NAME = "given_name"
         const val FAMILY_NAME = "family_name"
         const val EMAIL = "email"
-        const val GD_USER_GROUPS = "gd_user_groups"
+        const val GD_USER_GROUPS = "urn.gooddata.user_groups"
         val mandatoryClaims = setOf(GIVEN_NAME, FAMILY_NAME, EMAIL)
     }
 }
