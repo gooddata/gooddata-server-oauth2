@@ -15,10 +15,7 @@
  */
 package com.gooddata.oauth2.server
 
-import com.gooddata.oauth2.server.JitProvisioningAuthenticationSuccessHandler.Claims.EMAIL
-import com.gooddata.oauth2.server.JitProvisioningAuthenticationSuccessHandler.Claims.FAMILY_NAME
 import com.gooddata.oauth2.server.JitProvisioningAuthenticationSuccessHandler.Claims.GD_USER_GROUPS
-import com.gooddata.oauth2.server.JitProvisioningAuthenticationSuccessHandler.Claims.GIVEN_NAME
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -29,9 +26,13 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
+import org.springframework.security.oauth2.core.oidc.StandardClaimNames.EMAIL
+import org.springframework.security.oauth2.core.oidc.StandardClaimNames.FAMILY_NAME
+import org.springframework.security.oauth2.core.oidc.StandardClaimNames.GIVEN_NAME
 import org.springframework.security.web.server.WebFilterExchange
 import strikt.api.expectThat
 import strikt.api.expectThrows
+import strikt.assertions.isEqualTo
 import strikt.assertions.isNull
 
 class JitProvisioningAuthenticationSuccessHandlerTest {
@@ -88,6 +89,10 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         expectThrows<JitProvisioningAuthenticationSuccessHandler.MissingMandatoryClaimsException> {
             handler.onAuthenticationSuccess(exchange, authentication)
                 .block()
+        }.and {
+            get { message }.isEqualTo(
+                "401 UNAUTHORIZED \"Authorization failed. Missing mandatory claims: [given_name, family_name, email]\""
+            )
         }
     }
 
