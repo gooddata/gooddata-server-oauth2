@@ -300,7 +300,7 @@ internal class AuthenticationUtilsTest {
         @JvmStatic
         fun jitEnabledArguments() = Stream.of(
             Arguments.of(true, listOf("openid", "profile", "email", "offline_access", GD_USER_GROUPS_SCOPE)),
-            Arguments.of(false, listOf("openid", "profile", "email", "offline_access"))
+            Arguments.of(false, listOf("openid", "profile", "offline_access"))
         )
 
         @Language("json")

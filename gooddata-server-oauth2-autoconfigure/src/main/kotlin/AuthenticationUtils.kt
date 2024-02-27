@@ -238,9 +238,9 @@ private fun ClientRegistration.Builder.withScopes(
 ): ClientRegistration.Builder {
     // in the future, we could check mandatory scopes against the supported ones
     val mandatoryScopes = listOf(OIDCScopeValue.OPENID, OIDCScopeValue.PROFILE).map(Scope.Value::getValue)
-    val userGroupsScope = if (jitEnabled == true) listOf(GD_USER_GROUPS_SCOPE) else listOf()
+    val userGroupsScope = if (jitEnabled == true) listOf(OIDCScopeValue.EMAIL.value, GD_USER_GROUPS_SCOPE) else listOf()
     val optionalScopes = supportedScopes
-        ?.filter { scope -> scope in listOf(OIDCScopeValue.EMAIL, OIDCScopeValue.OFFLINE_ACCESS) }
+        ?.filter { scope -> scope in listOf(OIDCScopeValue.OFFLINE_ACCESS) }
         ?.map(Scope.Value::getValue)
         ?: listOf()
     return scope(mandatoryScopes + optionalScopes + userGroupsScope)
