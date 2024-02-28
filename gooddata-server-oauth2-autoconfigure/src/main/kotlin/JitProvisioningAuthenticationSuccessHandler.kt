@@ -17,13 +17,15 @@ package com.gooddata.oauth2.server
 
 import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
+import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
-import org.springframework.security.oauth2.core.OAuth2AuthenticationException
-import org.springframework.security.oauth2.core.OAuth2Error
-import org.springframework.security.oauth2.core.OAuth2ErrorCodes
+import org.springframework.security.oauth2.core.oidc.StandardClaimNames.EMAIL
+import org.springframework.security.oauth2.core.oidc.StandardClaimNames.FAMILY_NAME
+import org.springframework.security.oauth2.core.oidc.StandardClaimNames.GIVEN_NAME
 import org.springframework.security.web.server.WebFilterExchange
 import org.springframework.security.web.server.authentication.ServerAuthenticationSuccessHandler
+import org.springframework.web.server.ResponseStatusException
 import reactor.core.publisher.Mono
 
 class JitProvisioningAuthenticationSuccessHandler(
@@ -91,8 +93,9 @@ class JitProvisioningAuthenticationSuccessHandler(
     /**
      * Thrown when OAuth2AuthenticationToken is missing mandatory claims.
      */
-    class MissingMandatoryClaimsException(missingClaims: List<String>) : OAuth2AuthenticationException(
-        OAuth2Error(OAuth2ErrorCodes.INVALID_TOKEN, "Missing mandatory claims: $missingClaims", null)
+    class MissingMandatoryClaimsException(missingClaims: List<String>) : ResponseStatusException(
+        HttpStatus.UNAUTHORIZED,
+        "Authorization failed. Missing mandatory claims: $missingClaims"
     )
 
     private fun checkMandatoryClaims(authenticationToken: OAuth2AuthenticationToken, organizationId: String) {
@@ -126,9 +129,6 @@ class JitProvisioningAuthenticationSuccessHandler(
     private fun <T> List<T>.equalsIgnoreOrder(other: List<T>) = this.size == other.size && this.toSet() == other.toSet()
 
     companion object Claims {
-        const val GIVEN_NAME = "given_name"
-        const val FAMILY_NAME = "family_name"
-        const val EMAIL = "email"
         const val GD_USER_GROUPS = "urn.gooddata.user_groups"
         val mandatoryClaims = setOf(GIVEN_NAME, FAMILY_NAME, EMAIL)
     }
