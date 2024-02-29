@@ -16,6 +16,7 @@
 package com.gooddata.oauth2.server
 
 import io.netty.channel.ChannelOption
+import java.time.Duration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -29,7 +30,6 @@ import org.springframework.security.oauth2.client.endpoint.WebClientReactiveRefr
 import org.springframework.security.oauth2.client.http.OAuth2ErrorResponseErrorHandler
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcReactiveOAuth2UserService
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest
-import org.springframework.security.oauth2.client.userinfo.DefaultReactiveOAuth2UserService
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest
 import org.springframework.security.oauth2.client.userinfo.ReactiveOAuth2UserService
 import org.springframework.security.oauth2.core.http.converter.OAuth2AccessTokenResponseHttpMessageConverter
@@ -40,7 +40,6 @@ import org.springframework.web.reactive.function.client.WebClient
 import reactor.netty.http.client.HttpClient
 import reactor.netty.resources.ConnectionProvider
 import reactor.netty.resources.ConnectionProvider.DEFAULT_POOL_ACQUIRE_TIMEOUT
-import java.time.Duration
 
 private const val DEFAULT_MAX_CONNECTIONS = 500
 private const val CUSTOM_CONNECTION_PROVIDER_NAME = "gdc-connection-provider"
@@ -102,7 +101,7 @@ class ReactiveCommunicationClientsConfiguration(private val httpProperties: Http
 
     @Bean
     fun oauth2UserService(webClient: WebClient): ReactiveOAuth2UserService<OAuth2UserRequest, OAuth2User> =
-        DefaultReactiveOAuth2UserService().apply {
+        CustomReactiveOAuth2UserService().apply {
             setWebClient(webClient)
         }
 
