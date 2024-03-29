@@ -16,7 +16,6 @@
 package com.gooddata.oauth2.server
 
 import com.gooddata.oauth2.server.OrganizationWebFilter.Companion.ORGANIZATION_CACHE_KEY
-import kotlinx.coroutines.reactor.mono
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilter
 import org.springframework.web.server.WebFilterChain
@@ -34,9 +33,7 @@ class OrganizationWebFilter(
 
     override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> {
         val hostname = exchange.request.uri.host
-        return mono {
-            authenticationStoreClient.getOrganizationByHostname(hostname)
-        }.flatMap { organization ->
+        return authenticationStoreClient.getOrganizationByHostname(hostname).flatMap { organization ->
             // organization is also saved to the ServerWebExchange attributes and used in blocking calls
             exchange.attributes[ORGANIZATION_CACHE_KEY] = organization
             chain.filter(exchange).orgContextWrite(organization)

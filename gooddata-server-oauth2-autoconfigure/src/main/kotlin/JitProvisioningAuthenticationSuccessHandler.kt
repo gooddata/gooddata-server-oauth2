@@ -46,22 +46,22 @@ class JitProvisioningAuthenticationSuccessHandler(
         authenticationToken: OAuth2AuthenticationToken,
         webFilterExchange: WebFilterExchange?,
     ): Mono<*> {
-        return mono {
-            val organization = client.getOrganizationByHostname(
-                webFilterExchange?.exchange?.request?.uri?.host ?: ""
-            )
+        return client.getOrganizationByHostname(
+            webFilterExchange?.exchange?.request?.uri?.host ?: ""
+        ).flatMap { organization ->
             if (organization.jitEnabled == true) {
                 provisionUser(authenticationToken, organization)
             } else {
-                logMessage("JIT provisioning disabled, skipping", "finished", organization.id)
+                logMessage("JIT provisioning disabled, skipping", "finished", "")
+                Mono.empty()
             }
         }
     }
 
-    private suspend fun provisionUser(
+    private fun provisionUser(
         authenticationToken: OAuth2AuthenticationToken,
         organization: Organization
-    ): Any {
+    ): Mono<*> {
         checkMandatoryClaims(authenticationToken, organization.id)
         logMessage("Initiating JIT provisioning", "started", organization.id)
         val subClaim = authenticationToken.getClaim(organization.oauthSubjectIdClaim)
@@ -69,30 +69,32 @@ class JitProvisioningAuthenticationSuccessHandler(
         val lastnameClaim = authenticationToken.getClaim(FAMILY_NAME)
         val emailClaim = authenticationToken.getClaim(EMAIL)
         val userGroupsClaim = authenticationToken.getClaimList(GD_USER_GROUPS)
-        val user: User? = client.getUserByAuthenticationId(organization.id, subClaim)
-        return if (user != null) {
-            logMessage("Checking for user update", "running", organization.id)
-            if (userDetailsChanged(user, firstnameClaim, lastnameClaim, emailClaim, userGroupsClaim)) {
-                logMessage("User details changed, patching", "running", organization.id)
-                user.firstname = firstnameClaim
-                user.lastname = lastnameClaim
-                user.email = emailClaim
-                user.userGroups = userGroupsClaim
-                client.patchUser(organization.id, user)
+        return mono {
+            val user: User? = client.getUserByAuthenticationId(organization.id, subClaim)
+            if (user != null) {
+                logMessage("Checking for user update", "running", organization.id)
+                if (userDetailsChanged(user, firstnameClaim, lastnameClaim, emailClaim, userGroupsClaim)) {
+                    logMessage("User details changed, patching", "running", organization.id)
+                    user.firstname = firstnameClaim
+                    user.lastname = lastnameClaim
+                    user.email = emailClaim
+                    user.userGroups = userGroupsClaim
+                    client.patchUser(organization.id, user)
+                } else {
+                    logMessage("User not changed, skipping update", "finished", organization.id)
+                }
             } else {
-                logMessage("User not changed, skipping update", "finished", organization.id)
+                logMessage("Creating user", "running", organization.id)
+                val provisionedUser = client.createUser(
+                    organization.id,
+                    subClaim,
+                    firstnameClaim,
+                    lastnameClaim,
+                    emailClaim,
+                    userGroupsClaim ?: emptyList()
+                )
+                logMessage("User ${provisionedUser.id} created in organization", "finished", organization.id)
             }
-        } else {
-            logMessage("Creating user", "running", organization.id)
-            val provisionedUser = client.createUser(
-                organization.id,
-                subClaim,
-                firstnameClaim,
-                lastnameClaim,
-                emailClaim,
-                userGroupsClaim ?: emptyList()
-            )
-            logMessage("User ${provisionedUser.id} created in organization", "finished", organization.id)
         }
     }
 

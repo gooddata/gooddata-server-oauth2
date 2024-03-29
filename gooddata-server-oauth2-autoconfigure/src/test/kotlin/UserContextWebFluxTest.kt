@@ -381,7 +381,6 @@ class UserContextWebFluxTest(
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
         mockOrganizationError(authenticationStoreClient, LOCALHOST, RuntimeException("msg"))
 
-
         webClient.get().uri("http://localhost/")
             .header("Authorization", "Bearer supersecuretoken")
             .exchange()

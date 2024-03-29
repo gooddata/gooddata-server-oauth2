@@ -15,7 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk

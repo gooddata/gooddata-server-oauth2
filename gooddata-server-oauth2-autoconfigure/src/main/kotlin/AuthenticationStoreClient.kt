@@ -22,6 +22,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.security.oauth2.server.resource.BearerTokenAuthenticationToken
 import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException
 import org.springframework.web.server.ResponseStatusException
+import reactor.core.publisher.Mono
 
 /**
  * `AuthenticationStoreClient` defines methods for retrieving identity objects from persistent storage.
@@ -34,10 +35,10 @@ interface AuthenticationStoreClient {
      * with [HttpStatus.NOT_FOUND] status code is thrown in case no [Organization] can be found.
      *
      * @param hostname of the organization
-     * @return `Organization` corresponding to `hostname`
-     * @throws ResponseStatusException in case `Organization` is not found
+     * @return `Organization` corresponding to `hostname` or mono containing
+     * [ResponseStatusException] in case `Organization` is not found
      */
-    suspend fun getOrganizationByHostname(hostname: String): Organization
+    fun getOrganizationByHostname(hostname: String): Mono<Organization>
 
     /**
      * Retrieves [User] that corresponds to provided `organizationId` and `authenticationId` retrieved from
