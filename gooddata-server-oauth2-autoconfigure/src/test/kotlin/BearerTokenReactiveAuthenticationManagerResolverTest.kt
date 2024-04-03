@@ -93,7 +93,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
 
     @Test
     fun `authenticates valid bearer JWT token`() {
-        coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
+        coEvery { client.getJwks(ORG_ID) } returns buildJwks()
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!
@@ -122,7 +122,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
 
     @Test
     fun `authentication fails for expired JWT`() {
-        coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
+        coEvery { client.getJwks(ORG_ID) } returns buildJwks()
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!
@@ -138,7 +138,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
 
     @Test
     fun `authentication fails for non-matching private key alg with JWT`() {
-        coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
+        coEvery { client.getJwks(ORG_ID) } returns buildJwks()
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!
@@ -156,7 +156,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
     @Test
     fun `authentication fails for non-matching public key`() {
         coEvery { client.getOrganizationByHostname(HOST) } returns Organization(ORG_ID)
-        coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
+        coEvery { client.getJwks(ORG_ID) } returns buildJwks()
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!
@@ -174,7 +174,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
     @ParameterizedTest
     @ValueSource(strings = ["jku", "x5u", "jwk", "x5c"])
     fun `authentication fails for JWT with invalid fields`(parameterName: String) {
-        coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
+        coEvery { client.getJwks(ORG_ID) } returns buildJwks()
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!
@@ -192,7 +192,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
     @ValueSource(strings = ["name", "sub", "jti"])
     fun `authentication fails for JWT with invalid fields pattern`(parameterName: String) {
         coEvery { client.getOrganizationByHostname(HOST) } returns Organization(ORG_ID)
-        coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
+        coEvery { client.getJwks(ORG_ID) } returns buildJwks()
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!
@@ -211,7 +211,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
     @ParameterizedTest
     @ValueSource(strings = ["jwt_invalid_type.txt", "jwt_missing_kid_header.txt"])
     fun `test auth failed for invalid header`(jwtSourceFile: String) {
-        coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
+        coEvery { client.getJwks(ORG_ID) } returns buildJwks()
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!
@@ -228,7 +228,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
     @ParameterizedTest
     @ValueSource(strings = ["iat", "exp", "sub", "iat_and_exp"])
     fun `test auth failed for missing mandatory attribute`(attribute: String) {
-        coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
+        coEvery { client.getJwks(ORG_ID) } returns buildJwks()
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).orgContextWrite(ORGANIZATION).block()!!
@@ -244,7 +244,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
 
     @Test
     fun `test auth failed if unable to decode JWT`() {
-        coEvery { client.getJwks(ORG_ID) } returns listOf(buildJwk(PUBLIC_KEY))
+        coEvery { client.getJwks(ORG_ID) } returns buildJwks()
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!
@@ -257,6 +257,8 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
             get { message }.isEqualTo("We are unable to decode JWT.")
         }
     }
+
+    private fun buildJwks() = listOf(buildJwk(PUBLIC_KEY))
 
     private fun buildJwk(publicKey: PublicKey): RSAKey {
         val rawJwk = JWK.parseFromPEMEncodedObjects(publicKey.value) as RSAKey
