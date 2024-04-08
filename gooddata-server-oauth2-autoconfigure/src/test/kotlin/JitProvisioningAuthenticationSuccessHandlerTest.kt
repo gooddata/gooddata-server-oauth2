@@ -101,8 +101,7 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
 
         // when
         mockOrganization(client, HOST, Organization(id = ORG_ID, oauthSubjectIdClaim = SUB, jitEnabled = true))
-        coEvery { client.getUserByAuthenticationId(ORG_ID, SUB) }
-            .returns(null)
+        mockUserByAuthId(client, ORG_ID, SUB, null)
         coEvery { client.createUser(ORG_ID, SUB, GIVEN_NAME, FAMILY_NAME, EMAIL, emptyList()) }
             .returns(mockk<User> { every { id } returns USER_ID })
 
@@ -129,7 +128,7 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
 
         // when
         mockOrganization(client, HOST, Organization(id = ORG_ID, oauthSubjectIdClaim = SUB, jitEnabled = true))
-        coEvery { client.getUserByAuthenticationId(ORG_ID, SUB) }.returns(user)
+        mockUserByAuthId(client, ORG_ID, SUB, user)
         coEvery { client.patchUser(ORG_ID, any()) } returns mockk()
 
         // then

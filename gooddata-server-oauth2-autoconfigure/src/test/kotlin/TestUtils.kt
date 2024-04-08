@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server
 
+import io.mockk.coEvery
 import io.mockk.every
 import reactor.core.publisher.Mono
 
@@ -24,4 +25,13 @@ internal fun mockOrganization(client: AuthenticationStoreClient, host: String, o
 
 internal fun mockOrganizationError(client: AuthenticationStoreClient, host: String, exception: Throwable) {
     every { client.getOrganizationByHostname(host) } returns Mono.error(exception)
+}
+
+internal fun mockUserByAuthId(
+    client: AuthenticationStoreClient,
+    organizationId: String,
+    authenticationId: String,
+    user: User?
+) {
+    coEvery { client.getUserByAuthenticationId(organizationId, authenticationId) } returns user
 }

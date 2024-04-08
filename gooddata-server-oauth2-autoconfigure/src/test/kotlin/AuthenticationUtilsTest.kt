@@ -219,7 +219,7 @@ internal class AuthenticationUtilsTest {
             every { principal.attributes[IdTokenClaimNames.SUB] } returns subClaim
         }
         val client: AuthenticationStoreClient = mockk {
-            coEvery { getUserByAuthenticationId(ORGANIZATION_ID, subClaim) } returns User(USER_ID)
+            mockUserByAuthId(this, ORGANIZATION_ID, subClaim, User(USER_ID))
         }
 
         val result = findAuthenticatedUser(client, ORGANIZATION, token).block()
@@ -246,7 +246,7 @@ internal class AuthenticationUtilsTest {
             every { principal.attributes[IdTokenClaimNames.SUB] } returns subClaim
         }
         val client: AuthenticationStoreClient = mockk {
-            coEvery { getUserByAuthenticationId(ORGANIZATION_ID, subClaim) } returns null
+            mockUserByAuthId(this, ORGANIZATION_ID, subClaim, null)
         }
 
         val result = findAuthenticatedUser(client, ORGANIZATION, token).block()

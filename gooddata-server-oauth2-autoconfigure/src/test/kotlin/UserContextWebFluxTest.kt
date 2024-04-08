@@ -114,14 +114,7 @@ class UserContextWebFluxTest(
         everyValidSecurityContext()
         everyValidOrganization()
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns organization
-        coEvery {
-            authenticationStoreClient.getUserByAuthenticationId(
-                ORG_ID,
-                SUB_CLAIM_VALUE
-            )
-        } returns User(
-            "userTestId",
-        )
+        mockUserByAuthId(authenticationStoreClient, ORG_ID, SUB_CLAIM_VALUE, USER)
         coEvery { authenticationStoreClient.getCookieSecurityProperties(ORG_ID) } returns
             CookieSecurityProperties(
                 keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
@@ -153,14 +146,7 @@ class UserContextWebFluxTest(
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns organization
         everyValidSecurityContext()
         everyValidOrganization()
-        coEvery {
-            authenticationStoreClient.getUserByAuthenticationId(
-                ORG_ID,
-                SUB_CLAIM_VALUE
-            )
-        } returns User(
-            "userTestId",
-        )
+        mockUserByAuthId(authenticationStoreClient, ORG_ID, SUB_CLAIM_VALUE, USER)
         coEvery { authenticationStoreClient.getCookieSecurityProperties(ORG_ID) } returns
             CookieSecurityProperties(
                 keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
@@ -189,14 +175,7 @@ class UserContextWebFluxTest(
         mockOrganization(authenticationStoreClient, LOCALHOST, organization)
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns organization
         everyValidSecurityContext()
-        coEvery {
-            authenticationStoreClient.getUserByAuthenticationId(
-                ORG_ID,
-                SUB_CLAIM_VALUE
-            )
-        } returns User(
-            "userId",
-        )
+        mockUserByAuthId(authenticationStoreClient, ORG_ID, SUB_CLAIM_VALUE, User("userId"))
         coEvery { authenticationStoreClient.getCookieSecurityProperties(ORG_ID) } returns
             CookieSecurityProperties(
                 keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
@@ -311,9 +290,7 @@ class UserContextWebFluxTest(
         every { serverSecurityContextRepository.save(any(), null) } returns Mono.empty()
         everyValidSecurityContext()
         everyValidOrganization()
-        coEvery {
-            authenticationStoreClient.getUserByAuthenticationId(ORG_ID, SUB_CLAIM_VALUE)
-        } returns null
+        mockUserByAuthId(authenticationStoreClient, ORG_ID, SUB_CLAIM_VALUE, null)
 
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
@@ -338,14 +315,11 @@ class UserContextWebFluxTest(
         every { serverSecurityContextRepository.save(any(), null) } returns Mono.empty()
         everyValidSecurityContext()
         everyValidOrganization()
-        coEvery {
-            authenticationStoreClient.getUserByAuthenticationId(
-                ORG_ID,
-                SUB_CLAIM_VALUE
-            )
-        } returns User(
-            "userTestId",
-            lastLogoutAllTimestamp = Instant.ofEpochSecond(1),
+        mockUserByAuthId(
+            authenticationStoreClient,
+            ORG_ID,
+            SUB_CLAIM_VALUE,
+            User(USER_ID, lastLogoutAllTimestamp = Instant.ofEpochSecond(1))
         )
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
@@ -366,7 +340,7 @@ class UserContextWebFluxTest(
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
         everyValidOrganization()
         coEvery { authenticationStoreClient.getUserByApiToken(ORG_ID, "supersecuretoken") } returns User(
-            "userTestId",
+            USER_ID,
         )
 
         webClient.get().uri("http://localhost/")
@@ -518,9 +492,7 @@ class UserContextWebFluxTest(
         every { serverSecurityContextRepository.save(any(), null) } returns Mono.empty()
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.empty()
         everyValidOrganization()
-        coEvery {
-            authenticationStoreClient.getUserByAuthenticationId(ORG_ID, SUB_CLAIM_VALUE)
-        } returns User("userTestId")
+        mockUserByAuthId(authenticationStoreClient, ORG_ID, SUB_CLAIM_VALUE, User(USER_ID))
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
@@ -664,5 +636,8 @@ class UserContextWebFluxTest(
             oauthClientSecret = "clientSecret",
             allowedOrigins = listOf("https://localhost:8443"),
         )
+
+        private const val USER_ID = "userTestId"
+        private val USER = User(USER_ID)
     }
 }
