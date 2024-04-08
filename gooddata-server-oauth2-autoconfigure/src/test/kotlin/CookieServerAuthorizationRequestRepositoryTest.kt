@@ -50,7 +50,7 @@ internal class CookieServerAuthorizationRequestRepositoryTest {
     )
 
     private val client: AuthenticationStoreClient = mockk {
-        coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
+        mockOrganization(this, LOCALHOST, Organization("org"))
         coEvery { getCookieSecurityProperties("org") } returns CookieSecurityProperties(
             keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
             lastRotation = Instant.now(),
@@ -61,7 +61,7 @@ internal class CookieServerAuthorizationRequestRepositoryTest {
     private val cookieSerializer = CookieSerializer(properties, client)
 
     private val exchange: ServerWebExchange = mockk {
-        every { request.uri.host } returns "localhost"
+        every { request.uri.host } returns LOCALHOST
     }
 
     private val cookieService = spyk(ReactiveCookieService(properties, cookieSerializer))
@@ -191,6 +191,7 @@ internal class CookieServerAuthorizationRequestRepositoryTest {
 
     companion object {
         private const val ORG_ID = "orgId"
+        private const val LOCALHOST = "localhost"
 
         @Language("JSON")
         private val keyset = """

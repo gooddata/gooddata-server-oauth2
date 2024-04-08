@@ -59,9 +59,8 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         val handler = JitProvisioningAuthenticationSuccessHandler(client)
 
         // when
-        coEvery { client.getOrganizationByHostname(HOST) }.returns(
-            Organization(id = ORG_ID, jitEnabled = false)
-        )
+        mockOrganization(client, HOST, Organization(id = ORG_ID, jitEnabled = false))
+
         // then
         expectThat(
             handler.onAuthenticationSuccess(exchange, authentication)
@@ -77,9 +76,8 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         val handler = JitProvisioningAuthenticationSuccessHandler(client)
 
         // when
-        coEvery { client.getOrganizationByHostname(HOST) }.returns(
-            Organization(id = ORG_ID, jitEnabled = true)
-        )
+        mockOrganization(client, HOST, Organization(id = ORG_ID, jitEnabled = true))
+
         val authentication: OAuth2AuthenticationToken = mockk {
             every { principal } returns mockk {
                 every { attributes } returns emptyMap()
@@ -102,9 +100,7 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         val handler = JitProvisioningAuthenticationSuccessHandler(client)
 
         // when
-        coEvery { client.getOrganizationByHostname(HOST) }.returns(
-            Organization(id = ORG_ID, oauthSubjectIdClaim = SUB, jitEnabled = true)
-        )
+        mockOrganization(client, HOST, Organization(id = ORG_ID, oauthSubjectIdClaim = SUB, jitEnabled = true))
         coEvery { client.getUserByAuthenticationId(ORG_ID, SUB) }
             .returns(null)
         coEvery { client.createUser(ORG_ID, SUB, GIVEN_NAME, FAMILY_NAME, EMAIL, emptyList()) }
@@ -132,9 +128,7 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         val handler = JitProvisioningAuthenticationSuccessHandler(client)
 
         // when
-        coEvery { client.getOrganizationByHostname(HOST) }.returns(
-            Organization(id = ORG_ID, oauthSubjectIdClaim = SUB, jitEnabled = true)
-        )
+        mockOrganization(client, HOST, Organization(id = ORG_ID, oauthSubjectIdClaim = SUB, jitEnabled = true))
         coEvery { client.getUserByAuthenticationId(ORG_ID, SUB) }.returns(user)
         coEvery { client.patchUser(ORG_ID, any()) } returns mockk()
 

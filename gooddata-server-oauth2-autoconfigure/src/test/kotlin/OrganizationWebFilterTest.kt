@@ -51,7 +51,7 @@ internal class OrganizationWebFilterTest {
     @Test
     fun `org is found and stored in context`() {
         val organization = Organization("org")
-        coEvery { client.getOrganizationByHostname(HOST) } returns organization
+        mockOrganization(client, HOST, organization)
 
         webFilter
             .filter(exchange, chain)
@@ -64,7 +64,7 @@ internal class OrganizationWebFilterTest {
 
     @Test
     fun `org does not exists in the context`() {
-        coEvery { client.getOrganizationByHostname(HOST) } throws ResponseStatusException(HttpStatus.NOT_FOUND)
+        mockOrganizationError(client, HOST, ResponseStatusException(HttpStatus.NOT_FOUND))
 
         val response = webFilter.filter(exchange, chain)
 

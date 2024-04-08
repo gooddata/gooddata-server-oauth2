@@ -155,7 +155,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
 
     @Test
     fun `authentication fails for non-matching public key`() {
-        coEvery { client.getOrganizationByHostname(HOST) } returns Organization(ORG_ID)
+        mockOrganization(client, HOST, Organization(ORG_ID))
         coEvery { client.getJwks(ORG_ID) } returns buildJwks()
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
@@ -191,7 +191,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
     @ParameterizedTest
     @ValueSource(strings = ["name", "sub", "jti"])
     fun `authentication fails for JWT with invalid fields pattern`(parameterName: String) {
-        coEvery { client.getOrganizationByHostname(HOST) } returns Organization(ORG_ID)
+        mockOrganization(client, HOST, Organization(ORG_ID))
         coEvery { client.getJwks(ORG_ID) } returns buildJwks()
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)

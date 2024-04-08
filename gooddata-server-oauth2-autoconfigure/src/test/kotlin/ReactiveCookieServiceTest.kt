@@ -49,7 +49,7 @@ internal class ReactiveCookieServiceTest {
     }
 
     private val client: AuthenticationStoreClient = mockk {
-        coEvery { getOrganizationByHostname(HOSTNAME) } returns Organization(ORG_ID)
+        mockOrganization(this, HOSTNAME, Organization(ORG_ID))
         coEvery { getCookieSecurityProperties(ORG_ID) } returns COOKIE_SECURITY_PROPS
     }
 

@@ -101,7 +101,7 @@ internal class CookieServerSecurityContextRepositoryTest {
     """
 
     private val client: AuthenticationStoreClient = mockk {
-        coEvery { getOrganizationByHostname("localhost") } returns Organization(ORG_ID)
+        mockOrganization(this, LOCALHOST, Organization(ORG_ID))
         coEvery { getCookieSecurityProperties(ORG_ID) } returns CookieSecurityProperties(
             keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
             lastRotation = Instant.now(),
@@ -114,7 +114,7 @@ internal class CookieServerSecurityContextRepositoryTest {
     private val cookieService = spyk(ReactiveCookieService(properties, cookieSerializer))
 
     private val exchange: ServerWebExchange = mockk {
-        every { request.uri.host } returns "localhost"
+        every { request.uri.host } returns LOCALHOST
     }
 
     private val jwkCache = CaffeineJwkCache()
@@ -232,7 +232,7 @@ internal class CookieServerSecurityContextRepositoryTest {
         mockSecurityContextCookie(resource("oauth2_authentication_token_long.json").readText())
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.just(
             ClientRegistration
-                .withRegistrationId("localhost")
+                .withRegistrationId(LOCALHOST)
                 .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
                 .authorizationUri("http://localhost:${wireMockServer.port()}/dex/auth")
                 .tokenUri("http://localhost:${wireMockServer.port()}/dex/token")
@@ -256,7 +256,7 @@ internal class CookieServerSecurityContextRepositoryTest {
         expectThat(context.authentication) {
             isA<OAuth2AuthenticationToken>()
                 .get(OAuth2AuthenticationToken::getAuthorizedClientRegistrationId)
-                .isEqualTo("localhost")
+                .isEqualTo(LOCALHOST)
         }
         expectThat(attributesMap).containsKey(OAUTH_TOKEN_CACHE_KEY)
     }
@@ -417,6 +417,7 @@ internal class CookieServerSecurityContextRepositoryTest {
 
     companion object {
         private const val ORG_ID = "org"
+        private const val LOCALHOST = "localhost"
         private val wireMockServer = WireMockServer(WireMockConfiguration().dynamicPort()).apply {
             start()
         }

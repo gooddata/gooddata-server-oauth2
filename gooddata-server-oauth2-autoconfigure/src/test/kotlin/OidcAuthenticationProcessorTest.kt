@@ -71,10 +71,10 @@ class OidcAuthenticationProcessorTest {
                 idToken
             ),
             emptyList(),
-            "hostname"
+            HOSTNAME
         )
 
-        coEvery { client.getOrganizationByHostname("hostname") } returns organization
+        mockOrganization(client, HOSTNAME, organization)
         coEvery { client.getUserByAuthenticationId(ORG_ID, "sub") } returns User(
             "userId",
         )
@@ -123,10 +123,10 @@ class OidcAuthenticationProcessorTest {
                 idToken
             ),
             emptyList(),
-            "hostname"
+            HOSTNAME
         )
 
-        coEvery { client.getOrganizationByHostname("hostname") } returns organization
+        mockOrganization(client, HOSTNAME, organization)
         coEvery { client.getUserByAuthenticationId(ORG_ID, "sub") } returns User(
             "userId",
         )
@@ -167,10 +167,10 @@ class OidcAuthenticationProcessorTest {
                 idToken
             ),
             emptyList(),
-            "hostname"
+            HOSTNAME
         )
 
-        coEvery { client.getOrganizationByHostname("hostname") } returns organization
+        mockOrganization(client, HOSTNAME, organization)
         coEvery { client.getUserByAuthenticationId(ORG_ID, "sub") } returns User(
             "userId",
         )
@@ -205,12 +205,12 @@ class OidcAuthenticationProcessorTest {
                 idToken
             ),
             emptyList(),
-            "hostname"
+            HOSTNAME
         )
 
         every { serverLogoutHandler.logout(any(), any()) } returns Mono.empty()
         every { authenticationEntryPoint.commence(any(), any()) } returns Mono.empty()
-        coEvery { client.getOrganizationByHostname("hostname") } returns Organization(ORG_ID)
+        mockOrganization(client, HOSTNAME, Organization(ORG_ID))
         coEvery { client.getUserByAuthenticationId(ORG_ID, "sub") } returns User(
             "userId",
             lastLogoutAllTimestamp = Instant.ofEpochSecond(1),
@@ -230,6 +230,7 @@ class OidcAuthenticationProcessorTest {
 
     companion object {
         const val ORG_ID = "organizationId"
+        const val HOSTNAME = "hostname"
         val ORGANIZATION = Organization(ORG_ID)
         const val OID_SUBJECT_ID_CLAIM_NAME = "oid"
     }

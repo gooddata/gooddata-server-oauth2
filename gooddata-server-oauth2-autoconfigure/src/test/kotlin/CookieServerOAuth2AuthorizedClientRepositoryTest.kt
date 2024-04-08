@@ -81,7 +81,7 @@ internal class CookieServerOAuth2AuthorizedClientRepositoryTest {
     """
 
     private val client: AuthenticationStoreClient = mockk {
-        coEvery { getOrganizationByHostname("localhost") } returns Organization(ORG_ID)
+        mockOrganization(this, LOCALHOST, Organization(ORG_ID))
         coEvery { getCookieSecurityProperties(ORG_ID) } returns CookieSecurityProperties(
             keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
             lastRotation = Instant.now(),
@@ -96,7 +96,7 @@ internal class CookieServerOAuth2AuthorizedClientRepositoryTest {
     private val principal: Authentication = mockk()
 
     private val exchange: ServerWebExchange = mockk() {
-        every { request.uri.host } returns "localhost"
+        every { request.uri.host } returns LOCALHOST
     }
 
     private val repository = CookieServerOAuth2AuthorizedClientRepository(clientRegistrationRepository, cookieService)
@@ -172,7 +172,7 @@ internal class CookieServerOAuth2AuthorizedClientRepositoryTest {
         )
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.just(
             ClientRegistration
-                .withRegistrationId("localhost")
+                .withRegistrationId(LOCALHOST)
                 .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
                 .authorizationUri("https://localhost/dex/auth")
                 .tokenUri("https://localhost/dex/token")
@@ -185,7 +185,7 @@ internal class CookieServerOAuth2AuthorizedClientRepositoryTest {
         )
 
         val client = repository.loadAuthorizedClient<OAuth2AuthorizedClient>(
-            "localhost", principal, exchange
+            LOCALHOST, principal, exchange
         ).blockOptional().get()
 
         expectThat(client) {
@@ -198,7 +198,7 @@ internal class CookieServerOAuth2AuthorizedClientRepositoryTest {
     fun `should save client`() {
         val client = OAuth2AuthorizedClient(
             ClientRegistration
-                .withRegistrationId("localhost")
+                .withRegistrationId(LOCALHOST)
                 .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
                 .authorizationUri("https://localhost/dex/auth")
                 .tokenUri("https://localhost/dex/token")
@@ -243,5 +243,6 @@ internal class CookieServerOAuth2AuthorizedClientRepositoryTest {
 
     companion object {
         const val ORG_ID = "org"
+        private const val LOCALHOST = "localhost"
     }
 }
