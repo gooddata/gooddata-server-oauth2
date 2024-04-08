@@ -275,7 +275,10 @@ fun findAuthenticatedUser(
     when (authentication) {
         is UserContextAuthenticationToken -> Mono.just(authentication.user)
         is JwtAuthenticationToken -> getUserForJwt(client, organization.id, authentication)
-        is OAuth2AuthenticationToken -> getUserForOAuth2(client, organization, authentication)
+        is OAuth2AuthenticationToken -> client.getUserByAuthenticationId(
+            organization.id,
+            authentication.getClaim(organization)
+        )
         else -> Mono.empty()
     }
 
@@ -285,15 +288,6 @@ fun getUserForJwt(
     token: JwtAuthenticationToken,
 ): Mono<User> =
     mono { client.getUserById(organizationId, token.name) }
-
-fun getUserForOAuth2(
-    client: AuthenticationStoreClient,
-    organization: Organization,
-    token: OAuth2AuthenticationToken,
-): Mono<User> =
-    mono {
-        client.getUserByAuthenticationId(organization.id, token.getClaim(organization))
-    }
 
 fun Authentication.getClaim(organization: Organization): String =
     when (this) {

@@ -27,6 +27,7 @@ import org.springframework.security.web.server.WebFilterExchange
 import org.springframework.security.web.server.authentication.ServerAuthenticationSuccessHandler
 import org.springframework.web.server.ResponseStatusException
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.switchIfEmpty
 
 class JitProvisioningAuthenticationSuccessHandler(
     private val client: AuthenticationStoreClient
@@ -45,7 +46,7 @@ class JitProvisioningAuthenticationSuccessHandler(
     private fun provisionUser(
         authenticationToken: OAuth2AuthenticationToken,
         webFilterExchange: WebFilterExchange?,
-    ): Mono<*> {
+    ): Mono<User> {
         return client.getOrganizationByHostname(
             webFilterExchange?.exchange?.request?.uri?.host ?: ""
         ).flatMap { organization ->
@@ -61,7 +62,7 @@ class JitProvisioningAuthenticationSuccessHandler(
     private fun provisionUser(
         authenticationToken: OAuth2AuthenticationToken,
         organization: Organization
-    ): Mono<*> {
+    ): Mono<User> {
         checkMandatoryClaims(authenticationToken, organization.id)
         logMessage("Initiating JIT provisioning", "started", organization.id)
         val subClaim = authenticationToken.getClaim(organization.oauthSubjectIdClaim)
@@ -69,9 +70,9 @@ class JitProvisioningAuthenticationSuccessHandler(
         val lastnameClaim = authenticationToken.getClaim(FAMILY_NAME)
         val emailClaim = authenticationToken.getClaim(EMAIL)
         val userGroupsClaim = authenticationToken.getClaimList(GD_USER_GROUPS)
-        return mono {
-            val user: User? = client.getUserByAuthenticationId(organization.id, subClaim)
-            if (user != null) {
+
+        return client.getUserByAuthenticationId(organization.id, subClaim)
+            .flatMap { user ->
                 logMessage("Checking for user update", "running", organization.id)
                 if (userDetailsChanged(user, firstnameClaim, lastnameClaim, emailClaim, userGroupsClaim)) {
                     logMessage("User details changed, patching", "running", organization.id)
@@ -79,23 +80,28 @@ class JitProvisioningAuthenticationSuccessHandler(
                     user.lastname = lastnameClaim
                     user.email = emailClaim
                     user.userGroups = userGroupsClaim
-                    client.patchUser(organization.id, user)
+                    mono {
+                        client.patchUser(organization.id, user)
+                    }
                 } else {
                     logMessage("User not changed, skipping update", "finished", organization.id)
+                    Mono.just(user)
                 }
-            } else {
-                logMessage("Creating user", "running", organization.id)
-                val provisionedUser = client.createUser(
-                    organization.id,
-                    subClaim,
-                    firstnameClaim,
-                    lastnameClaim,
-                    emailClaim,
-                    userGroupsClaim ?: emptyList()
-                )
-                logMessage("User ${provisionedUser.id} created in organization", "finished", organization.id)
+            }.switchIfEmpty {
+                mono {
+                    logMessage("Creating user", "running", organization.id)
+                    val provisionedUser = client.createUser(
+                        organization.id,
+                        subClaim,
+                        firstnameClaim,
+                        lastnameClaim,
+                        emailClaim,
+                        userGroupsClaim ?: emptyList()
+                    )
+                    logMessage("User ${provisionedUser.id} created in organization", "finished", organization.id)
+                    provisionedUser
+                }
             }
-        }
     }
 
     /**

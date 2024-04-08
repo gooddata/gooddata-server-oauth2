@@ -50,7 +50,7 @@ interface AuthenticationStoreClient {
      * @param authenticationId ID identifying the user in OIDC provider
      * @return found [User] or `null` in case no [User] is found
      */
-    suspend fun getUserByAuthenticationId(organizationId: String, authenticationId: String): User?
+    fun getUserByAuthenticationId(organizationId: String, authenticationId: String): Mono<User>
 
     /**
      *

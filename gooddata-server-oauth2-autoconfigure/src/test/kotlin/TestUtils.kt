@@ -33,5 +33,9 @@ internal fun mockUserByAuthId(
     authenticationId: String,
     user: User?
 ) {
-    coEvery { client.getUserByAuthenticationId(organizationId, authenticationId) } returns user
+    every { client.getUserByAuthenticationId(organizationId, authenticationId) } returns if (user != null) {
+        Mono.just(user)
+    } else {
+        Mono.empty()
+    }
 }
