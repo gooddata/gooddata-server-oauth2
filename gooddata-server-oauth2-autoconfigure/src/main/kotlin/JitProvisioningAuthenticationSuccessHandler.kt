@@ -39,16 +39,15 @@ class JitProvisioningAuthenticationSuccessHandler(
         authentication: Authentication?
     ): Mono<Void> = Mono.justOrEmpty(authentication)
         .cast(OAuth2AuthenticationToken::class.java)
-        .flatMap { provisionUser(client, it, webFilterExchange) }
+        .flatMap { provisionUser(it, webFilterExchange) }
         .then()
 
     private fun provisionUser(
-        authenticationStoreClient: AuthenticationStoreClient,
         authenticationToken: OAuth2AuthenticationToken,
         webFilterExchange: WebFilterExchange?,
     ): Mono<*> {
         return mono {
-            val organization = authenticationStoreClient.getOrganizationByHostname(
+            val organization = client.getOrganizationByHostname(
                 webFilterExchange?.exchange?.request?.uri?.host ?: ""
             )
             if (organization.jitEnabled == true) {
@@ -59,7 +58,7 @@ class JitProvisioningAuthenticationSuccessHandler(
                 val lastnameClaim = authenticationToken.getClaim(FAMILY_NAME)
                 val emailClaim = authenticationToken.getClaim(EMAIL)
                 val userGroupsClaim = authenticationToken.getClaimList(GD_USER_GROUPS)
-                val user: User? = authenticationStoreClient.getUserByAuthenticationId(organization.id, subClaim)
+                val user: User? = client.getUserByAuthenticationId(organization.id, subClaim)
                 if (user != null) {
                     logMessage("Checking for user update", "running", organization.id)
                     if (userDetailsChanged(user, firstnameClaim, lastnameClaim, emailClaim, userGroupsClaim)) {
@@ -68,13 +67,13 @@ class JitProvisioningAuthenticationSuccessHandler(
                         user.lastname = lastnameClaim
                         user.email = emailClaim
                         user.userGroups = userGroupsClaim
-                        authenticationStoreClient.patchUser(organization.id, user)
+                        client.patchUser(organization.id, user)
                     } else {
                         logMessage("User not changed, skipping update", "finished", organization.id)
                     }
                 } else {
                     logMessage("Creating user", "running", organization.id)
-                    val provisionedUser = authenticationStoreClient.createUser(
+                    val provisionedUser = client.createUser(
                         organization.id,
                         subClaim,
                         firstnameClaim,
