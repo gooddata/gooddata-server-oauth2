@@ -27,6 +27,15 @@ internal fun mockOrganizationError(client: AuthenticationStoreClient, host: Stri
     every { client.getOrganizationByHostname(host) } returns Mono.error(exception)
 }
 
+internal fun mockUserById(
+    client: AuthenticationStoreClient,
+    organizationId: String,
+    id: String,
+    user: User = User(id)
+) {
+    coEvery { client.getUserById(organizationId, id) } returns user
+}
+
 internal fun mockUserByAuthId(
     client: AuthenticationStoreClient,
     organizationId: String,

@@ -20,7 +20,6 @@ import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
 import com.gooddata.oauth2.server.OAuthConstants.GD_USER_GROUPS_SCOPE
-import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -201,7 +200,7 @@ internal class AuthenticationUtilsTest {
             every { name } returns tokenName
         }
         val client: AuthenticationStoreClient = mockk {
-            coEvery { getUserById(ORGANIZATION_ID, tokenName) } returns User(USER_ID)
+            mockUserById(this, ORGANIZATION_ID, tokenName, User(USER_ID))
         }
 
         val result = findAuthenticatedUser(client, ORGANIZATION, token).block()

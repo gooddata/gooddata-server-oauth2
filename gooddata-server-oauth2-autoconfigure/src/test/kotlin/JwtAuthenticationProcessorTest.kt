@@ -76,7 +76,7 @@ class JwtAuthenticationProcessorTest {
 
     @Test
     fun `user context is stored for jwt authentication`() {
-        coEvery { client.getUserById(ORGANIZATION_ID, USER_ID) } returns User(USER_ID)
+        mockUserById(client, ORGANIZATION_ID, USER_ID)
         coEvery { client.isValidJwt(ORGANIZATION_ID, USER_ID, TOKEN_MD5_HASH, TOKEN_ID) }.returns(true)
         coEvery { userContextProvider.getContextView(any(), any(), any(), any()) } returns Context.empty()
 
@@ -101,7 +101,7 @@ class JwtAuthenticationProcessorTest {
         )
         val authenticationToken = JwtAuthenticationToken(jwt, emptyList(), "sub")
 
-        coEvery { client.getUserById(ORGANIZATION_ID, USER_ID) } returns User(USER_ID)
+        mockUserById(client, ORGANIZATION_ID, USER_ID)
         coEvery { client.isValidJwt(ORGANIZATION_ID, USER_ID, TOKEN_MD5_HASH, null.toStr()) }.returns(true)
         coEvery { userContextProvider.getContextView(any(), any(), any(), any()) } returns Context.empty()
 
@@ -119,9 +119,14 @@ class JwtAuthenticationProcessorTest {
     fun `user context is not processed when logoutAll has been triggered`() {
         every { serverLogoutHandler.logout(any(), any()) } returns Mono.empty()
         coEvery { client.isValidJwt(ORGANIZATION_ID, USER_ID, TOKEN_MD5_HASH, TOKEN_ID) }.returns(true)
-        coEvery { client.getUserById(ORGANIZATION_ID, USER_ID) } returns User(
-            id = "userId",
-            lastLogoutAllTimestamp = Instant.ofEpochSecond(1),
+        mockUserById(
+            client,
+            ORGANIZATION_ID,
+            USER_ID,
+            User(
+                id = "userId",
+                lastLogoutAllTimestamp = Instant.ofEpochSecond(1),
+            )
         )
 
         expectThrows<JwtDisabledException> {
@@ -160,7 +165,7 @@ class JwtAuthenticationProcessorTest {
         userName: String?,
         resolvedName: String,
     ) {
-        coEvery { client.getUserById(ORGANIZATION_ID, USER_ID) } returns User(id = USER_ID, name = userName)
+        mockUserById(client, ORGANIZATION_ID, USER_ID, User(id = USER_ID, name = userName))
         coEvery { client.isValidJwt(ORGANIZATION_ID, USER_ID, TOKEN_MD5_HASH, TOKEN_ID) }.returns(true)
         coEvery { userContextProvider.getContextView(any(), any(), any(), any()) } returns Context.empty()
 
