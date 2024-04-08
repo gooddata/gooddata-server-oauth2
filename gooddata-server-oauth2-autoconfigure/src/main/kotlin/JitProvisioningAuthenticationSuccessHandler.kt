@@ -51,41 +51,48 @@ class JitProvisioningAuthenticationSuccessHandler(
                 webFilterExchange?.exchange?.request?.uri?.host ?: ""
             )
             if (organization.jitEnabled == true) {
-                checkMandatoryClaims(authenticationToken, organization.id)
-                logMessage("Initiating JIT provisioning", "started", organization.id)
-                val subClaim = authenticationToken.getClaim(organization.oauthSubjectIdClaim)
-                val firstnameClaim = authenticationToken.getClaim(GIVEN_NAME)
-                val lastnameClaim = authenticationToken.getClaim(FAMILY_NAME)
-                val emailClaim = authenticationToken.getClaim(EMAIL)
-                val userGroupsClaim = authenticationToken.getClaimList(GD_USER_GROUPS)
-                val user: User? = client.getUserByAuthenticationId(organization.id, subClaim)
-                if (user != null) {
-                    logMessage("Checking for user update", "running", organization.id)
-                    if (userDetailsChanged(user, firstnameClaim, lastnameClaim, emailClaim, userGroupsClaim)) {
-                        logMessage("User details changed, patching", "running", organization.id)
-                        user.firstname = firstnameClaim
-                        user.lastname = lastnameClaim
-                        user.email = emailClaim
-                        user.userGroups = userGroupsClaim
-                        client.patchUser(organization.id, user)
-                    } else {
-                        logMessage("User not changed, skipping update", "finished", organization.id)
-                    }
-                } else {
-                    logMessage("Creating user", "running", organization.id)
-                    val provisionedUser = client.createUser(
-                        organization.id,
-                        subClaim,
-                        firstnameClaim,
-                        lastnameClaim,
-                        emailClaim,
-                        userGroupsClaim ?: emptyList()
-                    )
-                    logMessage("User ${provisionedUser.id} created in organization", "finished", organization.id)
-                }
+                provisionUser(authenticationToken, organization)
             } else {
                 logMessage("JIT provisioning disabled, skipping", "finished", organization.id)
             }
+        }
+    }
+
+    private suspend fun provisionUser(
+        authenticationToken: OAuth2AuthenticationToken,
+        organization: Organization
+    ): Any {
+        checkMandatoryClaims(authenticationToken, organization.id)
+        logMessage("Initiating JIT provisioning", "started", organization.id)
+        val subClaim = authenticationToken.getClaim(organization.oauthSubjectIdClaim)
+        val firstnameClaim = authenticationToken.getClaim(GIVEN_NAME)
+        val lastnameClaim = authenticationToken.getClaim(FAMILY_NAME)
+        val emailClaim = authenticationToken.getClaim(EMAIL)
+        val userGroupsClaim = authenticationToken.getClaimList(GD_USER_GROUPS)
+        val user: User? = client.getUserByAuthenticationId(organization.id, subClaim)
+        return if (user != null) {
+            logMessage("Checking for user update", "running", organization.id)
+            if (userDetailsChanged(user, firstnameClaim, lastnameClaim, emailClaim, userGroupsClaim)) {
+                logMessage("User details changed, patching", "running", organization.id)
+                user.firstname = firstnameClaim
+                user.lastname = lastnameClaim
+                user.email = emailClaim
+                user.userGroups = userGroupsClaim
+                client.patchUser(organization.id, user)
+            } else {
+                logMessage("User not changed, skipping update", "finished", organization.id)
+            }
+        } else {
+            logMessage("Creating user", "running", organization.id)
+            val provisionedUser = client.createUser(
+                organization.id,
+                subClaim,
+                firstnameClaim,
+                lastnameClaim,
+                emailClaim,
+                userGroupsClaim ?: emptyList()
+            )
+            logMessage("User ${provisionedUser.id} created in organization", "finished", organization.id)
         }
     }
 
