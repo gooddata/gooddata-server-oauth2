@@ -54,7 +54,7 @@ class OidcAuthenticationProcessor(
         exchange: ServerWebExchange,
         chain: WebFilterChain,
     ): Mono<Void> =
-        getUserContextForAuthenticationToken(client, authenticationToken).flatMap { userContext ->
+        getUserContextForAuthenticationToken(authenticationToken).flatMap { userContext ->
             if (userContext.user == null) {
                 logger.info { "Session was logged out" }
                 serverLogoutHandler.logout(WebFilterExchange(exchange, chain), authenticationToken).then(
@@ -83,12 +83,11 @@ class OidcAuthenticationProcessor(
      *
      */
     private fun getUserContextForAuthenticationToken(
-        authenticationStoreClient: AuthenticationStoreClient,
-        authenticationToken: OAuth2AuthenticationToken,
+        authenticationToken: OAuth2AuthenticationToken
     ): Mono<UserContext> {
         return getOrganizationFromContext().flatMap { organization ->
             mono {
-                authenticationStoreClient.getUserByAuthenticationId(
+                client.getUserByAuthenticationId(
                     organization.id,
                     authenticationToken.getClaim(organization.oauthSubjectIdClaim)
                 )?.let { user ->
