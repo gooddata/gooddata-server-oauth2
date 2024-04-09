@@ -15,7 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import io.mockk.coEvery
 import io.mockk.every
 import reactor.core.publisher.Mono
 
@@ -54,5 +53,5 @@ internal fun mockCookieSecurityProperties(
     organizationId: String,
     cookieProperties: CookieSecurityProperties
 ) {
-    coEvery { client.getCookieSecurityProperties(organizationId) } returns cookieProperties
+    every { client.getCookieSecurityProperties(organizationId) } returns Mono.just(cookieProperties)
 }

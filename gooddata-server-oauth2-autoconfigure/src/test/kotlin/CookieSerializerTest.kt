@@ -17,7 +17,6 @@ package com.gooddata.oauth2.server
 
 import com.google.crypto.tink.CleartextKeysetHandle
 import com.google.crypto.tink.JsonKeysetReader
-import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -27,6 +26,7 @@ import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
+import reactor.core.publisher.Mono
 import strikt.api.expectCatching
 import strikt.api.expectThat
 import strikt.api.expectThrows
@@ -160,8 +160,8 @@ internal class CookieSerializerTest {
 
         val client: AuthenticationStoreClient = mockk {
             mockOrganization(this, LOCALHOST, Organization(ORGANIZATION_ID))
-            coEvery { getCookieSecurityProperties(ORGANIZATION_ID) } answers {
-                createCookieSecurityProperties()
+            every { getCookieSecurityProperties(ORGANIZATION_ID) } answers {
+                Mono.just(createCookieSecurityProperties())
             }
         }
 
@@ -197,8 +197,8 @@ internal class CookieSerializerTest {
 
         val client: AuthenticationStoreClient = mockk {
             mockOrganization(this, LOCALHOST, ORGANIZATION)
-            coEvery { getCookieSecurityProperties(ORGANIZATION_ID) } answers {
-                createCookieSecurityProperties()
+            every { getCookieSecurityProperties(ORGANIZATION_ID) } answers {
+                Mono.just(createCookieSecurityProperties())
             }
         }
 

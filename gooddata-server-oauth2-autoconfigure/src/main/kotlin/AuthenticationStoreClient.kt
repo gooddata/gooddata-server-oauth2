@@ -153,9 +153,9 @@ interface AuthenticationStoreClient {
      * Retrieve [CookieSecurityProperties] for given organization.
      *
      * @param organizationId ID identifying the organization
-     * @return [CookieSecurityProperties] for given organization
+     * @return mono with[CookieSecurityProperties] for given organization
      */
-    suspend fun getCookieSecurityProperties(organizationId: String): CookieSecurityProperties
+    fun getCookieSecurityProperties(organizationId: String): Mono<CookieSecurityProperties>
 }
 
 /**
