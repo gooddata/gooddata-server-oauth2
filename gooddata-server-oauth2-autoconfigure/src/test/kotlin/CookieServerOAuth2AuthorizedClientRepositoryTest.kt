@@ -17,7 +17,6 @@ package com.gooddata.oauth2.server
 
 import com.google.crypto.tink.CleartextKeysetHandle
 import com.google.crypto.tink.JsonKeysetReader
-import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -82,10 +81,14 @@ internal class CookieServerOAuth2AuthorizedClientRepositoryTest {
 
     private val client: AuthenticationStoreClient = mockk {
         mockOrganization(this, LOCALHOST, Organization(ORG_ID))
-        coEvery { getCookieSecurityProperties(ORG_ID) } returns CookieSecurityProperties(
-            keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
-            lastRotation = Instant.now(),
-            rotationInterval = Duration.ofDays(1),
+        mockCookieSecurityProperties(
+            this,
+            ORG_ID,
+            CookieSecurityProperties(
+                keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
+                lastRotation = Instant.now(),
+                rotationInterval = Duration.ofDays(1),
+            )
         )
     }
 

@@ -20,7 +20,6 @@ import com.google.crypto.tink.JsonKeysetReader
 import com.nimbusds.openid.connect.sdk.claims.UserInfo
 import com.ninjasquad.springmockk.MockkBean
 import com.ninjasquad.springmockk.SpykBean
-import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -85,25 +84,6 @@ class UserContextWebFluxTest(
         every { request.uri.host } returns LOCALHOST
     }
 
-    @Language("JSON")
-    private val keyset = """
-        {
-            "primaryKeyId": 482808123,
-            "key": [
-                {
-                    "keyData": {
-                        "typeUrl": "type.googleapis.com/google.crypto.tink.AesGcmKey",
-                        "keyMaterialType": "SYMMETRIC",
-                        "value": "GiBpR+IuA4xWtq5ZijTXae/Y9plMy0TMMc97wqdOrK7ndA=="
-                    },
-                    "outputPrefixType": "TINK",
-                    "keyId": 482808123,
-                    "status": "ENABLED"
-                }
-            ]
-        }
-    """
-
     @Test
     fun `filter works with cookies`() {
         val organization = Organization(
@@ -115,12 +95,7 @@ class UserContextWebFluxTest(
         everyValidOrganization()
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns organization
         mockUserByAuthId(authenticationStoreClient, ORG_ID, SUB_CLAIM_VALUE, USER)
-        coEvery { authenticationStoreClient.getCookieSecurityProperties(ORG_ID) } returns
-            CookieSecurityProperties(
-                keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
-                lastRotation = Instant.now(),
-                rotationInterval = Duration.ofDays(1),
-            )
+        mockCookieSecurityProperties()
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
@@ -147,12 +122,7 @@ class UserContextWebFluxTest(
         everyValidSecurityContext()
         everyValidOrganization()
         mockUserByAuthId(authenticationStoreClient, ORG_ID, SUB_CLAIM_VALUE, USER)
-        coEvery { authenticationStoreClient.getCookieSecurityProperties(ORG_ID) } returns
-            CookieSecurityProperties(
-                keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
-                lastRotation = Instant.now(),
-                rotationInterval = Duration.ofDays(1),
-            )
+        mockCookieSecurityProperties()
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
@@ -176,12 +146,7 @@ class UserContextWebFluxTest(
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns organization
         everyValidSecurityContext()
         mockUserByAuthId(authenticationStoreClient, ORG_ID, SUB_CLAIM_VALUE, User("userId"))
-        coEvery { authenticationStoreClient.getCookieSecurityProperties(ORG_ID) } returns
-            CookieSecurityProperties(
-                keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
-                lastRotation = Instant.now(),
-                rotationInterval = Duration.ofDays(1),
-            )
+        mockCookieSecurityProperties()
 
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
@@ -568,6 +533,12 @@ class UserContextWebFluxTest(
         )
     }
 
+    private fun mockCookieSecurityProperties() = mockCookieSecurityProperties(
+        authenticationStoreClient,
+        ORG_ID,
+        COOKIE_SECURITY_PROPERTIES
+    )
+
     @Configuration
     class Config {
         @Bean
@@ -640,5 +611,30 @@ class UserContextWebFluxTest(
 
         private const val USER_ID = "userTestId"
         private val USER = User(USER_ID)
+
+        @Language("JSON")
+        private val KEYSET = """
+        {
+            "primaryKeyId": 482808123,
+            "key": [
+                {
+                    "keyData": {
+                        "typeUrl": "type.googleapis.com/google.crypto.tink.AesGcmKey",
+                        "keyMaterialType": "SYMMETRIC",
+                        "value": "GiBpR+IuA4xWtq5ZijTXae/Y9plMy0TMMc97wqdOrK7ndA=="
+                    },
+                    "outputPrefixType": "TINK",
+                    "keyId": 482808123,
+                    "status": "ENABLED"
+                }
+            ]
+        }
+    """
+
+        val COOKIE_SECURITY_PROPERTIES = CookieSecurityProperties(
+            keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(KEYSET.toByteArray())),
+            lastRotation = Instant.now(),
+            rotationInterval = Duration.ofDays(1),
+        )
     }
 }

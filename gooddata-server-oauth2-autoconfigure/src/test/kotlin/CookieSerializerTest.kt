@@ -68,10 +68,10 @@ internal class CookieSerializerTest {
     """
 
     private val client: AuthenticationStoreClient = mockk {
-        coEvery { getCookieSecurityProperties(ORGANIZATION_ID) } returns CookieSecurityProperties(
-            keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
-            lastRotation = Instant.now(),
-            rotationInterval = Duration.ofDays(1),
+        mockCookieSecurityProperties(
+            this,
+            ORGANIZATION_ID,
+            createCookieSecurityProperties(1)
         )
     }
 
@@ -161,11 +161,7 @@ internal class CookieSerializerTest {
         val client: AuthenticationStoreClient = mockk {
             mockOrganization(this, LOCALHOST, Organization(ORGANIZATION_ID))
             coEvery { getCookieSecurityProperties(ORGANIZATION_ID) } answers {
-                CookieSecurityProperties(
-                    keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
-                    lastRotation = Instant.now(),
-                    rotationInterval = Duration.ofSeconds(10),
-                )
+                createCookieSecurityProperties()
             }
         }
 
@@ -182,17 +178,17 @@ internal class CookieSerializerTest {
 
         // Called with no cache - read from backend
         cookieSerializer.encodeCookie(exchange, "")
-        coVerify(exactly = 1) { client.getCookieSecurityProperties(ORGANIZATION_ID) }
+        verifyGetCookieSecurityProperties(client)
 
         // Called before rotationInterval and before TTL - use cache
         every { Instant.now() } returns Instant.ofEpochSecond(9)
         cookieSerializer.encodeCookie(exchange, "")
-        coVerify(exactly = 1) { client.getCookieSecurityProperties(ORGANIZATION_ID) }
+        verifyGetCookieSecurityProperties(client)
 
         // Call after rotationInterval and before TTL - read from backend
         every { Instant.now() } returns Instant.ofEpochSecond(11)
         cookieSerializer.encodeCookie(exchange, "")
-        coVerify(exactly = 2) { client.getCookieSecurityProperties(ORGANIZATION_ID) }
+        verifyGetCookieSecurityProperties(client, 2)
     }
 
     @Test
@@ -202,11 +198,7 @@ internal class CookieSerializerTest {
         val client: AuthenticationStoreClient = mockk {
             mockOrganization(this, LOCALHOST, ORGANIZATION)
             coEvery { getCookieSecurityProperties(ORGANIZATION_ID) } answers {
-                CookieSecurityProperties(
-                    keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
-                    lastRotation = Instant.now(),
-                    rotationInterval = Duration.ofSeconds(10),
-                )
+                createCookieSecurityProperties()
             }
         }
 
@@ -223,18 +215,28 @@ internal class CookieSerializerTest {
 
         // Called with no cache - read from backend
         cookieSerializer.encodeCookie(exchange, "")
-        coVerify(exactly = 1) { client.getCookieSecurityProperties(ORGANIZATION_ID) }
+        verifyGetCookieSecurityProperties(client)
 
         // Called before rotationInterval and after TTL - read from backend
         every { Instant.now() } returns Instant.ofEpochSecond(9)
         cookieSerializer.encodeCookie(exchange, "")
-        coVerify(exactly = 2) { client.getCookieSecurityProperties(ORGANIZATION_ID) }
+        verifyGetCookieSecurityProperties(client, 2)
 
         // Call after rotationInterval and after TTL - read from backend
         every { Instant.now() } returns Instant.ofEpochSecond(20)
         cookieSerializer.encodeCookie(exchange, "")
-        coVerify(exactly = 3) { client.getCookieSecurityProperties(ORGANIZATION_ID) }
+        verifyGetCookieSecurityProperties(client, 3)
     }
+
+    private fun verifyGetCookieSecurityProperties(client: AuthenticationStoreClient, exactly: Int = 1) {
+        coVerify(exactly = exactly) { client.getCookieSecurityProperties(ORGANIZATION_ID) }
+    }
+
+    private fun createCookieSecurityProperties(rotationIntervalSeconds: Long = 10) = CookieSecurityProperties(
+        keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
+        lastRotation = Instant.now(),
+        rotationInterval = Duration.ofSeconds(rotationIntervalSeconds),
+    )
 
     companion object {
         private const val ORGANIZATION_ID = "org"

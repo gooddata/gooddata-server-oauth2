@@ -48,3 +48,11 @@ internal fun mockUserByAuthId(
         Mono.empty()
     }
 }
+
+internal fun mockCookieSecurityProperties(
+    client: AuthenticationStoreClient,
+    organizationId: String,
+    cookieProperties: CookieSecurityProperties
+) {
+    coEvery { client.getCookieSecurityProperties(organizationId) } returns cookieProperties
+}
