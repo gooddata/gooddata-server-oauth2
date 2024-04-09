@@ -15,7 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import kotlinx.coroutines.reactor.mono
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
@@ -49,7 +48,7 @@ class JwtAuthenticationLogoutHandler(
                     val jwtId = jwtToken.token.id
                     val jwtValidTo = LocalDateTime.ofInstant(jwtToken.token.expiresAt, ZoneOffset.UTC)
                     val tokenHash = hashStringWithMD5(jwtToken.token.tokenValue)
-                    mono { client.invalidateJwt(organization.id, jwtToken.name, tokenHash, jwtId, jwtValidTo) }.then()
+                    client.invalidateJwt(organization.id, jwtToken.name, tokenHash, jwtId, jwtValidTo)
                 }.onErrorMap(::JwtAuthenticationLogoutException)
             }
 

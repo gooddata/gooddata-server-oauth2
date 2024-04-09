@@ -132,13 +132,13 @@ interface AuthenticationStoreClient {
      * @param jwtId ID of the JWT (optional)
      * @param validTo UTC time of JWT expiration
      */
-    suspend fun invalidateJwt(
+    fun invalidateJwt(
         organizationId: String,
         userId: String,
         jwtHash: String,
         jwtId: String?,
         validTo: LocalDateTime
-    )
+    ): Mono<Void>
 
     /**
      * Marks the [User] belonging to the [Organization] for global logout. Any OIDC tokens which were issued before that
