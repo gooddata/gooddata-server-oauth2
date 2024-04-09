@@ -147,7 +147,7 @@ interface AuthenticationStoreClient {
      * @param userId ID identifying the user
      * @param organizationId ID identifying the organization
      */
-    suspend fun logoutAll(userId: String, organizationId: String)
+    fun logoutAll(userId: String, organizationId: String): Mono<Void>
 
     /**
      * Retrieve [CookieSecurityProperties] for given organization.
