@@ -134,9 +134,7 @@ private class JwtAuthenticationManager(
 
     private fun logFinishedJwtAuthentication(organizationId: String, token: Authentication) {
         if (token is JwtAuthenticationToken) {
-            mono {
-                client.getUserById(organizationId, token.name)
-            }.map { user ->
+            client.getUserById(organizationId, token.name).map { user ->
                 logger.logFinishedAuthentication(organizationId, user.id, AUTH_METHOD) {}
             }
         }

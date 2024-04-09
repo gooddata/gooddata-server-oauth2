@@ -33,7 +33,7 @@ internal fun mockUserById(
     id: String,
     user: User = User(id)
 ) {
-    coEvery { client.getUserById(organizationId, id) } returns user
+    every { client.getUserById(organizationId, id) } returns Mono.just(user)
 }
 
 internal fun mockUserByAuthId(

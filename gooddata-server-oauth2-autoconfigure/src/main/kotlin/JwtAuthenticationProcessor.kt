@@ -27,6 +27,7 @@ import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilterChain
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.switchIfEmpty
 import java.time.Instant
 
 /**
@@ -86,10 +87,12 @@ class JwtAuthenticationProcessor(
         organization: Organization,
     ): Mono<User> {
         logger.info { "getUserForJwtToken ${authenticationToken.name} ${organization.id}" }
-        return mono {
-            client.getUserById(organization.id, authenticationToken.name) ?: throw ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "User with ID='${authenticationToken.name}' is not registered"
+        return client.getUserById(organization.id, authenticationToken.name).switchIfEmpty {
+            Mono.error(
+                ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "User with ID='${authenticationToken.name}' is not registered"
+                )
             )
         }.flatMap { user ->
             val tokenIssuedAtTime = authenticationToken.tokenAttributeOrNull(JWTClaimNames.ISSUED_AT) as Instant?

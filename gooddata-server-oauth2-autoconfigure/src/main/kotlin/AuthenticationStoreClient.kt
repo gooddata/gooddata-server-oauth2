@@ -73,7 +73,7 @@ interface AuthenticationStoreClient {
      * @return `User` corresponding to userId
      * TODO should an exception be thrown if the user is not found?
      */
-    suspend fun getUserById(organizationId: String, userId: String): User?
+    fun getUserById(organizationId: String, userId: String): Mono<User>
 
     /**
      * Creates [User] that belongs to given `organizationId`
