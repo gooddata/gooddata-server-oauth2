@@ -15,7 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
@@ -80,26 +79,22 @@ class JitProvisioningAuthenticationSuccessHandler(
                     user.lastname = lastnameClaim
                     user.email = emailClaim
                     user.userGroups = userGroupsClaim
-                    mono {
-                        client.patchUser(organization.id, user)
-                    }
+                    client.patchUser(organization.id, user)
                 } else {
                     logMessage("User not changed, skipping update", "finished", organization.id)
                     Mono.just(user)
                 }
             }.switchIfEmpty {
-                mono {
-                    logMessage("Creating user", "running", organization.id)
-                    val provisionedUser = client.createUser(
-                        organization.id,
-                        subClaim,
-                        firstnameClaim,
-                        lastnameClaim,
-                        emailClaim,
-                        userGroupsClaim ?: emptyList()
-                    )
+                logMessage("Creating user", "running", organization.id)
+                client.createUser(
+                    organization.id,
+                    subClaim,
+                    firstnameClaim,
+                    lastnameClaim,
+                    emailClaim,
+                    userGroupsClaim ?: emptyList()
+                ).doOnSuccess { provisionedUser ->
                     logMessage("User ${provisionedUser.id} created in organization", "finished", organization.id)
-                    provisionedUser
                 }
             }
     }

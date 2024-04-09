@@ -86,20 +86,20 @@ interface AuthenticationStoreClient {
      * @return created [User]
      */
     @SuppressWarnings("LongParameterList")
-    suspend fun createUser(
+    fun createUser(
         organizationId: String,
         authenticationId: String,
         firstName: String,
         lastName: String,
         email: String,
         userGroups: List<String>
-    ): User
+    ): Mono<User>
 
     /**
      * Patches [User] in the given `organizationId`
      * @return updated [User]
      */
-    suspend fun patchUser(organizationId: String, user: User): User
+    fun patchUser(organizationId: String, user: User): Mono<User>
 
     /**
      *

@@ -30,6 +30,7 @@ import org.springframework.security.oauth2.core.oidc.StandardClaimNames.EMAIL
 import org.springframework.security.oauth2.core.oidc.StandardClaimNames.FAMILY_NAME
 import org.springframework.security.oauth2.core.oidc.StandardClaimNames.GIVEN_NAME
 import org.springframework.security.web.server.WebFilterExchange
+import reactor.core.publisher.Mono
 import strikt.api.expectThat
 import strikt.api.expectThrows
 import strikt.assertions.isEqualTo
@@ -102,8 +103,8 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         // when
         mockOrganization(client, HOST, Organization(id = ORG_ID, oauthSubjectIdClaim = SUB, jitEnabled = true))
         mockUserByAuthId(client, ORG_ID, SUB, null)
-        coEvery { client.createUser(ORG_ID, SUB, GIVEN_NAME, FAMILY_NAME, EMAIL, emptyList()) }
-            .returns(mockk<User> { every { id } returns USER_ID })
+        every { client.createUser(ORG_ID, SUB, GIVEN_NAME, FAMILY_NAME, EMAIL, emptyList()) } returns
+            Mono.just(mockk<User> { every { id } returns USER_ID })
 
         // then
         expectThat(
@@ -129,7 +130,7 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         // when
         mockOrganization(client, HOST, Organization(id = ORG_ID, oauthSubjectIdClaim = SUB, jitEnabled = true))
         mockUserByAuthId(client, ORG_ID, SUB, user)
-        coEvery { client.patchUser(ORG_ID, any()) } returns mockk()
+        every { client.patchUser(ORG_ID, any()) } returns Mono.just(mockk())
 
         // then
         expectThat(
