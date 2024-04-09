@@ -20,7 +20,6 @@ import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.jwk.JWKSet
 import com.nimbusds.jose.proc.BadJWSException
 import com.nimbusds.jwt.SignedJWT
-import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
 import org.springframework.security.authentication.ReactiveAuthenticationManager
 import org.springframework.security.authentication.ReactiveAuthenticationManagerResolver
@@ -127,10 +126,7 @@ private class JwtAuthenticationManager(
     private fun isJwtBearerToken(authToken: BearerTokenAuthenticationToken) =
         jwtBearerTokenRegex.matches(authToken.token.trim())
 
-    private fun getJwkSet(organizationId: String): Mono<JWKSet> =
-        mono {
-            client.getJwks(organizationId).let(::JWKSet)
-        }
+    private fun getJwkSet(organizationId: String): Mono<JWKSet> = client.getJwks(organizationId).map(::JWKSet)
 
     private fun logFinishedJwtAuthentication(organizationId: String, token: Authentication) {
         if (token is JwtAuthenticationToken) {

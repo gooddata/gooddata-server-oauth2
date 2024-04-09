@@ -20,7 +20,6 @@ import com.nimbusds.jose.Algorithm
 import com.nimbusds.jose.jwk.JWK
 import com.nimbusds.jose.jwk.KeyUse
 import com.nimbusds.jose.jwk.RSAKey
-import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import net.javacrumbs.jsonunit.core.util.ResourceUtils
@@ -95,6 +94,9 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
     @Test
     fun `authenticates valid bearer JWT token`() {
         mockJwks()
+        every { client.getUserById(ORG_ID, USER_ID) } returns Mono.just(
+            User(USER_ID, usedTokenId = "TheToken")
+        )
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!
@@ -260,7 +262,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
     }
 
     private fun mockJwks(jwks: List<JWK> = buildJwks()) {
-        coEvery { client.getJwks(ORG_ID) } returns jwks
+        every { client.getJwks(ORG_ID) } returns Mono.just(jwks)
     }
 
     private fun buildJwks() = listOf(buildJwk(PUBLIC_KEY))

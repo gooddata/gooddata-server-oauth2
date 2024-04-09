@@ -106,9 +106,9 @@ interface AuthenticationStoreClient {
      * Retrieves [List<JWK>] that belongs to given `organizationId`
      *
      * @param organizationId ID of the organization that the JWKs belongs to
-     * @return list of JWKs corresponding to organizationId
+     * @return mono with list of JWKs corresponding to organizationId
      */
-    suspend fun getJwks(organizationId: String): List<JWK>
+    fun getJwks(organizationId: String): Mono<List<JWK>>
 
     /**
      * Checks whether JWT, that belongs to organization `organizationId` and user `userId` specified by `jwtHash`
