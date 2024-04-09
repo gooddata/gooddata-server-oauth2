@@ -339,8 +339,8 @@ class UserContextWebFluxTest(
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns ORGANIZATION
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
         everyValidOrganization()
-        coEvery { authenticationStoreClient.getUserByApiToken(ORG_ID, "supersecuretoken") } returns User(
-            USER_ID,
+        every { authenticationStoreClient.getUserByApiToken(ORG_ID, "supersecuretoken") } returns Mono.just(
+            User(USER_ID)
         )
 
         webClient.get().uri("http://localhost/")
@@ -395,8 +395,9 @@ class UserContextWebFluxTest(
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns ORGANIZATION
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
         everyValidOrganization()
-        coEvery { authenticationStoreClient.getUserByApiToken(ORG_ID, "supersecuretoken") } throws
+        every { authenticationStoreClient.getUserByApiToken(ORG_ID, "supersecuretoken") } returns Mono.error(
             InvalidBearerTokenException("msg")
+        )
 
         webClient.get().uri("http://localhost/")
             .header("Authorization", "Bearer supersecuretoken")

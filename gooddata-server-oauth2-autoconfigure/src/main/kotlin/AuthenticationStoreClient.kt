@@ -62,7 +62,7 @@ interface AuthenticationStoreClient {
      * TODO exception should be handled directly in the library
      * @throws InvalidBearerTokenException in case no [User] is found
      */
-    suspend fun getUserByApiToken(organizationId: String, token: String): User
+    fun getUserByApiToken(organizationId: String, token: String): Mono<User>
 
     /**
      *

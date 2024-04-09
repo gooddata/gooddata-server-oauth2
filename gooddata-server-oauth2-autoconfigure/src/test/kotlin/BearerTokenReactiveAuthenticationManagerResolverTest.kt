@@ -32,6 +32,7 @@ import org.springframework.security.oauth2.client.authentication.OAuth2Authentic
 import org.springframework.security.oauth2.server.resource.BearerTokenAuthenticationToken
 import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException
 import org.springframework.web.server.ServerWebExchange
+import reactor.core.publisher.Mono
 import strikt.api.expectThat
 import strikt.api.expectThrows
 import strikt.assertions.isA
@@ -61,7 +62,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
 
     @Test
     fun `authenticates incorrect bearer token`() {
-        coEvery { client.getUserByApiToken(ORG_ID, "invalid") } throws InvalidBearerTokenException("")
+        every { client.getUserByApiToken(ORG_ID, "invalid") } returns Mono.error(InvalidBearerTokenException(""))
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!
 
@@ -74,7 +75,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
 
     @Test
     fun `authenticates valid bearer token`() {
-        coEvery { client.getUserByApiToken(ORG_ID, TOKEN) } returns User(USER_ID, usedTokenId = "TheToken")
+        every { client.getUserByApiToken(ORG_ID, TOKEN) } returns Mono.just(User(USER_ID, usedTokenId = "TheToken"))
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client)
         val manager = resolver.resolve(exchange).block()!!

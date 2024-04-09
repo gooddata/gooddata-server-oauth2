@@ -64,9 +64,7 @@ private class PersistentApiTokenAuthenticationManager(
             .cast(BearerTokenAuthenticationToken::class.java)
             .flatMap { authToken ->
                 getOrganizationFromContext().flatMap { organization ->
-                    mono {
-                        client.getUserByApiToken(organization.id, authToken.token)
-                    }.map { user ->
+                    client.getUserByApiToken(organization.id, authToken.token).map { user ->
                         UserContextAuthenticationToken(organization, user).also {
                             logger.logFinishedAuthentication(
                                 organization.id,
