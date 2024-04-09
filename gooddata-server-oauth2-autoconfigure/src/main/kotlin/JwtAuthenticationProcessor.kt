@@ -17,7 +17,6 @@ package com.gooddata.oauth2.server
 
 import com.nimbusds.jwt.JWTClaimNames
 import com.nimbusds.openid.connect.sdk.claims.PersonClaims
-import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
 import org.springframework.http.HttpStatus
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
@@ -72,10 +71,10 @@ class JwtAuthenticationProcessor(
     ): Mono<Organization> {
         val tokenHash = hashStringWithMD5(token.token.tokenValue)
         val jwtId = token.tokenAttributeOrNull(JWTClaimNames.JWT_ID).toString()
-        return mono { client.isValidJwt(organization.id, token.name, tokenHash, jwtId) }.map { isValid ->
+        return client.isValidJwt(organization.id, token.name, tokenHash, jwtId).flatMap { isValid ->
             when (isValid) {
-                true -> organization
-                false -> throw JwtDisabledException()
+                true -> Mono.just(organization)
+                false -> Mono.error(JwtDisabledException())
             }
         }
     }

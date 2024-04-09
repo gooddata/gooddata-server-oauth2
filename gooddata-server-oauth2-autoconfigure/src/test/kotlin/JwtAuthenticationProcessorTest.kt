@@ -198,7 +198,7 @@ class JwtAuthenticationProcessorTest {
     }
 
     private fun mockValidJwt(token: String = TOKEN_ID, valid: Boolean = true) {
-        coEvery { client.isValidJwt(ORGANIZATION_ID, USER_ID, TOKEN_MD5_HASH, token) }.returns(valid)
+        every { client.isValidJwt(ORGANIZATION_ID, USER_ID, TOKEN_MD5_HASH, token) } returns Mono.just(valid)
     }
 
     private fun prepareJwt(

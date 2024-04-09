@@ -118,9 +118,9 @@ interface AuthenticationStoreClient {
      * @param userId ID of the user that the JWTs belongs to
      * @param jwtHash md5 hash of the JWT token
      * @param jwtId ID of the JWT (optional)
-     * @return true if the JWT is valid, false otherwise
+     * @return mono containing true if the JWT is valid, false otherwise
      */
-    suspend fun isValidJwt(organizationId: String, userId: String, jwtHash: String, jwtId: String?): Boolean
+    fun isValidJwt(organizationId: String, userId: String, jwtHash: String, jwtId: String?): Mono<Boolean>
 
     /**
      * Invalidates JWT, that belongs to organization `organizationId` and user `userId` specified by `jwtHash`
