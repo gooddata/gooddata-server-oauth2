@@ -22,6 +22,7 @@ import org.springframework.security.core.Authentication
 import org.springframework.security.web.server.WebFilterExchange
 import org.springframework.security.web.server.authentication.logout.ServerLogoutHandler
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.switchIfEmpty
 
 /**
  * [ServerLogoutHandler] that sets `logoutAll` property on `User` object in persistent storage. All applications must
@@ -37,15 +38,15 @@ class LogoutAllServerLogoutHandler(
     override fun logout(exchange: WebFilterExchange, authentication: Authentication): Mono<Void> {
         return mono(Dispatchers.Unconfined) {
             userContextHolder.getContext()
-                ?.let {
-                    client.logoutAll(it.userId, it.organizationId)
-                    logger.logInfo {
-                        withMessage { "Logout all" }
-                        withAction("logoutAll")
-                        withUserId(it.userId)
-                        withOrganizationId(it.organizationId)
-                    }
+        }.flatMap { user ->
+            client.logoutAll(user.userId, user.organizationId).doOnSuccess {
+                logger.logInfo {
+                    withMessage { "Logout all" }
+                    withAction("logoutAll")
+                    withUserId(user.userId)
+                    withOrganizationId(user.organizationId)
                 }
-        }.then()
+            }
+        }.switchIfEmpty { Mono.empty() }
     }
 }

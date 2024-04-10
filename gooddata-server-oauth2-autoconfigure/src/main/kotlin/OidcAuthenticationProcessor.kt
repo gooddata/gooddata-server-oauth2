@@ -16,7 +16,6 @@
 package com.gooddata.oauth2.server
 
 import java.time.Instant
-import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
 import org.springframework.http.HttpStatus
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
@@ -54,7 +53,7 @@ class OidcAuthenticationProcessor(
         exchange: ServerWebExchange,
         chain: WebFilterChain,
     ): Mono<Void> =
-        getUserContextForAuthenticationToken(client, authenticationToken).flatMap { userContext ->
+        getUserContextForAuthenticationToken(authenticationToken).flatMap { userContext ->
             if (userContext.user == null) {
                 logger.info { "Session was logged out" }
                 serverLogoutHandler.logout(WebFilterExchange(exchange, chain), authenticationToken).then(
@@ -83,25 +82,27 @@ class OidcAuthenticationProcessor(
      *
      */
     private fun getUserContextForAuthenticationToken(
-        authenticationStoreClient: AuthenticationStoreClient,
-        authenticationToken: OAuth2AuthenticationToken,
+        authenticationToken: OAuth2AuthenticationToken
     ): Mono<UserContext> {
         return getOrganizationFromContext().flatMap { organization ->
-            mono {
-                authenticationStoreClient.getUserByAuthenticationId(
-                    organization.id,
-                    authenticationToken.getClaim(organization.oauthSubjectIdClaim)
-                )?.let { user ->
-                    val tokenIssuedAtTime = authenticationToken.principal.attributes[IdTokenClaimNames.IAT] as Instant
-                    val lastLogoutAllTimestamp = user.lastLogoutAllTimestamp
-                    val isValid = lastLogoutAllTimestamp == null || tokenIssuedAtTime.isAfter(lastLogoutAllTimestamp)
-                    if (isValid) {
-                        UserContext(organization, user, restartAuthentication = false)
-                    } else {
-                        UserContext(organization, user = null, restartAuthentication = true)
-                    }
-                } ?: UserContext(organization, user = null, restartAuthentication = false)
-            }
+            client.getUserByAuthenticationId(
+                organization.id,
+                authenticationToken.getClaim(organization.oauthSubjectIdClaim)
+            ).flatMap { user ->
+                val tokenIssuedAtTime = authenticationToken.principal.attributes[IdTokenClaimNames.IAT] as Instant
+                val lastLogoutAllTimestamp = user.lastLogoutAllTimestamp
+                val isValid = lastLogoutAllTimestamp == null || tokenIssuedAtTime.isAfter(lastLogoutAllTimestamp)
+                val userContext = if (isValid) {
+                    UserContext(organization, user, restartAuthentication = false)
+                } else {
+                    UserContext(organization, user = null, restartAuthentication = true)
+                }
+                Mono.just(userContext)
+            }.switchIfEmpty(
+                Mono.just(
+                    UserContext(organization, user = null, restartAuthentication = false)
+                )
+            )
         }
     }
 }

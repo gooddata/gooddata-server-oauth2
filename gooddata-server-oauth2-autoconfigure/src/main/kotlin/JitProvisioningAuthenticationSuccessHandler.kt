@@ -15,7 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
@@ -27,6 +26,7 @@ import org.springframework.security.web.server.WebFilterExchange
 import org.springframework.security.web.server.authentication.ServerAuthenticationSuccessHandler
 import org.springframework.web.server.ResponseStatusException
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.switchIfEmpty
 
 class JitProvisioningAuthenticationSuccessHandler(
     private val client: AuthenticationStoreClient
@@ -39,55 +39,64 @@ class JitProvisioningAuthenticationSuccessHandler(
         authentication: Authentication?
     ): Mono<Void> = Mono.justOrEmpty(authentication)
         .cast(OAuth2AuthenticationToken::class.java)
-        .flatMap { provisionUser(client, it, webFilterExchange) }
+        .flatMap { provisionUser(it, webFilterExchange) }
         .then()
 
     private fun provisionUser(
-        authenticationStoreClient: AuthenticationStoreClient,
         authenticationToken: OAuth2AuthenticationToken,
         webFilterExchange: WebFilterExchange?,
-    ): Mono<*> {
-        return mono {
-            val organization = authenticationStoreClient.getOrganizationByHostname(
-                webFilterExchange?.exchange?.request?.uri?.host ?: ""
-            )
+    ): Mono<User> {
+        return client.getOrganizationByHostname(
+            webFilterExchange?.exchange?.request?.uri?.host ?: ""
+        ).flatMap { organization ->
             if (organization.jitEnabled == true) {
-                checkMandatoryClaims(authenticationToken, organization.id)
-                logMessage("Initiating JIT provisioning", "started", organization.id)
-                val subClaim = authenticationToken.getClaim(organization.oauthSubjectIdClaim)
-                val firstnameClaim = authenticationToken.getClaim(GIVEN_NAME)
-                val lastnameClaim = authenticationToken.getClaim(FAMILY_NAME)
-                val emailClaim = authenticationToken.getClaim(EMAIL)
-                val userGroupsClaim = authenticationToken.getClaimList(GD_USER_GROUPS)
-                val user: User? = authenticationStoreClient.getUserByAuthenticationId(organization.id, subClaim)
-                if (user != null) {
-                    logMessage("Checking for user update", "running", organization.id)
-                    if (userDetailsChanged(user, firstnameClaim, lastnameClaim, emailClaim, userGroupsClaim)) {
-                        logMessage("User details changed, patching", "running", organization.id)
-                        user.firstname = firstnameClaim
-                        user.lastname = lastnameClaim
-                        user.email = emailClaim
-                        user.userGroups = userGroupsClaim
-                        authenticationStoreClient.patchUser(organization.id, user)
-                    } else {
-                        logMessage("User not changed, skipping update", "finished", organization.id)
-                    }
-                } else {
-                    logMessage("Creating user", "running", organization.id)
-                    val provisionedUser = authenticationStoreClient.createUser(
-                        organization.id,
-                        subClaim,
-                        firstnameClaim,
-                        lastnameClaim,
-                        emailClaim,
-                        userGroupsClaim ?: emptyList()
-                    )
-                    logMessage("User ${provisionedUser.id} created in organization", "finished", organization.id)
-                }
+                provisionUser(authenticationToken, organization)
             } else {
-                logMessage("JIT provisioning disabled, skipping", "finished", organization.id)
+                logMessage("JIT provisioning disabled, skipping", "finished", "")
+                Mono.empty()
             }
         }
+    }
+
+    private fun provisionUser(
+        authenticationToken: OAuth2AuthenticationToken,
+        organization: Organization
+    ): Mono<User> {
+        checkMandatoryClaims(authenticationToken, organization.id)
+        logMessage("Initiating JIT provisioning", "started", organization.id)
+        val subClaim = authenticationToken.getClaim(organization.oauthSubjectIdClaim)
+        val firstnameClaim = authenticationToken.getClaim(GIVEN_NAME)
+        val lastnameClaim = authenticationToken.getClaim(FAMILY_NAME)
+        val emailClaim = authenticationToken.getClaim(EMAIL)
+        val userGroupsClaim = authenticationToken.getClaimList(GD_USER_GROUPS)
+
+        return client.getUserByAuthenticationId(organization.id, subClaim)
+            .flatMap { user ->
+                logMessage("Checking for user update", "running", organization.id)
+                if (userDetailsChanged(user, firstnameClaim, lastnameClaim, emailClaim, userGroupsClaim)) {
+                    logMessage("User details changed, patching", "running", organization.id)
+                    user.firstname = firstnameClaim
+                    user.lastname = lastnameClaim
+                    user.email = emailClaim
+                    user.userGroups = userGroupsClaim
+                    client.patchUser(organization.id, user)
+                } else {
+                    logMessage("User not changed, skipping update", "finished", organization.id)
+                    Mono.just(user)
+                }
+            }.switchIfEmpty {
+                logMessage("Creating user", "running", organization.id)
+                client.createUser(
+                    organization.id,
+                    subClaim,
+                    firstnameClaim,
+                    lastnameClaim,
+                    emailClaim,
+                    userGroupsClaim ?: emptyList()
+                ).doOnSuccess { provisionedUser ->
+                    logMessage("User ${provisionedUser.id} created in organization", "finished", organization.id)
+                }
+            }
     }
 
     /**

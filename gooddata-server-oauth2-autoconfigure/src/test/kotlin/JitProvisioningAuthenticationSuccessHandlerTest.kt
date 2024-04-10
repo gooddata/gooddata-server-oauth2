@@ -30,6 +30,7 @@ import org.springframework.security.oauth2.core.oidc.StandardClaimNames.EMAIL
 import org.springframework.security.oauth2.core.oidc.StandardClaimNames.FAMILY_NAME
 import org.springframework.security.oauth2.core.oidc.StandardClaimNames.GIVEN_NAME
 import org.springframework.security.web.server.WebFilterExchange
+import reactor.core.publisher.Mono
 import strikt.api.expectThat
 import strikt.api.expectThrows
 import strikt.assertions.isEqualTo
@@ -59,9 +60,8 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         val handler = JitProvisioningAuthenticationSuccessHandler(client)
 
         // when
-        coEvery { client.getOrganizationByHostname(HOST) }.returns(
-            Organization(id = ORG_ID, jitEnabled = false)
-        )
+        mockOrganization(client, HOST, Organization(id = ORG_ID, jitEnabled = false))
+
         // then
         expectThat(
             handler.onAuthenticationSuccess(exchange, authentication)
@@ -77,9 +77,8 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         val handler = JitProvisioningAuthenticationSuccessHandler(client)
 
         // when
-        coEvery { client.getOrganizationByHostname(HOST) }.returns(
-            Organization(id = ORG_ID, jitEnabled = true)
-        )
+        mockOrganization(client, HOST, Organization(id = ORG_ID, jitEnabled = true))
+
         val authentication: OAuth2AuthenticationToken = mockk {
             every { principal } returns mockk {
                 every { attributes } returns emptyMap()
@@ -102,13 +101,10 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         val handler = JitProvisioningAuthenticationSuccessHandler(client)
 
         // when
-        coEvery { client.getOrganizationByHostname(HOST) }.returns(
-            Organization(id = ORG_ID, oauthSubjectIdClaim = SUB, jitEnabled = true)
-        )
-        coEvery { client.getUserByAuthenticationId(ORG_ID, SUB) }
-            .returns(null)
-        coEvery { client.createUser(ORG_ID, SUB, GIVEN_NAME, FAMILY_NAME, EMAIL, emptyList()) }
-            .returns(mockk<User> { every { id } returns USER_ID })
+        mockOrganization(client, HOST, Organization(id = ORG_ID, oauthSubjectIdClaim = SUB, jitEnabled = true))
+        mockUserByAuthId(client, ORG_ID, SUB, null)
+        every { client.createUser(ORG_ID, SUB, GIVEN_NAME, FAMILY_NAME, EMAIL, emptyList()) } returns
+            Mono.just(mockk<User> { every { id } returns USER_ID })
 
         // then
         expectThat(
@@ -132,11 +128,9 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         val handler = JitProvisioningAuthenticationSuccessHandler(client)
 
         // when
-        coEvery { client.getOrganizationByHostname(HOST) }.returns(
-            Organization(id = ORG_ID, oauthSubjectIdClaim = SUB, jitEnabled = true)
-        )
-        coEvery { client.getUserByAuthenticationId(ORG_ID, SUB) }.returns(user)
-        coEvery { client.patchUser(ORG_ID, any()) } returns mockk()
+        mockOrganization(client, HOST, Organization(id = ORG_ID, oauthSubjectIdClaim = SUB, jitEnabled = true))
+        mockUserByAuthId(client, ORG_ID, SUB, user)
+        every { client.patchUser(ORG_ID, any()) } returns Mono.just(mockk())
 
         // then
         expectThat(

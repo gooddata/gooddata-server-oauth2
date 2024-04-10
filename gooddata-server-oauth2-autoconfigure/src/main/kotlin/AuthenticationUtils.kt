@@ -33,7 +33,6 @@ import com.nimbusds.openid.connect.sdk.OIDCScopeValue
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata
 import java.security.MessageDigest
 import java.time.Instant
-import kotlinx.coroutines.reactor.mono
 import net.minidev.json.JSONObject
 import org.springframework.core.convert.ConversionService
 import org.springframework.core.convert.TypeDescriptor
@@ -274,25 +273,12 @@ fun findAuthenticatedUser(
 ): Mono<User> =
     when (authentication) {
         is UserContextAuthenticationToken -> Mono.just(authentication.user)
-        is JwtAuthenticationToken -> getUserForJwt(client, organization.id, authentication)
-        is OAuth2AuthenticationToken -> getUserForOAuth2(client, organization, authentication)
+        is JwtAuthenticationToken -> client.getUserById(organization.id, authentication.name)
+        is OAuth2AuthenticationToken -> client.getUserByAuthenticationId(
+            organization.id,
+            authentication.getClaim(organization)
+        )
         else -> Mono.empty()
-    }
-
-fun getUserForJwt(
-    client: AuthenticationStoreClient,
-    organizationId: String,
-    token: JwtAuthenticationToken,
-): Mono<User> =
-    mono { client.getUserById(organizationId, token.name) }
-
-fun getUserForOAuth2(
-    client: AuthenticationStoreClient,
-    organization: Organization,
-    token: OAuth2AuthenticationToken,
-): Mono<User> =
-    mono {
-        client.getUserByAuthenticationId(organization.id, token.getClaim(organization))
     }
 
 fun Authentication.getClaim(organization: Organization): String =

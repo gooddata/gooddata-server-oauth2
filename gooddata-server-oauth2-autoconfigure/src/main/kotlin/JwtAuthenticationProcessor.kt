@@ -17,7 +17,6 @@ package com.gooddata.oauth2.server
 
 import com.nimbusds.jwt.JWTClaimNames
 import com.nimbusds.openid.connect.sdk.claims.PersonClaims
-import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
 import org.springframework.http.HttpStatus
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
@@ -27,6 +26,7 @@ import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilterChain
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.switchIfEmpty
 import java.time.Instant
 
 /**
@@ -71,10 +71,10 @@ class JwtAuthenticationProcessor(
     ): Mono<Organization> {
         val tokenHash = hashStringWithMD5(token.token.tokenValue)
         val jwtId = token.tokenAttributeOrNull(JWTClaimNames.JWT_ID).toString()
-        return mono { client.isValidJwt(organization.id, token.name, tokenHash, jwtId) }.map { isValid ->
+        return client.isValidJwt(organization.id, token.name, tokenHash, jwtId).flatMap { isValid ->
             when (isValid) {
-                true -> organization
-                false -> throw JwtDisabledException()
+                true -> Mono.just(organization)
+                false -> Mono.error(JwtDisabledException())
             }
         }
     }
@@ -86,10 +86,12 @@ class JwtAuthenticationProcessor(
         organization: Organization,
     ): Mono<User> {
         logger.info { "getUserForJwtToken ${authenticationToken.name} ${organization.id}" }
-        return mono {
-            client.getUserById(organization.id, authenticationToken.name) ?: throw ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "User with ID='${authenticationToken.name}' is not registered"
+        return client.getUserById(organization.id, authenticationToken.name).switchIfEmpty {
+            Mono.error(
+                ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "User with ID='${authenticationToken.name}' is not registered"
+                )
             )
         }.flatMap { user ->
             val tokenIssuedAtTime = authenticationToken.tokenAttributeOrNull(JWTClaimNames.ISSUED_AT) as Instant?

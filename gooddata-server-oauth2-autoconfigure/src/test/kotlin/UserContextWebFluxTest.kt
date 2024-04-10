@@ -20,7 +20,6 @@ import com.google.crypto.tink.JsonKeysetReader
 import com.nimbusds.openid.connect.sdk.claims.UserInfo
 import com.ninjasquad.springmockk.MockkBean
 import com.ninjasquad.springmockk.SpykBean
-import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -82,27 +81,8 @@ class UserContextWebFluxTest(
     lateinit var authenticationStoreClient: AuthenticationStoreClient
 
     private val exchange = mockk<ServerWebExchange> {
-        every { request.uri.host } returns "localhost"
+        every { request.uri.host } returns LOCALHOST
     }
-
-    @Language("JSON")
-    private val keyset = """
-        {
-            "primaryKeyId": 482808123,
-            "key": [
-                {
-                    "keyData": {
-                        "typeUrl": "type.googleapis.com/google.crypto.tink.AesGcmKey",
-                        "keyMaterialType": "SYMMETRIC",
-                        "value": "GiBpR+IuA4xWtq5ZijTXae/Y9plMy0TMMc97wqdOrK7ndA=="
-                    },
-                    "outputPrefixType": "TINK",
-                    "keyId": 482808123,
-                    "status": "ENABLED"
-                }
-            ]
-        }
-    """
 
     @Test
     fun `filter works with cookies`() {
@@ -114,20 +94,8 @@ class UserContextWebFluxTest(
         everyValidSecurityContext()
         everyValidOrganization()
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns organization
-        coEvery {
-            authenticationStoreClient.getUserByAuthenticationId(
-                ORG_ID,
-                SUB_CLAIM_VALUE
-            )
-        } returns User(
-            "userTestId",
-        )
-        coEvery { authenticationStoreClient.getCookieSecurityProperties(ORG_ID) } returns
-            CookieSecurityProperties(
-                keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
-                lastRotation = Instant.now(),
-                rotationInterval = Duration.ofDays(1),
-            )
+        mockUserByAuthId(authenticationStoreClient, ORG_ID, SUB_CLAIM_VALUE, USER)
+        mockCookieSecurityProperties()
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
@@ -153,20 +121,8 @@ class UserContextWebFluxTest(
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns organization
         everyValidSecurityContext()
         everyValidOrganization()
-        coEvery {
-            authenticationStoreClient.getUserByAuthenticationId(
-                ORG_ID,
-                SUB_CLAIM_VALUE
-            )
-        } returns User(
-            "userTestId",
-        )
-        coEvery { authenticationStoreClient.getCookieSecurityProperties(ORG_ID) } returns
-            CookieSecurityProperties(
-                keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
-                lastRotation = Instant.now(),
-                rotationInterval = Duration.ofDays(1),
-            )
+        mockUserByAuthId(authenticationStoreClient, ORG_ID, SUB_CLAIM_VALUE, USER)
+        mockCookieSecurityProperties()
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
@@ -186,23 +142,11 @@ class UserContextWebFluxTest(
             oauthClientSecret = "clientSecret",
             allowedOrigins = listOf("https://localhost:8443"),
         )
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } returns organization
+        mockOrganization(authenticationStoreClient, LOCALHOST, organization)
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns organization
         everyValidSecurityContext()
-        coEvery {
-            authenticationStoreClient.getUserByAuthenticationId(
-                ORG_ID,
-                SUB_CLAIM_VALUE
-            )
-        } returns User(
-            "userId",
-        )
-        coEvery { authenticationStoreClient.getCookieSecurityProperties(ORG_ID) } returns
-            CookieSecurityProperties(
-                keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
-                lastRotation = Instant.now(),
-                rotationInterval = Duration.ofDays(1),
-            )
+        mockUserByAuthId(authenticationStoreClient, ORG_ID, SUB_CLAIM_VALUE, User("userId"))
+        mockCookieSecurityProperties()
 
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
@@ -217,7 +161,7 @@ class UserContextWebFluxTest(
 
     @Test
     fun `filter redirects without cookies`() {
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } returns ORGANIZATION
+        mockOrganization(authenticationStoreClient, LOCALHOST, ORGANIZATION)
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns ORGANIZATION
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
 
@@ -230,7 +174,7 @@ class UserContextWebFluxTest(
 
     @Test
     fun `filter redirects appLogin without cookies`() {
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } returns ORGANIZATION
+        mockOrganization(authenticationStoreClient, LOCALHOST, ORGANIZATION)
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns ORGANIZATION
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
 
@@ -249,7 +193,7 @@ class UserContextWebFluxTest(
             oauthClientSecret = "clientSecret",
             allowedOrigins = listOf("https://localhost:8443"),
         )
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } returns organization
+        mockOrganization(authenticationStoreClient, LOCALHOST, organization)
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns organization
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
 
@@ -281,8 +225,11 @@ class UserContextWebFluxTest(
 
     @Test
     fun `cookies fail with missing organization`() {
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } throws
-            ResponseStatusException(HttpStatus.NOT_FOUND, "Hostname is not registered")
+        mockOrganizationError(
+            authenticationStoreClient,
+            LOCALHOST,
+            hostnameNotFound()
+        )
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } throws IllegalStateException()
         everyValidSecurityContext()
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
@@ -308,9 +255,7 @@ class UserContextWebFluxTest(
         every { serverSecurityContextRepository.save(any(), null) } returns Mono.empty()
         everyValidSecurityContext()
         everyValidOrganization()
-        coEvery {
-            authenticationStoreClient.getUserByAuthenticationId(ORG_ID, SUB_CLAIM_VALUE)
-        } returns null
+        mockUserByAuthId(authenticationStoreClient, ORG_ID, SUB_CLAIM_VALUE, null)
 
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
@@ -335,14 +280,11 @@ class UserContextWebFluxTest(
         every { serverSecurityContextRepository.save(any(), null) } returns Mono.empty()
         everyValidSecurityContext()
         everyValidOrganization()
-        coEvery {
-            authenticationStoreClient.getUserByAuthenticationId(
-                ORG_ID,
-                SUB_CLAIM_VALUE
-            )
-        } returns User(
-            "userTestId",
-            lastLogoutAllTimestamp = Instant.ofEpochSecond(1),
+        mockUserByAuthId(
+            authenticationStoreClient,
+            ORG_ID,
+            SUB_CLAIM_VALUE,
+            User(USER_ID, lastLogoutAllTimestamp = Instant.ofEpochSecond(1))
         )
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
@@ -362,8 +304,8 @@ class UserContextWebFluxTest(
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns ORGANIZATION
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
         everyValidOrganization()
-        coEvery { authenticationStoreClient.getUserByApiToken(ORG_ID, "supersecuretoken") } returns User(
-            "userTestId",
+        every { authenticationStoreClient.getUserByApiToken(ORG_ID, "supersecuretoken") } returns Mono.just(
+            User(USER_ID)
         )
 
         webClient.get().uri("http://localhost/")
@@ -376,8 +318,7 @@ class UserContextWebFluxTest(
     @Test
     fun `bearer token fails with error organization`() {
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } throws
-            RuntimeException("msg")
+        mockOrganizationError(authenticationStoreClient, LOCALHOST, RuntimeException("msg"))
 
         webClient.get().uri("http://localhost/")
             .header("Authorization", "Bearer supersecuretoken")
@@ -394,8 +335,11 @@ class UserContextWebFluxTest(
 
     @Test
     fun `bearer token fails with missing organization`() {
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } throws
-            ResponseStatusException(HttpStatus.NOT_FOUND, "Hostname is not registered")
+        mockOrganizationError(
+            authenticationStoreClient,
+            LOCALHOST,
+            hostnameNotFound()
+        )
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns IllegalStateException()
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
         webClient.get().uri("http://localhost/")
@@ -416,8 +360,9 @@ class UserContextWebFluxTest(
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns ORGANIZATION
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
         everyValidOrganization()
-        coEvery { authenticationStoreClient.getUserByApiToken(ORG_ID, "supersecuretoken") } throws
+        every { authenticationStoreClient.getUserByApiToken(ORG_ID, "supersecuretoken") } returns Mono.error(
             InvalidBearerTokenException("msg")
+        )
 
         webClient.get().uri("http://localhost/")
             .header("Authorization", "Bearer supersecuretoken")
@@ -452,8 +397,7 @@ class UserContextWebFluxTest(
     @Test
     fun `missing organization fails to redirect to OIDC`() {
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } throws
-            ResponseStatusException(HttpStatus.NOT_FOUND, "Hostname is not registered")
+        mockOrganizationError(authenticationStoreClient, LOCALHOST, hostnameNotFound())
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } throws IllegalStateException()
         webClient.get().uri("http://localhost/oauth2/authorization/localhost")
             .exchange()
@@ -467,11 +411,12 @@ class UserContextWebFluxTest(
             .jsonPath("requestId").exists()
     }
 
+    private fun hostnameNotFound() = ResponseStatusException(HttpStatus.NOT_FOUND, "Hostname is not registered")
+
     @Test
     fun `error from organization fails to redirect to OIDC`() {
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } throws
-            RuntimeException("msg")
+        mockOrganizationError(authenticationStoreClient, LOCALHOST, RuntimeException("msg"))
 
         webClient.get().uri("http://localhost/oauth2/authorization/localhost")
             .exchange()
@@ -493,7 +438,7 @@ class UserContextWebFluxTest(
             oauthClientSecret = "clientSecret",
             allowedOrigins = listOf("https://localhost:8443"),
         )
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } returns organization
+        mockOrganization(authenticationStoreClient, LOCALHOST, organization)
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns organization
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
         every { serverSecurityContextRepository.save(any(), null) } returns Mono.empty()
@@ -513,9 +458,7 @@ class UserContextWebFluxTest(
         every { serverSecurityContextRepository.save(any(), null) } returns Mono.empty()
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.empty()
         everyValidOrganization()
-        coEvery {
-            authenticationStoreClient.getUserByAuthenticationId(ORG_ID, SUB_CLAIM_VALUE)
-        } returns User("userTestId")
+        mockUserByAuthId(authenticationStoreClient, ORG_ID, SUB_CLAIM_VALUE, User(USER_ID))
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
@@ -579,12 +522,22 @@ class UserContextWebFluxTest(
     }
 
     private fun everyValidOrganization() {
-        coEvery { authenticationStoreClient.getOrganizationByHostname("localhost") } returns Organization(
-            ORG_ID,
-            oauthClientId = "clientId",
-            oauthClientSecret = "clientSecret",
+        mockOrganization(
+            authenticationStoreClient,
+            LOCALHOST,
+            Organization(
+                ORG_ID,
+                oauthClientId = "clientId",
+                oauthClientSecret = "clientSecret",
+            )
         )
     }
+
+    private fun mockCookieSecurityProperties() = mockCookieSecurityProperties(
+        authenticationStoreClient,
+        ORG_ID,
+        COOKIE_SECURITY_PROPERTIES
+    )
 
     @Configuration
     class Config {
@@ -648,11 +601,40 @@ class UserContextWebFluxTest(
         private const val SUB_CLAIM_VALUE = "sub|123"
         private const val NAME_CLAIM_VALUE = "sub"
         private const val ORG_ID = "organizationTestId"
+        private const val LOCALHOST = "localhost"
         private val ORGANIZATION = Organization(
             id = ORG_ID,
             oauthClientId = "clientId",
             oauthClientSecret = "clientSecret",
             allowedOrigins = listOf("https://localhost:8443"),
+        )
+
+        private const val USER_ID = "userTestId"
+        private val USER = User(USER_ID)
+
+        @Language("JSON")
+        private val KEYSET = """
+        {
+            "primaryKeyId": 482808123,
+            "key": [
+                {
+                    "keyData": {
+                        "typeUrl": "type.googleapis.com/google.crypto.tink.AesGcmKey",
+                        "keyMaterialType": "SYMMETRIC",
+                        "value": "GiBpR+IuA4xWtq5ZijTXae/Y9plMy0TMMc97wqdOrK7ndA=="
+                    },
+                    "outputPrefixType": "TINK",
+                    "keyId": 482808123,
+                    "status": "ENABLED"
+                }
+            ]
+        }
+    """
+
+        val COOKIE_SECURITY_PROPERTIES = CookieSecurityProperties(
+            keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(KEYSET.toByteArray())),
+            lastRotation = Instant.now(),
+            rotationInterval = Duration.ofDays(1),
         )
     }
 }

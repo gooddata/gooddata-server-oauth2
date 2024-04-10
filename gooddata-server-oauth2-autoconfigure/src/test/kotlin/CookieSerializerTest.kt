@@ -17,7 +17,6 @@ package com.gooddata.oauth2.server
 
 import com.google.crypto.tink.CleartextKeysetHandle
 import com.google.crypto.tink.JsonKeysetReader
-import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -27,6 +26,7 @@ import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
+import reactor.core.publisher.Mono
 import strikt.api.expectCatching
 import strikt.api.expectThat
 import strikt.api.expectThrows
@@ -44,7 +44,7 @@ internal class CookieSerializerTest {
 
     init {
         exchange.attributes.putAll(
-            mutableMapOf(OrganizationWebFilter.ORGANIZATION_CACHE_KEY to Organization("org"))
+            mutableMapOf(OrganizationWebFilter.ORGANIZATION_CACHE_KEY to Organization(ORGANIZATION_ID))
         )
     }
 
@@ -68,10 +68,10 @@ internal class CookieSerializerTest {
     """
 
     private val client: AuthenticationStoreClient = mockk {
-        coEvery { getCookieSecurityProperties("org") } returns CookieSecurityProperties(
-            keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
-            lastRotation = Instant.now(),
-            rotationInterval = Duration.ofDays(1),
+        mockCookieSecurityProperties(
+            this,
+            ORGANIZATION_ID,
+            createCookieSecurityProperties(1)
         )
     }
 
@@ -84,7 +84,9 @@ internal class CookieSerializerTest {
 
     @Test
     fun `output is base64 encoded`() {
-        exchange.attributes.putAll(mutableMapOf(OrganizationWebFilter.ORGANIZATION_CACHE_KEY to Organization("org")))
+        exchange.attributes.putAll(mutableMapOf(OrganizationWebFilter.ORGANIZATION_CACHE_KEY to Organization(
+            ORGANIZATION_ID
+        )))
         val encoded = cookieSerializer.encodeCookie(
             exchange,
             arrayOf<Byte>(0, 1, 2, 3, 4, 20, 21, 50, 80, 127, -128, -127, -5, -1).toString()
@@ -157,13 +159,9 @@ internal class CookieSerializerTest {
         mockkStatic(Instant::class)
 
         val client: AuthenticationStoreClient = mockk {
-            coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
-            coEvery { getCookieSecurityProperties("org") } answers {
-                CookieSecurityProperties(
-                    keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
-                    lastRotation = Instant.now(),
-                    rotationInterval = Duration.ofSeconds(10),
-                )
+            mockOrganization(this, LOCALHOST, Organization(ORGANIZATION_ID))
+            every { getCookieSecurityProperties(ORGANIZATION_ID) } answers {
+                Mono.just(createCookieSecurityProperties())
             }
         }
 
@@ -180,17 +178,17 @@ internal class CookieSerializerTest {
 
         // Called with no cache - read from backend
         cookieSerializer.encodeCookie(exchange, "")
-        coVerify(exactly = 1) { client.getCookieSecurityProperties("org") }
+        verifyGetCookieSecurityProperties(client)
 
         // Called before rotationInterval and before TTL - use cache
         every { Instant.now() } returns Instant.ofEpochSecond(9)
         cookieSerializer.encodeCookie(exchange, "")
-        coVerify(exactly = 1) { client.getCookieSecurityProperties("org") }
+        verifyGetCookieSecurityProperties(client)
 
         // Call after rotationInterval and before TTL - read from backend
         every { Instant.now() } returns Instant.ofEpochSecond(11)
         cookieSerializer.encodeCookie(exchange, "")
-        coVerify(exactly = 2) { client.getCookieSecurityProperties("org") }
+        verifyGetCookieSecurityProperties(client, 2)
     }
 
     @Test
@@ -198,13 +196,9 @@ internal class CookieSerializerTest {
         mockkStatic(Instant::class)
 
         val client: AuthenticationStoreClient = mockk {
-            coEvery { getOrganizationByHostname("localhost") } returns Organization("org")
-            coEvery { getCookieSecurityProperties("org") } answers {
-                CookieSecurityProperties(
-                    keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
-                    lastRotation = Instant.now(),
-                    rotationInterval = Duration.ofSeconds(10),
-                )
+            mockOrganization(this, LOCALHOST, ORGANIZATION)
+            every { getCookieSecurityProperties(ORGANIZATION_ID) } answers {
+                Mono.just(createCookieSecurityProperties())
             }
         }
 
@@ -221,16 +215,32 @@ internal class CookieSerializerTest {
 
         // Called with no cache - read from backend
         cookieSerializer.encodeCookie(exchange, "")
-        coVerify(exactly = 1) { client.getCookieSecurityProperties("org") }
+        verifyGetCookieSecurityProperties(client)
 
         // Called before rotationInterval and after TTL - read from backend
         every { Instant.now() } returns Instant.ofEpochSecond(9)
         cookieSerializer.encodeCookie(exchange, "")
-        coVerify(exactly = 2) { client.getCookieSecurityProperties("org") }
+        verifyGetCookieSecurityProperties(client, 2)
 
         // Call after rotationInterval and after TTL - read from backend
         every { Instant.now() } returns Instant.ofEpochSecond(20)
         cookieSerializer.encodeCookie(exchange, "")
-        coVerify(exactly = 3) { client.getCookieSecurityProperties("org") }
+        verifyGetCookieSecurityProperties(client, 3)
+    }
+
+    private fun verifyGetCookieSecurityProperties(client: AuthenticationStoreClient, exactly: Int = 1) {
+        coVerify(exactly = exactly) { client.getCookieSecurityProperties(ORGANIZATION_ID) }
+    }
+
+    private fun createCookieSecurityProperties(rotationIntervalSeconds: Long = 10) = CookieSecurityProperties(
+        keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
+        lastRotation = Instant.now(),
+        rotationInterval = Duration.ofSeconds(rotationIntervalSeconds),
+    )
+
+    companion object {
+        private const val ORGANIZATION_ID = "org"
+        private const val LOCALHOST = "localhost"
+        val ORGANIZATION = Organization(ORGANIZATION_ID)
     }
 }

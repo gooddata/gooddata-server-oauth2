@@ -17,7 +17,6 @@ package com.gooddata.oauth2.server
 
 import com.google.crypto.tink.Aead
 import com.google.crypto.tink.aead.AeadConfig
-import kotlinx.coroutines.runBlocking
 import org.springframework.web.server.ServerWebExchange
 import java.security.GeneralSecurityException
 import java.time.Instant
@@ -100,9 +99,8 @@ class CookieSerializer(
     }
 
     private fun readCookieSecurityProperties(exchange: ServerWebExchange): CookieSecurityProperties =
-        runBlocking {
-            client.getCookieSecurityProperties(exchange.getOrganizationFromAttributes().id)
-        }
+        client.getCookieSecurityProperties(exchange.getOrganizationFromAttributes().id).block()
+            ?: throw IllegalArgumentException("Cookie security properties not found.")
 
     private fun ByteArray.toBase64(): String = String(Base64.getEncoder().encode(this))
 

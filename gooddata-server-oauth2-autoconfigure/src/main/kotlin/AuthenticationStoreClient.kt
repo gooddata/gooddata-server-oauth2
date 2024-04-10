@@ -22,6 +22,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.security.oauth2.server.resource.BearerTokenAuthenticationToken
 import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException
 import org.springframework.web.server.ResponseStatusException
+import reactor.core.publisher.Mono
 
 /**
  * `AuthenticationStoreClient` defines methods for retrieving identity objects from persistent storage.
@@ -34,10 +35,10 @@ interface AuthenticationStoreClient {
      * with [HttpStatus.NOT_FOUND] status code is thrown in case no [Organization] can be found.
      *
      * @param hostname of the organization
-     * @return `Organization` corresponding to `hostname`
-     * @throws ResponseStatusException in case `Organization` is not found
+     * @return `Organization` corresponding to `hostname` or mono containing
+     * [ResponseStatusException] in case `Organization` is not found
      */
-    suspend fun getOrganizationByHostname(hostname: String): Organization
+    fun getOrganizationByHostname(hostname: String): Mono<Organization>
 
     /**
      * Retrieves [User] that corresponds to provided `organizationId` and `authenticationId` retrieved from
@@ -49,7 +50,7 @@ interface AuthenticationStoreClient {
      * @param authenticationId ID identifying the user in OIDC provider
      * @return found [User] or `null` in case no [User] is found
      */
-    suspend fun getUserByAuthenticationId(organizationId: String, authenticationId: String): User?
+    fun getUserByAuthenticationId(organizationId: String, authenticationId: String): Mono<User>
 
     /**
      *
@@ -61,7 +62,7 @@ interface AuthenticationStoreClient {
      * TODO exception should be handled directly in the library
      * @throws InvalidBearerTokenException in case no [User] is found
      */
-    suspend fun getUserByApiToken(organizationId: String, token: String): User
+    fun getUserByApiToken(organizationId: String, token: String): Mono<User>
 
     /**
      *
@@ -72,7 +73,7 @@ interface AuthenticationStoreClient {
      * @return `User` corresponding to userId
      * TODO should an exception be thrown if the user is not found?
      */
-    suspend fun getUserById(organizationId: String, userId: String): User?
+    fun getUserById(organizationId: String, userId: String): Mono<User>
 
     /**
      * Creates [User] that belongs to given `organizationId`
@@ -85,29 +86,29 @@ interface AuthenticationStoreClient {
      * @return created [User]
      */
     @SuppressWarnings("LongParameterList")
-    suspend fun createUser(
+    fun createUser(
         organizationId: String,
         authenticationId: String,
         firstName: String,
         lastName: String,
         email: String,
         userGroups: List<String>
-    ): User
+    ): Mono<User>
 
     /**
      * Patches [User] in the given `organizationId`
      * @return updated [User]
      */
-    suspend fun patchUser(organizationId: String, user: User): User
+    fun patchUser(organizationId: String, user: User): Mono<User>
 
     /**
      *
      * Retrieves [List<JWK>] that belongs to given `organizationId`
      *
      * @param organizationId ID of the organization that the JWKs belongs to
-     * @return list of JWKs corresponding to organizationId
+     * @return mono with list of JWKs corresponding to organizationId
      */
-    suspend fun getJwks(organizationId: String): List<JWK>
+    fun getJwks(organizationId: String): Mono<List<JWK>>
 
     /**
      * Checks whether JWT, that belongs to organization `organizationId` and user `userId` specified by `jwtHash`
@@ -117,9 +118,9 @@ interface AuthenticationStoreClient {
      * @param userId ID of the user that the JWTs belongs to
      * @param jwtHash md5 hash of the JWT token
      * @param jwtId ID of the JWT (optional)
-     * @return true if the JWT is valid, false otherwise
+     * @return mono containing true if the JWT is valid, false otherwise
      */
-    suspend fun isValidJwt(organizationId: String, userId: String, jwtHash: String, jwtId: String?): Boolean
+    fun isValidJwt(organizationId: String, userId: String, jwtHash: String, jwtId: String?): Mono<Boolean>
 
     /**
      * Invalidates JWT, that belongs to organization `organizationId` and user `userId` specified by `jwtHash`
@@ -131,13 +132,13 @@ interface AuthenticationStoreClient {
      * @param jwtId ID of the JWT (optional)
      * @param validTo UTC time of JWT expiration
      */
-    suspend fun invalidateJwt(
+    fun invalidateJwt(
         organizationId: String,
         userId: String,
         jwtHash: String,
         jwtId: String?,
         validTo: LocalDateTime
-    )
+    ): Mono<Void>
 
     /**
      * Marks the [User] belonging to the [Organization] for global logout. Any OIDC tokens which were issued before that
@@ -146,15 +147,15 @@ interface AuthenticationStoreClient {
      * @param userId ID identifying the user
      * @param organizationId ID identifying the organization
      */
-    suspend fun logoutAll(userId: String, organizationId: String)
+    fun logoutAll(userId: String, organizationId: String): Mono<Void>
 
     /**
      * Retrieve [CookieSecurityProperties] for given organization.
      *
      * @param organizationId ID identifying the organization
-     * @return [CookieSecurityProperties] for given organization
+     * @return mono with[CookieSecurityProperties] for given organization
      */
-    suspend fun getCookieSecurityProperties(organizationId: String): CookieSecurityProperties
+    fun getCookieSecurityProperties(organizationId: String): Mono<CookieSecurityProperties>
 }
 
 /**

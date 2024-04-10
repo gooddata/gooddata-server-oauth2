@@ -71,13 +71,11 @@ class OidcAuthenticationProcessorTest {
                 idToken
             ),
             emptyList(),
-            "hostname"
+            HOSTNAME
         )
 
-        coEvery { client.getOrganizationByHostname("hostname") } returns organization
-        coEvery { client.getUserByAuthenticationId(ORG_ID, "sub") } returns User(
-            "userId",
-        )
+        mockOrganization(client, HOSTNAME, organization)
+        mockUserByAuthId(client, ORG_ID, "sub", User(USER_ID))
         coEvery { userContextProvider.getContextView(any(), any(), any(), any()) } returns Context.empty()
 
         val webFilterChain = mockk<WebFilterChain> {
@@ -97,7 +95,7 @@ class OidcAuthenticationProcessorTest {
         coVerify(exactly = 1) {
             userContextProvider.getContextView(
                 ORG_ID,
-                "userId",
+                USER_ID,
                 "sub",
                 null
             )
@@ -123,13 +121,11 @@ class OidcAuthenticationProcessorTest {
                 idToken
             ),
             emptyList(),
-            "hostname"
+            HOSTNAME
         )
 
-        coEvery { client.getOrganizationByHostname("hostname") } returns organization
-        coEvery { client.getUserByAuthenticationId(ORG_ID, "sub") } returns User(
-            "userId",
-        )
+        mockOrganization(client, HOSTNAME, organization)
+        mockUserByAuthId(client, ORG_ID, "sub", User(USER_ID))
         coEvery { userContextProvider.getContextView(any(), any(), any(), null) } returns Context.empty()
 
         val webFilterChain = mockk<WebFilterChain> {
@@ -146,7 +142,7 @@ class OidcAuthenticationProcessorTest {
         verify { serverLogoutHandler wasNot called }
         verify { authenticationEntryPoint wasNot called }
         verify(exactly = 1) { webFilterChain.filter(any()) }
-        coVerify(exactly = 1) { userContextProvider.getContextView(ORG_ID, "userId", "non-sub", null) }
+        coVerify(exactly = 1) { userContextProvider.getContextView(ORG_ID, USER_ID, "non-sub", null) }
     }
 
     @Test
@@ -167,13 +163,11 @@ class OidcAuthenticationProcessorTest {
                 idToken
             ),
             emptyList(),
-            "hostname"
+            HOSTNAME
         )
 
-        coEvery { client.getOrganizationByHostname("hostname") } returns organization
-        coEvery { client.getUserByAuthenticationId(ORG_ID, "sub") } returns User(
-            "userId",
-        )
+        mockOrganization(client, HOSTNAME, organization)
+        mockUserByAuthId(client, ORG_ID, "sub", User(USER_ID))
         coEvery { userContextProvider.getContextView(any(), any(), any(), any()) } returns Context.empty()
 
         val webFilterChain = mockk<WebFilterChain> {
@@ -205,16 +199,13 @@ class OidcAuthenticationProcessorTest {
                 idToken
             ),
             emptyList(),
-            "hostname"
+            HOSTNAME
         )
 
         every { serverLogoutHandler.logout(any(), any()) } returns Mono.empty()
         every { authenticationEntryPoint.commence(any(), any()) } returns Mono.empty()
-        coEvery { client.getOrganizationByHostname("hostname") } returns Organization(ORG_ID)
-        coEvery { client.getUserByAuthenticationId(ORG_ID, "sub") } returns User(
-            "userId",
-            lastLogoutAllTimestamp = Instant.ofEpochSecond(1),
-        )
+        mockOrganization(client, HOSTNAME, Organization(ORG_ID))
+        mockUserByAuthId(client, ORG_ID, "sub", User(USER_ID, lastLogoutAllTimestamp = Instant.ofEpochSecond(1)))
 
         val webFilterChain = mockk<WebFilterChain>()
 
@@ -229,8 +220,10 @@ class OidcAuthenticationProcessorTest {
     }
 
     companion object {
-        const val ORG_ID = "organizationId"
-        val ORGANIZATION = Organization(ORG_ID)
-        const val OID_SUBJECT_ID_CLAIM_NAME = "oid"
+        private const val ORG_ID = "organizationId"
+        private const val HOSTNAME = "hostname"
+        private const val USER_ID = "userId"
+        private val ORGANIZATION = Organization(ORG_ID)
+        private const val OID_SUBJECT_ID_CLAIM_NAME = "oid"
     }
 }

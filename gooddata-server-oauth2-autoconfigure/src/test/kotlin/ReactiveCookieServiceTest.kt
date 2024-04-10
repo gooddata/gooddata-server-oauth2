@@ -18,7 +18,6 @@ package com.gooddata.oauth2.server
 import com.gooddata.oauth2.server.jackson.mapper
 import com.google.crypto.tink.CleartextKeysetHandle
 import com.google.crypto.tink.JsonKeysetReader
-import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -49,8 +48,8 @@ internal class ReactiveCookieServiceTest {
     }
 
     private val client: AuthenticationStoreClient = mockk {
-        coEvery { getOrganizationByHostname(HOSTNAME) } returns Organization(ORG_ID)
-        coEvery { getCookieSecurityProperties(ORG_ID) } returns COOKIE_SECURITY_PROPS
+        mockOrganization(this, HOSTNAME, Organization(ORG_ID))
+        mockCookieSecurityProperties(this, ORG_ID, COOKIE_SECURITY_PROPS)
     }
 
     private val cookieSerializer = CookieSerializer(SERVICE_PROPERTIES, client)
