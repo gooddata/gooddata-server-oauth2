@@ -68,7 +68,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
         expectThrows<InvalidBearerTokenException> {
             manager.authenticate(BearerTokenAuthenticationToken("invalid"))
                 .orgContextWrite(ORGANIZATION)
-                .awaitOrNull()
+                .block()
         }
     }
 

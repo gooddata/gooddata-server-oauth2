@@ -46,7 +46,7 @@ internal class PostLogoutNotAllowedWebFilterTest {
             every { path } returns RequestPath.parse("/logout", "/")
         }
 
-        expectThrows<ResponseStatusException> { filter.filter(exchange, chain).awaitOrNull() }
+        expectThrows<ResponseStatusException> { filter.filter(exchange, chain).block() }
             .get { status }.isEqualTo(HttpStatus.METHOD_NOT_ALLOWED)
     }
 
@@ -57,7 +57,7 @@ internal class PostLogoutNotAllowedWebFilterTest {
             every { path } returns RequestPath.parse("/logout/all", "/")
         }
 
-        expectThrows<ResponseStatusException> { filter.filter(exchange, chain).awaitOrNull() }
+        expectThrows<ResponseStatusException> { filter.filter(exchange, chain).block() }
             .get { status }.isEqualTo(HttpStatus.METHOD_NOT_ALLOWED)
     }
 

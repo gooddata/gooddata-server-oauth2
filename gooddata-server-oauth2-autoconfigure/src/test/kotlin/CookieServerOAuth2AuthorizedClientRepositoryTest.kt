@@ -23,7 +23,6 @@ import io.mockk.slot
 import io.mockk.spyk
 import io.mockk.verify
 import io.netty.handler.codec.http.cookie.CookieHeaderNames
-import kotlinx.coroutines.reactive.awaitFirst
 import net.javacrumbs.jsonunit.JsonAssert.assertJsonEquals
 import net.javacrumbs.jsonunit.core.Configuration
 import net.javacrumbs.jsonunit.core.Option
@@ -155,7 +154,7 @@ internal class CookieServerOAuth2AuthorizedClientRepositoryTest {
             "registrationId", principal, exchange
         )
 
-        expectThrows<IllegalStateException> { client.awaitFirst() }
+        expectThrows<IllegalStateException> { client.block() }
     }
 
     @Test

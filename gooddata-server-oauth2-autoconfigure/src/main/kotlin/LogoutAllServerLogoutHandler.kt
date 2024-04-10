@@ -15,8 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.reactor.mono
 import mu.KotlinLogging
 import org.springframework.security.core.Authentication
 import org.springframework.security.web.server.WebFilterExchange
@@ -36,17 +34,16 @@ class LogoutAllServerLogoutHandler(
     private val logger = KotlinLogging.logger { }
 
     override fun logout(exchange: WebFilterExchange, authentication: Authentication): Mono<Void> {
-        return mono(Dispatchers.Unconfined) {
-            userContextHolder.getContext()
-        }.flatMap { user ->
-            client.logoutAll(user.userId, user.organizationId).doOnSuccess {
-                logger.logInfo {
-                    withMessage { "Logout all" }
-                    withAction("logoutAll")
-                    withUserId(user.userId)
-                    withOrganizationId(user.organizationId)
+        return userContextHolder.getContext()
+            .flatMap { user ->
+                client.logoutAll(user.userId, user.organizationId).doOnSuccess {
+                    logger.logInfo {
+                        withMessage { "Logout all" }
+                        withAction("logoutAll")
+                        withUserId(user.userId)
+                        withOrganizationId(user.organizationId)
+                    }
                 }
-            }
-        }.switchIfEmpty { Mono.empty() }
+            }.switchIfEmpty { Mono.empty() }
     }
 }

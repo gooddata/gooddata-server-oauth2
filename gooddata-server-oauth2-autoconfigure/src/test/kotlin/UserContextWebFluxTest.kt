@@ -23,10 +23,6 @@ import com.ninjasquad.springmockk.SpykBean
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.reactor.ReactorContext
-import kotlinx.coroutines.reactor.asCoroutineContext
 import net.javacrumbs.jsonunit.core.util.ResourceUtils
 import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
@@ -53,10 +49,8 @@ import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
 import reactor.util.context.Context
-import reactor.util.context.ContextView
 import java.time.Duration
 import java.time.Instant
-import kotlin.coroutines.coroutineContext
 
 @WebFluxTest(properties = ["spring.security.oauth2.client.applogin.allow-redirect=https://localhost:8443"])
 @Import(ServerOAuth2AutoConfiguration::class, UserContextWebFluxTest.Config::class)
@@ -560,39 +554,24 @@ class UserContextWebFluxTest(
         override var tokenId: String? = null,
     ) : AuthenticationUserContext
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     object CoroutineUserContextHolder : UserContextHolder<UserContext> {
-        override suspend fun getContext(): UserContext? {
-            return coroutineContext[ReactorContext]
-                ?.context
-                ?.getOrDefault<UserContext>(UserContext::class.java, null)
-        }
-
-        override suspend fun setContext(
-            organizationId: String,
-            userId: String,
-            userName: String?,
-            tokenId: String?,
-        ): ReactorContext {
-            return (coroutineContext[ReactorContext]?.context ?: Context.empty())
-                .putAll(
-                    Context.of(
-                        UserContext::class.java, UserContext(organizationId, userId, userName, tokenId)
-                    ) as ContextView
-                )
-                .asCoroutineContext()
+        override fun getContext(): Mono<UserContext> {
+            return Mono.deferContextual { contextView ->
+                Mono.justOrEmpty(contextView.getOrDefault<UserContext>(UserContext::class.java, null))
+            }
         }
     }
 
     @RestController
     class DummyController {
 
-        @OptIn(ExperimentalCoroutinesApi::class)
         @GetMapping("/")
-        suspend fun getDummy(): ResponseEntity<String> = coroutineScope {
-            val authContext = coroutineContext[ReactorContext]?.context?.get(UserContext::class.java)!!
-            ResponseEntity.ok(
-                "${authContext.userName} <${authContext.userId}@${authContext.organizationId}>"
+        fun getDummy(): Mono<ResponseEntity<String>> = Mono.deferContextual { contextView ->
+            val authContext = contextView.get(UserContext::class.java)
+            Mono.just(
+                ResponseEntity.ok(
+                    "${authContext.userName} <${authContext.userId}@${authContext.organizationId}>"
+                )
             )
         }
     }
