@@ -29,7 +29,6 @@ tasks {
 
 dependencies {
     val jsonUnitVersion: String by project
-    val kotlinCoroutinesVersion: String by project
     val kotlinLoggingVersion: String by project
     val mockkVersion: String by project
     val springMockkVersion: String by project
@@ -38,7 +37,6 @@ dependencies {
 
     api("com.fasterxml.jackson.core:jackson-databind")
     api("io.netty:netty-codec-http")
-    api("org.jetbrains.kotlinx:kotlinx-coroutines-reactor:${kotlinCoroutinesVersion}")
     api("org.springframework.boot:spring-boot")
     api("org.springframework.boot:spring-boot-starter-webflux")
     api("org.springframework.security:spring-security-oauth2-client:5.6.11")
@@ -50,8 +48,6 @@ dependencies {
     implementation("com.google.crypto.tink:tink:${tinkVersion}")
     implementation("io.github.microutils:kotlin-logging:${kotlinLoggingVersion}")
     implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${kotlinCoroutinesVersion}")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-slf4j:${kotlinCoroutinesVersion}")
     implementation("org.springframework.security:spring-security-config:5.6.11")
     implementation("org.springframework.security:spring-security-oauth2-jose:5.6.11")
 

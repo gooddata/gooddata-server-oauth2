@@ -60,7 +60,7 @@ internal class HostBasedReactiveClientRegistrationRepositoryTest {
         val registration = repository.findByRegistrationId("nonExistentId")
 
         expectThrows<MissingOrganizationContextException> {
-            registration.awaitOrNull()
+            registration.block()
         }
     }
 }

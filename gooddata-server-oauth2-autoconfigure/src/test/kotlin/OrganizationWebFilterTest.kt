@@ -68,7 +68,7 @@ internal class OrganizationWebFilterTest {
         val response = webFilter.filter(exchange, chain)
 
         expectThrows<ResponseStatusException> {
-            response.awaitOrNull()
+            response.block()
         }.get { status }.isEqualTo(HttpStatus.NOT_FOUND)
     }
 

@@ -31,12 +31,5 @@
       "matchPackagePrefixes": ["org.springframework.boot"],
       "allowedVersions": "<2.7.0"
     },
-    {
-      "groupName": "kotlinx-coroutines",
-      "matchManagers": ["gradle"],
-      "matchPackagePrefixes": ["org.jetbrains.kotlinx:kotlinx-coroutines"],
-      "allowedVersions": "1.3.8",
-      "description": "Required by kroto-plus 0.6.1"
-    },
   ]
 }
