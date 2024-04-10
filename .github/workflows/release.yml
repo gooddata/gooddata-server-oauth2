@@ -1,16 +1,17 @@
 ---
 
 on:
-  push:
-    tags:
-      - "gooddata-server-oauth2-*.*.*"
-      - "*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        required: true
 
 jobs:
   ###########################
   #  BUILD & PUBLISH STAGE
   ###########################
-  test-kotlin:
+  release-library-kotlin:
     runs-on: infra1-medium
     steps:
       - uses: actions/checkout@v3
@@ -19,12 +20,14 @@ jobs:
         with:
           key: kotlin-build
           path: .gradle
-      - name: Get Tag Name
-        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-      - name: Publish to Nexus and to GitLab with Gradle Wrapper
+      - name: Publish to Nexus with Gradle Wrapper
         env:
           NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
           NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
           GITLAB_PACKAGES_UPLOAD_TOKEN: ${{ secrets.GITLAB_PACKAGES_UPLOAD_TOKEN }}
+          VERSION: ${{ github.event.inputs.version }}
         run: |
-          ./gradlew clean publish -Pversion=$TAG_NAME --info
+          echo "$VERSION" | grep -P '^\d+\.\d+\.\d+$'
+          git tag $VERSION
+          git push origin $VERSION
+          ./gradlew clean publish -Pversion=$VERSION --info
