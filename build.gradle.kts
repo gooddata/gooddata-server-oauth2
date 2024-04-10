@@ -97,18 +97,6 @@ subprojects {
                     password = System.getenv("NEXUS_PASSWORD")
                 }
             }
-            maven {
-                name = "gitlabMaven"
-                // gdc-nas project id
-                url = uri("https://gitlab.com/api/v4/projects/16539767/packages/maven")
-                credentials(HttpHeaderCredentials::class.java) {
-                    name = "Deploy-Token"
-                    value = System.getenv("GITLAB_PACKAGES_UPLOAD_TOKEN")
-                }
-                authentication {
-                    create<HttpHeaderAuthentication>("header")
-                }
-            }
         }
     }
 
@@ -172,32 +160,6 @@ subprojects {
                     listOf("-Xjsr305=strict", "-opt-in=kotlin.RequiresOptIn", "-Xallow-result-return-type")
                 jvmTarget = "11"
             }
-        }
-    }
-}
-
-/**
- * Registers the HTTP header authenticated GitLab Maven repository for the given [gitlabMavenUrl]
- */
-fun RepositoryHandler.gitlabMavenRepository(gitlabMavenUrl: String) {
-    maven {
-        name = "gitlabMaven"
-        url = uri(gitlabMavenUrl)
-
-        credentials(HttpHeaderCredentials::class.java) {
-            val jobToken = System.getenv("CI_JOB_TOKEN")
-            if (jobToken != null) {
-                // GitLab CI
-                name = "Job-Token"
-                value = jobToken
-            } else {
-                name = "Private-Token"
-                value = System.getenv("GITLAB_TOKEN")
-            }
-        }
-
-        authentication {
-            create<HttpHeaderAuthentication>("header")
         }
     }
 }

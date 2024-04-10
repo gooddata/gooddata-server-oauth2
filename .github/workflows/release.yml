@@ -24,7 +24,6 @@ jobs:
         env:
           NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
           NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
-          GITLAB_PACKAGES_UPLOAD_TOKEN: ${{ secrets.GITLAB_PACKAGES_UPLOAD_TOKEN }}
           VERSION: ${{ github.event.inputs.version }}
         run: |
           echo "$VERSION" | grep -P '^\d+\.\d+\.\d+$'
