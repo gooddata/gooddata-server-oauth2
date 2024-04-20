@@ -33,6 +33,8 @@ import org.springframework.http.HttpCookie
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest
 import org.springframework.util.CollectionUtils.toMultiValueMap
 import org.springframework.web.server.ServerWebExchange
+import reactor.core.publisher.Mono
+import reactor.test.StepVerifier
 import strikt.api.expectThat
 import strikt.assertions.isEqualTo
 import strikt.assertions.isTrue
@@ -109,17 +111,19 @@ internal class CookieServerAuthorizationRequestRepositoryTest {
         every { exchange.request.cookies } returns toMultiValueMap(
             mapOf(
                 SPRING_SEC_OAUTH2_AUTHZ_RQ to listOf(
-                    HttpCookie(SPRING_SEC_OAUTH2_AUTHZ_RQ, cookieSerializer.encodeCookie(exchange, body))
+                    HttpCookie(SPRING_SEC_OAUTH2_AUTHZ_RQ, cookieSerializer.encodeCookieBlocking(exchange, body))
                 )
             )
         )
 
-        val request = repository.loadAuthorizationRequest(exchange).blockOptional().get()
-
-        expectThat(request) {
-            get(OAuth2AuthorizationRequest::getAuthorizationUri)
-                .isEqualTo("https://localhost/authorize")
-        }
+        StepVerifier.create(repository.loadAuthorizationRequest(exchange))
+            .assertNext { request ->
+                expectThat(request) {
+                    get(OAuth2AuthorizationRequest::getAuthorizationUri)
+                        .isEqualTo("https://localhost/authorize")
+                }
+            }
+            .verifyComplete()
     }
 
     @Test
@@ -130,7 +134,7 @@ internal class CookieServerAuthorizationRequestRepositoryTest {
             .build()
 
         val slot = slot<String>()
-        every { cookieService.createCookie(any(), any(), capture(slot)) } returns Unit
+        every { cookieService.createCookie(any(), any(), capture(slot)) } returns Mono.empty()
 
         val response = repository.saveAuthorizationRequest(request, exchange)
         expectThat(response.blockOptional()) {
@@ -175,7 +179,7 @@ internal class CookieServerAuthorizationRequestRepositoryTest {
         every { exchange.request.cookies } returns toMultiValueMap(
             mapOf(
                 SPRING_SEC_OAUTH2_AUTHZ_RQ to listOf(
-                    HttpCookie(SPRING_SEC_OAUTH2_AUTHZ_RQ, cookieSerializer.encodeCookie(exchange, body))
+                    HttpCookie(SPRING_SEC_OAUTH2_AUTHZ_RQ, cookieSerializer.encodeCookieBlocking(exchange, body))
                 )
             )
         )

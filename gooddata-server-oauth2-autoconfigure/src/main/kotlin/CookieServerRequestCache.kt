@@ -39,12 +39,12 @@ class CookieServerRequestCache(private val cookieService: ReactiveCookieService)
     override fun saveRequest(exchange: ServerWebExchange): Mono<Void> =
         saveRequestMatcher.matches(exchange)
             .filter { it.isMatch }
-            .doOnNext {
+            .flatMap {
                 val path = exchange.request.path.pathWithinApplication().value()
                 val query = exchange.request.uri.rawQuery
                 val redirectUri = path + if (query != null) "?$query" else ""
                 cookieService.createCookie(exchange, SPRING_REDIRECT_URI, redirectUri)
-            }.then()
+            }
 
     override fun getRedirectUri(exchange: ServerWebExchange): Mono<URI> =
         Mono.just(exchange)

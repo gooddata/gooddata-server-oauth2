@@ -16,6 +16,7 @@
 package com.gooddata.oauth2.server
 
 import io.mockk.every
+import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
 
 internal fun mockOrganization(client: AuthenticationStoreClient, host: String, organization: Organization) {
@@ -55,3 +56,10 @@ internal fun mockCookieSecurityProperties(
 ) {
     every { client.getCookieSecurityProperties(organizationId) } returns Mono.just(cookieProperties)
 }
+
+// Using block() is not recommended but related code should be removed soon, so we probably don't need to fix it now.
+fun CookieSerializer.encodeCookieBlocking(exchange: ServerWebExchange, internalCookie: String) =
+    encodeCookie(exchange, internalCookie).block()
+
+fun CookieSerializer.decodeCookieBlocking(exchange: ServerWebExchange, externalCookie: String) =
+    decodeCookie(exchange, externalCookie).block()

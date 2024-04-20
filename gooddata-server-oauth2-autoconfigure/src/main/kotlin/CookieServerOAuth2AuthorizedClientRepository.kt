@@ -82,27 +82,26 @@ class CookieServerOAuth2AuthorizedClientRepository(
         principal: Authentication,
         exchange: ServerWebExchange
     ): Mono<Void> {
-        return Mono.just(exchange)
-            .doOnNext { serverWebExchange ->
-                cookieService.createCookie(
-                    serverWebExchange,
-                    SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
-                    mapper.writeValueAsString(authorizedClient.toSimplified())
-                )
+        return Mono.just(exchange).flatMap { serverWebExchange ->
+            cookieService.createCookie(
+                serverWebExchange,
+                SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
+                mapper.writeValueAsString(authorizedClient.toSimplified())
+            )
+        }.doOnSuccess {
+            logger.debugToken(
+                SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
+                "access_token",
+                authorizedClient.accessToken.tokenValue
+            )
+            authorizedClient.refreshToken?.let { refreshToken ->
                 logger.debugToken(
                     SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
-                    "access_token",
-                    authorizedClient.accessToken.tokenValue
+                    "refresh_token",
+                    refreshToken.tokenValue
                 )
-                authorizedClient.refreshToken?.let { refreshToken ->
-                    logger.debugToken(
-                        SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
-                        "refresh_token",
-                        refreshToken.tokenValue
-                    )
-                }
             }
-            .then()
+        }
     }
 
     override fun removeAuthorizedClient(

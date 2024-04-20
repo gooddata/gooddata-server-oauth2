@@ -114,17 +114,14 @@ class AppLoginRedirectProcessor(
         exchange: ServerWebExchange,
         redirectToProcessor: (String) -> Mono<Void>,
         notAppLoginFallback: () -> Mono<Void>,
-    ): Mono<Void> = appLoginMatcher.matches(exchange)
-        .filter { matchResult -> matchResult.isMatch }
-        // we cannot use the flatMap here because the process returns the empty Mono
-        .map { matchResult ->
+    ): Mono<Void> = appLoginMatcher.matches(exchange).flatMap { matchResult ->
+        if (matchResult.isMatch) {
             val redirectUri = matchResult.variables[AppLoginUri.REDIRECT_TO] as String
             redirectToProcessor.invoke(redirectUri)
+        } else {
+            notAppLoginFallback.invoke()
         }
-        // we need to use the deferred Mono here (used extension function internally uses it for the wrapping)
-        .switchIfEmpty { Mono.just(notAppLoginFallback.invoke()) }
-        // we need to subscribe to the underlying Mono to invoke sendRedirect or filter chain
-        .flatMap { it }
+    }
 
     /**
      * Extracts 'redirectTo' query param from the request or fails with an exception.
@@ -201,9 +198,8 @@ class AppLoginCookieRequestCacheWriter(private val cookieService: ReactiveCookie
      * @param exchange the server HTTP exchange containing request/response
      * @param redirectUri the value of the [AppLoginUri.REDIRECT_TO] query parameter
      */
-    fun saveRequest(exchange: ServerWebExchange, redirectUri: String) {
+    fun saveRequest(exchange: ServerWebExchange, redirectUri: String): Mono<Void> =
         cookieService.createCookie(exchange, SPRING_REDIRECT_URI, redirectUri)
-    }
 }
 
 class AppLoginException(override val message: String) : ResponseStatusException(HttpStatus.BAD_REQUEST, message)
