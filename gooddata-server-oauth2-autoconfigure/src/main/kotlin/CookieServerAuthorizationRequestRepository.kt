@@ -49,14 +49,13 @@ class CookieServerAuthorizationRequestRepository(
         exchange: ServerWebExchange
     ): Mono<Void> {
         return Mono.just(exchange)
-            .doOnNext { webExchange ->
+            .flatMap { webExchange ->
                 cookieService.createCookie(
                     webExchange,
                     SPRING_SEC_OAUTH2_AUTHZ_RQ,
                     mapper.writeValueAsString(authorizationRequest)
                 )
             }
-            .then()
     }
 
     override fun removeAuthorizationRequest(exchange: ServerWebExchange): Mono<OAuth2AuthorizationRequest> {
