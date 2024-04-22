@@ -39,6 +39,7 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpCookie
+import org.springframework.http.server.RequestPath
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextImpl
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
@@ -58,6 +59,7 @@ import org.springframework.security.oauth2.jwt.JwtException
 import org.springframework.util.CollectionUtils.toMultiValueMap
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
+import reactor.test.StepVerifier
 import strikt.api.expectThat
 import strikt.api.expectThrows
 import strikt.assertions.containsKey
@@ -68,7 +70,7 @@ import strikt.assertions.isTrue
 import java.net.URI
 import java.time.Duration
 import java.time.Instant
-import java.util.Optional
+import java.util.*
 
 internal class CookieServerSecurityContextRepositoryTest {
 
@@ -116,8 +118,11 @@ internal class CookieServerSecurityContextRepositoryTest {
 
     private val cookieService = spyk(ReactiveCookieService(properties, cookieSerializer))
 
-    private val exchange: ServerWebExchange = mockk {
+    private val exchange: ServerWebExchange = mockk(relaxed = true) {
         every { request.uri.host } returns LOCALHOST
+        every { request.uri.scheme } returns "https"
+        // every { request.uri } returns URI(LOCALHOST)
+        every { request.path } returns RequestPath.parse("/some/path", "/some")
     }
 
     private val jwkCache = CaffeineJwkCache()
@@ -144,25 +149,28 @@ internal class CookieServerSecurityContextRepositoryTest {
     @Test
     fun `should save context`() {
         val idToken = OidcIdToken(
-            "tokenValue", Instant.EPOCH, Instant.EPOCH.plusSeconds(1), mapOf(IdTokenClaimNames.SUB to null)
+            "tokenValue",
+            Instant.EPOCH,
+            Instant.EPOCH.plusSeconds(1),
+            mapOf(IdTokenClaimNames.SUB to "sub claim")
+        )
+        val oidcUser = DefaultOidcUser(
+            listOf(OidcUserAuthority(idToken)),
+            idToken
         )
         val context = SecurityContextImpl(
             OAuth2AuthenticationToken(
-                DefaultOidcUser(
-                    listOf(OidcUserAuthority(idToken)),
-                    idToken
-                ),
+                oidcUser,
                 emptyList(),
                 "registrationId"
             )
         )
-        val slot = slot<String>()
-        every { cookieService.createCookie(any(), any(), capture(slot)) } returns Unit
 
-        val response = repository.save(exchange, context)
-        expectThat(response.blockOptional()) {
-            get(Optional<Void>::isEmpty).isTrue()
-        }
+        val slot = slot<String>()
+        every { cookieService.createCookie(any(), any(), capture(slot)) } returns Mono.empty()
+
+        StepVerifier.create(repository.save(exchange, context))
+            .verifyComplete()
 
         verify(exactly = 1) { cookieService.createCookie(exchange, SPRING_SEC_SECURITY_CONTEXT, any()) }
 
@@ -280,7 +288,7 @@ internal class CookieServerSecurityContextRepositoryTest {
         every { exchange.attributes } returns attributesMap
         every { exchange.request.uri } returns URI.create("http://localhost")
         mockSecurityContextCookie(resource("oauth2_authentication_token.json").readText())
-        every { cookieService.createCookie(any(), any(), any()) } returns Unit
+        every { cookieService.createCookie(any(), any(), any()) } returns Mono.empty()
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.just(mockk {
             every { registrationId } returns "123"
             every { providerDetails.userInfoEndpoint.userNameAttributeName } returns "sub"
@@ -404,7 +412,7 @@ internal class CookieServerSecurityContextRepositoryTest {
             mapOf(
                 SPRING_SEC_SECURITY_CONTEXT to listOf(
                     HttpCookie(
-                        SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(
+                        SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookieBlocking(
                             exchange,
                             tokenJson
                         )

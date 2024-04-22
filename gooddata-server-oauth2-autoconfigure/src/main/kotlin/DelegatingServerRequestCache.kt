@@ -40,10 +40,7 @@ class DelegatingServerRequestCache(
             // The redirectUri represents the absolute or relative URL, where the successful authentication should be
             // redirected to. Therefore, the original preprocessing done in the CookieServerRequestCache#saveRequest
             // function is omitted
-            { redirectUri ->
-                appLoginRequestCacheWriter.saveRequest(exchange, redirectUri)
-                Mono.empty()
-            },
+            { redirectUri -> appLoginRequestCacheWriter.saveRequest(exchange, redirectUri) },
             { cookieServerRequestCache.saveRequest(exchange) }
         )
 

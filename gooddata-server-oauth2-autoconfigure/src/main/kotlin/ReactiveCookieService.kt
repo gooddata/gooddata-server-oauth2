@@ -42,14 +42,17 @@ class ReactiveCookieService(
      *
      * Param `value` is base64 encoded.
      */
-    fun createCookie(exchange: ServerWebExchange, name: String, value: String) {
-        val cookie = createResponseCookie(
-            exchange.request,
-            name,
-            cookieSerializer.encodeCookie(exchange, value),
-            properties.duration
-        )
-        exchange.response.addCookie(cookie)
+    fun createCookie(exchange: ServerWebExchange, name: String, value: String): Mono<Void> {
+        return cookieSerializer.encodeCookie(exchange, value).map { encodedValue ->
+            createResponseCookie(
+                exchange.request,
+                name,
+                encodedValue,
+                properties.duration
+            ).also {
+                exchange.response.addCookie(it)
+            }
+        }.then()
     }
 
     /**
@@ -87,7 +90,7 @@ class ReactiveCookieService(
         name: String
     ): Mono<String> {
         return Mono.justOrEmpty(exchange.request.cookies.getFirst(name))
-            .map { cookie -> cookieSerializer.decodeCookie(exchange, cookie.value) }
+            .flatMap { cookie -> cookieSerializer.decodeCookie(exchange, cookie.value) }
             .onErrorResume(IllegalArgumentException::class.java) { exception ->
                 logger.warn(exception) { "Cookie cannot be decoded" }
                 Mono.empty()

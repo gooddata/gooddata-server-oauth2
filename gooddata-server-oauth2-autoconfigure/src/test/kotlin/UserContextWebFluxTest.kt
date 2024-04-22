@@ -94,8 +94,8 @@ class UserContextWebFluxTest(
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
         webClient.get().uri("http://localhost/")
-            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(exchange, authenticationToken))
-            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(exchange, authorizedClient))
+            .cookie(SPRING_SEC_SECURITY_CONTEXT, encodeCookieBlocking(authenticationToken))
+            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, encodeCookieBlocking(authorizedClient))
             .exchange()
             .expectStatus().isOk
             .expectBody<String>().isEqualTo("sub <userTestId@organizationTestId>")
@@ -121,8 +121,8 @@ class UserContextWebFluxTest(
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
         webClient.get().uri("http://localhost/appLogin?redirectTo=/api/profile")
-            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(exchange, authenticationToken))
-            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(exchange, authorizedClient))
+            .cookie(SPRING_SEC_SECURITY_CONTEXT, encodeCookieBlocking(authenticationToken))
+            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, encodeCookieBlocking(authorizedClient))
             .exchange()
             .expectStatus().isFound
             .expectHeader().location("/api/profile")
@@ -146,8 +146,8 @@ class UserContextWebFluxTest(
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
         webClient.get().uri("http://localhost/appLogin?redirectTo=https://localhost:8443/api/profile")
-            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(exchange, authenticationToken))
-            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(exchange, authorizedClient))
+            .cookie(SPRING_SEC_SECURITY_CONTEXT, encodeCookieBlocking(authenticationToken))
+            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, encodeCookieBlocking(authorizedClient))
             .exchange()
             .expectStatus().isFound
             .expectHeader().location("https://localhost:8443/api/profile")
@@ -230,8 +230,8 @@ class UserContextWebFluxTest(
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
         webClient.get().uri("http://localhost/")
-            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(exchange, authenticationToken))
-            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(exchange, authorizedClient))
+            .cookie(SPRING_SEC_SECURITY_CONTEXT, encodeCookieBlocking(authenticationToken))
+            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, encodeCookieBlocking(authorizedClient))
             .exchange()
             .expectStatus().isNotFound
             .expectBody()
@@ -255,8 +255,8 @@ class UserContextWebFluxTest(
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
         webClient.get().uri("http://localhost/")
-            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(exchange, authenticationToken))
-            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(exchange, authorizedClient))
+            .cookie(SPRING_SEC_SECURITY_CONTEXT, encodeCookieBlocking(authenticationToken))
+            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, encodeCookieBlocking(authorizedClient))
             .exchange()
             .expectStatus().isNotFound
             .expectBody()
@@ -284,8 +284,8 @@ class UserContextWebFluxTest(
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
         webClient.get().uri("http://localhost/")
-            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(exchange, authenticationToken))
-            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(exchange, authorizedClient))
+            .cookie(SPRING_SEC_SECURITY_CONTEXT, encodeCookieBlocking(authenticationToken))
+            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, encodeCookieBlocking(authorizedClient))
             .exchange()
             .expectStatus().isFound
             .expectHeader().location("/oauth2/authorization/localhost")
@@ -457,8 +457,8 @@ class UserContextWebFluxTest(
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
         webClient.get().uri("http://localhost/logout")
-            .cookie(SPRING_SEC_SECURITY_CONTEXT, cookieSerializer.encodeCookie(exchange, authenticationToken))
-            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, cookieSerializer.encodeCookie(exchange, authorizedClient))
+            .cookie(SPRING_SEC_SECURITY_CONTEXT, encodeCookieBlocking(authenticationToken))
+            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, encodeCookieBlocking(authorizedClient))
             .exchange()
             .expectStatus().isFound
             .expectHeader().location("/")
@@ -490,6 +490,9 @@ class UserContextWebFluxTest(
             .expectStatus().isEqualTo(HttpStatus.METHOD_NOT_ALLOWED)
             .expectCookie().exists("SPRING_REDIRECT_URI")
     }
+
+    private fun encodeCookieBlocking(authenticationToken: String) =
+        cookieSerializer.encodeCookieBlocking(exchange, authenticationToken)!!
 
     private fun everyValidSecurityContext() {
         val rawTokenValue = "tokenValue"

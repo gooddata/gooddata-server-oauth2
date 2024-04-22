@@ -31,6 +31,7 @@ import org.springframework.http.ResponseCookie
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest
 import org.springframework.util.CollectionUtils
 import org.springframework.web.server.ServerWebExchange
+import reactor.test.StepVerifier
 import strikt.api.expectThat
 import strikt.assertions.isEqualTo
 import strikt.assertions.isFalse
@@ -59,7 +60,8 @@ internal class ReactiveCookieServiceTest {
     @Test
     fun `creates cookie`() {
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
-        cookieService.createCookie(exchange, COOKIE_NAME, COOKIE_VALUE)
+        StepVerifier.create(cookieService.createCookie(exchange, COOKIE_NAME, COOKIE_VALUE))
+            .verifyComplete()
 
         val slot = slot<ResponseCookie>()
         verify(exactly = 1) { exchange.response.addCookie(capture(slot)) }
@@ -67,7 +69,7 @@ internal class ReactiveCookieServiceTest {
         expectThat(slot.captured) {
             get(ResponseCookie::getName).isEqualTo(COOKIE_NAME)
             get(ResponseCookie::getValue).describedAs("is properly encoded")
-                .get { cookieSerializer.decodeCookie(exchange, this) }.isEqualTo(COOKIE_VALUE)
+                .get { cookieSerializer.decodeCookieBlocking(exchange, this) }.isEqualTo(COOKIE_VALUE)
             get(ResponseCookie::getPath).isEqualTo("/")
             get(ResponseCookie::isHttpOnly).isTrue()
             get(ResponseCookie::isSecure).isFalse()
@@ -121,7 +123,7 @@ internal class ReactiveCookieServiceTest {
     @Test
     fun `decodes cookie from exchange`() {
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
-        val encodedValue = cookieSerializer.encodeCookie(exchange, COOKIE_VALUE)
+        val encodedValue = cookieSerializer.encodeCookieBlocking(exchange, COOKIE_VALUE)
         every { exchange.request.cookies } returns CollectionUtils.toMultiValueMap(
             mapOf(COOKIE_NAME to listOf(HttpCookie(COOKIE_NAME, encodedValue)))
         )
@@ -137,7 +139,7 @@ internal class ReactiveCookieServiceTest {
     @Test
     fun `decodes and cannot parse cookie from exchange`() {
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
-        val encodedValue = cookieSerializer.encodeCookie(exchange, COOKIE_VALUE)
+        val encodedValue = cookieSerializer.encodeCookieBlocking(exchange, COOKIE_VALUE)
         every { exchange.request.cookies } returns CollectionUtils.toMultiValueMap(
             mapOf(COOKIE_NAME to listOf(HttpCookie(COOKIE_NAME, encodedValue)))
         )
@@ -154,7 +156,7 @@ internal class ReactiveCookieServiceTest {
         val body = resource("mock_authorization_request.json").readText()
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
         every { exchange.request.cookies } returns CollectionUtils.toMultiValueMap(
-            mapOf(COOKIE_NAME to listOf(HttpCookie(COOKIE_NAME, cookieSerializer.encodeCookie(exchange, body))))
+            mapOf(COOKIE_NAME to listOf(HttpCookie(COOKIE_NAME, cookieSerializer.encodeCookieBlocking(exchange, body))))
         )
 
         val value = cookieService.decodeCookie<OAuth2AuthorizationRequest>(exchange, COOKIE_NAME, mapper)

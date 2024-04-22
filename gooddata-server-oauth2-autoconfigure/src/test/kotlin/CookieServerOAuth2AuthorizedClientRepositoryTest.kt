@@ -144,7 +144,7 @@ internal class CookieServerOAuth2AuthorizedClientRepositoryTest {
                 SPRING_SEC_OAUTH2_AUTHZ_CLIENT to listOf(
                     HttpCookie(
                         SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
-                        cookieSerializer.encodeCookie(exchange, body),
+                        cookieSerializer.encodeCookieBlocking(exchange, body),
                     )
                 )
             )
@@ -167,7 +167,7 @@ internal class CookieServerOAuth2AuthorizedClientRepositoryTest {
                 SPRING_SEC_OAUTH2_AUTHZ_CLIENT to listOf(
                     HttpCookie(
                         SPRING_SEC_OAUTH2_AUTHZ_CLIENT,
-                        cookieSerializer.encodeCookie(exchange, body),
+                        cookieSerializer.encodeCookieBlocking(exchange, body)
                     )
                 )
             )
@@ -215,7 +215,7 @@ internal class CookieServerOAuth2AuthorizedClientRepositoryTest {
         )
 
         val slot = slot<String>()
-        every { cookieService.createCookie(any(), any(), capture(slot)) } returns Unit
+        every { cookieService.createCookie(any(), any(), capture(slot)) } returns Mono.empty()
 
         val response = repository.saveAuthorizedClient(client, principal, exchange)
         expectThat(response.blockOptional()) {

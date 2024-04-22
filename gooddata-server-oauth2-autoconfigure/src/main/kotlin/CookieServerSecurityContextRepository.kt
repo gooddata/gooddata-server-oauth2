@@ -64,30 +64,32 @@ class CookieServerSecurityContextRepository(
             .filter { it.authentication is OAuth2AuthenticationToken }
             // we support only OidcUser
             .filter { it.authentication.principal is OidcUser }
-            .map { securityContext -> createSecurityContextCookie(exchange, securityContext.authentication) }
             .switchIfEmpty {
                 // when content == null or filters don't match
                 logger.debug { "Delete security context" }
-                Mono.just(deleteSecurityContextCookie(exchange))
+                deleteSecurityContextCookie(exchange)
+                Mono.empty()
             }
-            .then()
+            .flatMap { securityContext -> createSecurityContextCookie(exchange, securityContext.authentication) }
     }
 
-    private fun createSecurityContextCookie(exchange: ServerWebExchange, authentication: Authentication) {
-        cookieService.createCookie(
+    private fun createSecurityContextCookie(exchange: ServerWebExchange, authentication: Authentication): Mono<Void> {
+        return cookieService.createCookie(
             exchange,
             SPRING_SEC_SECURITY_CONTEXT,
             mapper.writeValueAsString(authentication)
-        )
-        logger.debugToken(
-            SPRING_SEC_SECURITY_CONTEXT,
-            "id_token",
-            (authentication.principal as OidcUser).idToken.tokenValue
-        )
+        ).doOnSuccess {
+            logger.debugToken(
+                SPRING_SEC_SECURITY_CONTEXT,
+                "id_token",
+                (authentication.principal as OidcUser).idToken.tokenValue
+            )
+        }
     }
 
-    private fun deleteSecurityContextCookie(exchange: ServerWebExchange) =
+    private fun deleteSecurityContextCookie(exchange: ServerWebExchange) {
         cookieService.invalidateCookie(exchange, SPRING_SEC_SECURITY_CONTEXT)
+    }
 
     override fun load(exchange: ServerWebExchange): Mono<SecurityContext> =
         Mono.just(exchange)

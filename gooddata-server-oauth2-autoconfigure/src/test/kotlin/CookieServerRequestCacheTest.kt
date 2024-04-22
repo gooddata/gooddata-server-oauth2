@@ -30,6 +30,7 @@ import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.util.CollectionUtils
 import org.springframework.web.server.ServerWebExchange
+import reactor.core.publisher.Mono
 import strikt.api.expectThat
 import strikt.assertions.isEqualTo
 import strikt.assertions.isTrue
@@ -86,7 +87,7 @@ internal class CookieServerRequestCacheTest {
         val exchange = MockServerWebExchange.from(
             MockServerHttpRequest.get("http://localhost/requestURI").queryParam("query", "true")
         )
-        every { cookieService.createCookie(any(), any(), capture(slot)) } returns Unit
+        every { cookieService.createCookie(any(), any(), capture(slot)) } returns Mono.empty()
 
         val response = cache.saveRequest(exchange)
 
@@ -153,7 +154,7 @@ internal class CookieServerRequestCacheTest {
         val redirect = "/requestURI?query=true"
         val exchange = MockServerWebExchange.from(
             MockServerHttpRequest.get("http://localhost/").cookie(
-                HttpCookie(SPRING_REDIRECT_URI, cookieSerializer.encodeCookie(webExchange, redirect))
+                HttpCookie(SPRING_REDIRECT_URI, cookieSerializer.encodeCookieBlocking(webExchange, redirect))
             )
         )
 

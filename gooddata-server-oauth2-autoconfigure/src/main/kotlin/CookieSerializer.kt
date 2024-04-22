@@ -18,6 +18,8 @@ package com.gooddata.oauth2.server
 import com.google.crypto.tink.Aead
 import com.google.crypto.tink.aead.AeadConfig
 import org.springframework.web.server.ServerWebExchange
+import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.switchIfEmpty
 import java.security.GeneralSecurityException
 import java.time.Instant
 import java.util.Base64
@@ -53,10 +55,11 @@ class CookieSerializer(
     /**
      * Convert cookie from internal string serialization to external string serialization.
      */
-    fun encodeCookie(exchange: ServerWebExchange, internalCookie: String): String {
-        val aead = getAead(exchange)
-        val encryptedCookie = aead.encrypt(internalCookie.toByteArray(), null)
-        return encryptedCookie.toBase64()
+    fun encodeCookie(exchange: ServerWebExchange, internalCookie: String): Mono<String> {
+        return getAead(exchange).flatMap { aead ->
+            val encryptedCookie = aead.encrypt(internalCookie.toByteArray(), null)
+            Mono.just(encryptedCookie.toBase64())
+        }
     }
 
     /**
@@ -65,42 +68,43 @@ class CookieSerializer(
      *
      * @throws IllegalArgumentException when decryption fails
      */
-    fun decodeCookie(exchange: ServerWebExchange, externalCookie: String): String {
-        val aead = getAead(exchange)
-        val encryptedCookie = externalCookie.fromBase64()
-        val internalCookie = try {
-            aead.decrypt(encryptedCookie, null)
-        } catch (_: GeneralSecurityException) {
-            throw IllegalArgumentException("Decrypt failed")
+    fun decodeCookie(exchange: ServerWebExchange, externalCookie: String): Mono<String> {
+        return getAead(exchange).flatMap { aead ->
+            val encryptedCookie = externalCookie.fromBase64()
+            try {
+                val internalCookie = aead.decrypt(encryptedCookie, null)
+                Mono.just(String(internalCookie))
+            } catch (e: GeneralSecurityException) {
+                Mono.error(IllegalArgumentException("Decrypt failed", e))
+            }
         }
-        return String(internalCookie)
     }
 
     /**
      * Get [Aead] from cache (if still valid) or from [AuthenticationStoreClient].
      */
-    private fun getAead(exchange: ServerWebExchange): Aead {
+    private fun getAead(exchange: ServerWebExchange): Mono<Aead> {
         val now = Instant.now()
-        return getAeadFromCache(exchange, now) ?: resolveAndCacheAead(exchange, now)
+        return Mono.justOrEmpty(getAeadFromCache(exchange, now)).switchIfEmpty { resolveAndCacheAead(exchange, now) }
     }
 
     private fun getAeadFromCache(exchange: ServerWebExchange, now: Instant): Aead? =
         aeadCache[exchange.request.uri.host]?.let { aead -> aead.getValidAead(now) }
 
-    private fun resolveAndCacheAead(exchange: ServerWebExchange, now: Instant): Aead {
+    private fun resolveAndCacheAead(exchange: ServerWebExchange, now: Instant) =
         // process before compute() method for not blocking cache
-        val cookieSecurityProperties = readCookieSecurityProperties(exchange)
-        return aeadCache.compute(exchange.request.uri.host) { _, _ ->
-            AeadWithExpiration(
-                aead = cookieSecurityProperties.keySet.getPrimitive(Aead::class.java),
-                validTo = minOf(cookieSecurityProperties.validTo, cookieServiceProperties.validTo(now))
-            )
-        }!!.aead
-    }
+        readCookieSecurityProperties(exchange).map { cookieSecurityProperties ->
+            aeadCache.compute(exchange.request.uri.host) { _, _ ->
+                AeadWithExpiration(
+                    aead = cookieSecurityProperties.keySet.getPrimitive(Aead::class.java),
+                    validTo = minOf(cookieSecurityProperties.validTo, cookieServiceProperties.validTo(now))
+                )
+            }!!.aead
+        }
 
-    private fun readCookieSecurityProperties(exchange: ServerWebExchange): CookieSecurityProperties =
-        client.getCookieSecurityProperties(exchange.getOrganizationFromAttributes().id).block()
-            ?: throw IllegalArgumentException("Cookie security properties not found.")
+    private fun readCookieSecurityProperties(exchange: ServerWebExchange): Mono<CookieSecurityProperties> =
+        client.getCookieSecurityProperties(exchange.getOrganizationFromAttributes().id)
+            .switchIfEmpty(Mono.error(IllegalArgumentException("Cookie security properties not found.")))
 
     private fun ByteArray.toBase64(): String = String(Base64.getEncoder().encode(this))
 
