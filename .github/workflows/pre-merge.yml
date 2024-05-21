@@ -8,7 +8,9 @@ jobs:
   #  BUILD STAGE
   ###########################
   build-kotlin:
-    runs-on: infra1-medium
+    runs-on:
+      group: infra1-runners-arc
+      labels: runners-cxa-xlarge
     steps:
       - uses: actions/checkout@v3
       - name: cache
@@ -28,7 +30,9 @@ jobs:
   #  TEST STAGE
   ###########################
   test-kotlin:
-    runs-on: infra1-medium
+    runs-on:
+      group: infra1-runners-arc
+      labels: runners-cxa-xlarge
     needs: build-kotlin
     steps:
       - uses: actions/checkout@v3
