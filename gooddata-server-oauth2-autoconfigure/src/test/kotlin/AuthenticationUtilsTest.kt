@@ -254,6 +254,18 @@ internal class AuthenticationUtilsTest {
         expectThat(result).isNull()
     }
 
+    @ParameterizedTest
+    @MethodSource("userGroups")
+    fun `should parse user groups from token`(userGroups: Any) {
+        val token: OAuth2AuthenticationToken = mockk {
+            every { principal.attributes[GD_USER_GROUPS_SCOPE] } returns userGroups
+        }
+
+        val result = token.getClaimList(GD_USER_GROUPS_SCOPE)
+
+        expectThat(result).isEqualTo(listOf("group1", "group2"))
+    }
+
     private fun mockOidcIssuer(): String {
         wireMockServer.stubFor(
             WireMock.get(WireMock.urlEqualTo(OIDC_CONFIG_PATH)).willReturn(
@@ -280,6 +292,12 @@ internal class AuthenticationUtilsTest {
         fun cleanUp() {
             wireMockServer.stop()
         }
+
+        @JvmStatic
+        fun userGroups() = Stream.of(
+            Arguments.of("group1,group2"),
+            Arguments.of(listOf("group1", "group2"))
+        )
 
         @JvmStatic
         fun illegalIssuerArguments() = Stream.of(
