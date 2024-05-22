@@ -278,6 +278,7 @@ fun findAuthenticatedUser(
             organization.id,
             authentication.getClaim(organization)
         )
+
         else -> Mono.empty()
     }
 
@@ -293,8 +294,20 @@ fun OAuth2AuthenticationToken.getClaim(claimName: String?): String =
     (principal.attributes[claimName ?: IdTokenClaimNames.SUB] as String?)
         ?: throw InvalidBearerTokenException("Token does not contain $claimName claim.")
 
+/**
+ * Get claim list from OAuth2 token
+ * If the claim is of a type string, split to list based on ',' delimiter.
+ * If the claim is of a type list<String>, return as is.
+ *
+ * @param claimName name of the claim
+ * @return content of a given claim as a list of strings or `null` if unable to retrieve
+ */
 fun OAuth2AuthenticationToken.getClaimList(claimName: String?): List<String>? =
-    (principal.attributes[claimName] as List<String>?)
+    when (val claim = principal.attributes[claimName]) {
+        is String -> claim.split(',')
+        is List<*> -> claim.filterIsInstance<String>()
+        else -> null
+    }
 
 /**
  * Detect if character is legal according to OAuth2 specification
