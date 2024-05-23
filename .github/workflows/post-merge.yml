@@ -11,7 +11,9 @@ jobs:
   #  BUILD & PUBLISH STAGE
   ###########################
   test-kotlin:
-    runs-on: infra1-medium
+    runs-on:
+      group: infra1-runners-arc
+      labels: runners-cxa-xlarge
     steps:
       - uses: actions/checkout@v3
       - name: cache
