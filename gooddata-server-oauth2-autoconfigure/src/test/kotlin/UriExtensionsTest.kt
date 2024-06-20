@@ -4,6 +4,8 @@
 package com.gooddata.oauth2.server
 
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import strikt.api.expectThat
 import strikt.assertions.isEqualTo
 import strikt.assertions.isFalse
@@ -34,5 +36,23 @@ class UriExtensionsTest {
     fun `invalid Auth0 issuer`() {
         val uri = "https://auth0.example.org".toUri()
         expectThat(uri.isAuth0()).isFalse()
+    }
+
+    @Test
+    fun `valid Cognito issuer`() {
+        val uri = "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_abcd1234".toUri()
+        expectThat(uri.isCognito()).isTrue()
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = [
+        "https://amazonaws.cognito-idp.example.org",
+        "https://amazonaws.example.org",
+        "https://cognito-idp.amazonaws.example.com",
+        "https://cognito-idp.example.com"
+    ])
+    fun `invalid Cognito issuer`(issuer: String) {
+        val uri = issuer.toUri()
+        expectThat(uri.isCognito()).isFalse()
     }
 }
