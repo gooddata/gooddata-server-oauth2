@@ -15,7 +15,6 @@
  */
 package com.gooddata.oauth2.server
 
-import java.net.URI
 import java.util.Base64
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Value
@@ -42,7 +41,6 @@ import org.springframework.security.oauth2.client.endpoint.OAuth2RefreshTokenGra
 import org.springframework.security.oauth2.client.endpoint.ReactiveOAuth2AccessTokenResponseClient
 import org.springframework.security.oauth2.client.oidc.authentication.OidcAuthorizationCodeReactiveAuthenticationManager
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest
-import org.springframework.security.oauth2.client.oidc.web.server.logout.OidcClientInitiatedServerLogoutSuccessHandler
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest
@@ -249,10 +247,7 @@ class ServerOAuth2AutoConfiguration {
 
         val logoutSuccessHandler = DelegatingServerLogoutSuccessHandler(
             // Order of handlers is important!
-            OidcClientInitiatedServerLogoutSuccessHandler(clientRegistrationRepository).apply {
-                setPostLogoutRedirectUri("{baseUrl}")
-                setLogoutSuccessUrl(URI.create("/"))
-            },
+            QueryParamOidcClientInitiatedServerLogoutSuccessHandler(clientRegistrationRepository, "{baseUrl}", "/"),
             // Keep custom OIDC handlers as last in OIDC handlers
             CognitoLogoutHandler(clientRegistrationRepository, cognitoCustomDomain),
             Auth0LogoutHandler(clientRegistrationRepository, auth0CustomDomain),

@@ -3,9 +3,14 @@
  */
 package com.gooddata.oauth2.server
 
+import io.mockk.mockk
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest
+import org.springframework.mock.web.server.MockServerWebExchange
+import org.springframework.security.web.server.WebFilterExchange
+import org.springframework.web.server.WebFilterChain
 import strikt.api.expectThat
 import strikt.assertions.isEqualTo
 import strikt.assertions.isFalse
@@ -36,6 +41,16 @@ class UriExtensionsTest {
     fun `invalid Auth0 issuer`() {
         val uri = "https://auth0.example.org".toUri()
         expectThat(uri.isAuth0()).isFalse()
+    }
+
+    @Test
+    fun `returnToQueryParam should return correct query parameter`() {
+        val request = MockServerHttpRequest.get("http://localhost?returnTo=urlToReturnTo")
+        val exchange = MockServerWebExchange.from(request)
+        val chain = mockk<WebFilterChain>()
+        val webFilterExchange = WebFilterExchange(exchange, chain)
+
+        expectThat(webFilterExchange.returnToQueryParam()).isEqualTo("urlToReturnTo")
     }
 
     @Test

@@ -446,6 +446,27 @@ class UserContextWebFluxTest(
     }
 
     @Test
+    fun `filter redirects logout from returnTo query param without cookies`() {
+        val organization = Organization(
+            id = ORG_ID,
+            oauthClientId = "clientId",
+            oauthClientSecret = "clientSecret",
+            allowedOrigins = listOf("https://localhost:8443"),
+        )
+        mockOrganization(authenticationStoreClient, LOCALHOST, organization)
+        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns organization
+        every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
+        every { serverSecurityContextRepository.save(any(), null) } returns Mono.empty()
+        every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.empty()
+
+        webClient.get().uri("http://localhost/logout?returnTo=/userReturnTo")
+            .exchange()
+            .expectStatus().isFound
+            .expectHeader().location("/userReturnTo")
+            .expectCookie().exists("SPRING_REDIRECT_URI")
+    }
+
+    @Test
     fun `filter redirects logout with cookies`() {
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns ORGANIZATION
         everyValidSecurityContext()
@@ -462,6 +483,26 @@ class UserContextWebFluxTest(
             .exchange()
             .expectStatus().isFound
             .expectHeader().location("/")
+            .expectCookie().exists("SPRING_REDIRECT_URI")
+    }
+
+    @Test
+    fun `filter redirects logout from returnTo query param with cookies`() {
+        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns ORGANIZATION
+        everyValidSecurityContext()
+        every { serverSecurityContextRepository.save(any(), null) } returns Mono.empty()
+        every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.empty()
+        everyValidOrganization()
+        mockUserByAuthId(authenticationStoreClient, ORG_ID, SUB_CLAIM_VALUE, User(USER_ID))
+        val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
+        val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
+
+        webClient.get().uri("http://localhost/logout?returnTo=/userReturnTo")
+            .cookie(SPRING_SEC_SECURITY_CONTEXT, encodeCookieBlocking(authenticationToken))
+            .cookie(SPRING_SEC_OAUTH2_AUTHZ_CLIENT, encodeCookieBlocking(authorizedClient))
+            .exchange()
+            .expectStatus().isFound
+            .expectHeader().location("/userReturnTo")
             .expectCookie().exists("SPRING_REDIRECT_URI")
     }
 

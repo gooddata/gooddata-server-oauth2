@@ -16,7 +16,7 @@
 package com.gooddata.oauth2.server
 
 import mu.KotlinLogging
-import org.springframework.http.HttpRequest
+import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.oauth2.client.registration.ClientRegistration
@@ -60,17 +60,20 @@ class CognitoLogoutHandler(
     override fun onLogoutSuccess(exchange: WebFilterExchange, authentication: Authentication): Mono<Void> =
         logout(exchange, authentication)
 
-    private fun logoutUrl(request: HttpRequest): Mono<URI> =
+    private fun logoutUrl(request: ServerHttpRequest): Mono<URI> =
         clientRegistrationRepository.findByRegistrationId(request.uri.host)
             .map { clientRegistration ->
                 Pair(clientRegistration, clientRegistration.issuer())
             }.filter { (_, issuer) ->
                 issuer.isCognito() || issuer.hasCustomDomain()
             }.map { (clientRegistration) ->
+                // workaround for STL-458: use URL from 'returnTo' query parameter if provided,
+                // otherwise use default URL
+                val returnTo = URI.create(request.returnToQueryParam()) ?: request.uri.baseUrl()
                 buildLogoutUrl(
                     clientRegistration.endSessionEndpoint(),
                     clientRegistration.clientId,
-                    request.uri.baseUrl()
+                    returnTo
                 )
             }.doOnNext { logoutUrl ->
                 logger.debug { "Cognito logout URL: $logoutUrl" }
