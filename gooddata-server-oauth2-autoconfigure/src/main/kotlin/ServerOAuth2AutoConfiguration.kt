@@ -224,10 +224,11 @@ class ServerOAuth2AutoConfiguration {
         jwtDecoderFactory: ObjectProvider<ReactiveJwtDecoderFactory<ClientRegistration>>,
         loginAuthManager: ReactiveAuthenticationManager,
         urlSafeStateAuthorizationRequestResolver: ServerOAuth2AuthorizationRequestResolver,
-        // TODO the property serves for a temporary hack.
+        // TODO these properties serve as a temporary hack.
         //  So for now, we will keep this configuration property here.
         //  Can be moved elsewhere or even removed in the following library release.
         @Value("\${spring.security.oauth2.config.provider.auth0.customDomain:#{null}}") auth0CustomDomain: String?,
+        @Value("\${spring.security.oauth2.config.provider.cognito.customDomain:#{null}}") cognitoCustomDomain: String?,
     ): SecurityWebFilterChain {
         val appLoginRedirectProcessor = AppLoginRedirectProcessor(
             appLoginProperties,
@@ -252,7 +253,8 @@ class ServerOAuth2AutoConfiguration {
                 setPostLogoutRedirectUri("{baseUrl}")
                 setLogoutSuccessUrl(URI.create("/"))
             },
-            // Keep Auth0 handler as last one in OIDC handlers
+            // Keep custom OIDC handlers as last in OIDC handlers
+            CognitoLogoutHandler(clientRegistrationRepository, cognitoCustomDomain),
             Auth0LogoutHandler(clientRegistrationRepository, auth0CustomDomain),
             JwtAuthenticationLogoutHandler(authenticationStoreClient.`object`),
             client = authenticationStoreClient.`object`,

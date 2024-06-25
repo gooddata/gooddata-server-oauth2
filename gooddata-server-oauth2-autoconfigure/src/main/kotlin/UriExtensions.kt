@@ -20,3 +20,11 @@ fun URI.baseUrl(): URI = UriComponentsBuilder.newInstance().scheme(scheme).host(
  * Check if URI is Auth0 issuer
  */
 fun URI.isAuth0(): Boolean = host?.lowercase()?.endsWith("auth0.com") ?: false
+
+/**
+ * Check if URI is Cognito issuer
+ */
+fun URI.isCognito(): Boolean {
+    val lowerCasedHost = host?.lowercase() ?: return false
+    return lowerCasedHost.endsWith("amazonaws.com") && lowerCasedHost.startsWith("cognito-idp")
+}
