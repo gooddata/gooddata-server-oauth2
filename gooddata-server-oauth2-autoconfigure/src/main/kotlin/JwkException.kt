@@ -44,7 +44,9 @@ class JwtVerificationException(message: String = invalidClaimsMessage()) : OAuth
         fun invalidClaimsMessage(invalidClaims: List<String> = emptyList()): String {
             val claims = if (invalidClaims.isNotEmpty()) {
                 invalidClaims.joinToString(prefix = ": [", postfix = "]")
-            } else EMPTY_STRING
+            } else {
+                EMPTY_STRING
+            }
             return INVALID_CLAIMS_MESSAGE.format(claims)
         }
     }

@@ -102,7 +102,9 @@ class JwtAuthenticationProcessor(
             if (!isValidToken) {
                 serverLogoutHandler.logout(WebFilterExchange(exchange, chain), authenticationToken)
                     .then(Mono.error(JwtDisabledException()))
-            } else Mono.just(user)
+            } else {
+                Mono.just(user)
+            }
         }
     }
 
