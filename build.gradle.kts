@@ -80,6 +80,12 @@ subprojects {
         withSourcesJar()
     }
 
+    kotlin {
+        jvmToolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+
     publishing {
         publications {
             create<MavenPublication>("library") {
@@ -108,11 +114,11 @@ subprojects {
     }
 
     detekt {
-        source = files(
+        source.from(
             "src/main/kotlin",
             "src/test/kotlin"
         )
-        config = files(
+        config.from(
             "$rootProjectDir/gradle/scripts/detekt-config.yml",
             "$rootProjectDir/gradle/scripts/detekt-config-strict.yml"
         )
