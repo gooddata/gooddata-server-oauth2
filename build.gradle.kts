@@ -46,8 +46,6 @@ allprojects {
         mavenCentral()
         maven("https://plugins.gradle.org/m2/")
     }
-
-    java.sourceCompatibility = JavaVersion.VERSION_11
 }
 
 subprojects {
@@ -164,7 +162,6 @@ subprojects {
             kotlinOptions {
                 freeCompilerArgs =
                     listOf("-Xjsr305=strict", "-opt-in=kotlin.RequiresOptIn", "-Xallow-result-return-type")
-                jvmTarget = "11"
             }
         }
     }
