@@ -2,7 +2,7 @@ package com.gooddata.oauth2.server
 
 import java.net.URI
 import mu.KotlinLogging
-import org.springframework.http.HttpRequest
+import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.oauth2.client.registration.ClientRegistration
@@ -43,14 +43,17 @@ class Auth0LogoutHandler(
     override fun onLogoutSuccess(exchange: WebFilterExchange, authentication: Authentication): Mono<Void> =
         logout(exchange, authentication)
 
-    private fun logoutUrl(request: HttpRequest): Mono<URI> =
+    private fun logoutUrl(request: ServerHttpRequest): Mono<URI> =
         clientRegistrationRepository.findByRegistrationId(request.uri.host)
             .map { clientRegistration ->
                 Pair(clientRegistration, clientRegistration.issuer())
             }.filter { (_, issuer) ->
                 issuer.isAuth0() || issuer.hasCustomDomain()
             }.map { (clientRegistration, issuer) ->
-                buildLogoutUrl(issuer, clientRegistration.clientId, request.uri.baseUrl())
+                // workaround for STL-458: use URL from 'returnTo' query parameter if provided,
+                // otherwise use default URL
+                val returnTo = URI.create(request.returnToQueryParam()) ?: request.uri.baseUrl()
+                buildLogoutUrl(issuer, clientRegistration.clientId, returnTo)
             }.doOnNext { logoutUrl ->
                 logger.debug { "Auth0 logout URL: $logoutUrl" }
             }
@@ -62,6 +65,7 @@ class Auth0LogoutHandler(
     private fun buildLogoutUrl(issuer: URI, clientId: String, returnTo: URI): URI =
         UriComponentsBuilder.fromHttpUrl("${issuer}v2/logout")
             .queryParam("client_id", clientId)
+            // https://auth0.com/docs/authenticate/login/logout/redirect-users-after-logout
             .queryParam("returnTo", returnTo)
             .build()
             .toUri()

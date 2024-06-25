@@ -3,8 +3,20 @@
  */
 package com.gooddata.oauth2.server
 
+import org.springframework.http.server.reactive.ServerHttpRequest
+import org.springframework.security.web.server.WebFilterExchange
 import org.springframework.web.util.UriComponentsBuilder
 import java.net.URI
+
+const val RETURN_TO_QUERY_PARAM = "returnTo"
+
+/**
+ * Get "returnTo" query parameter from exchange request
+ */
+fun WebFilterExchange.returnToQueryParam(): String? =
+    exchange.request.returnToQueryParam()
+
+fun ServerHttpRequest.returnToQueryParam(): String? = queryParams.getFirst(RETURN_TO_QUERY_PARAM)
 
 /**
  * Build URI from string

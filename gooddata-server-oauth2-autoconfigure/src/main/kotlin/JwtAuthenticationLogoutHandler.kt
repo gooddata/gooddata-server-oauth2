@@ -57,8 +57,17 @@ class JwtAuthenticationLogoutHandler(
             .filter { authentication is JwtAuthenticationToken }
             .flatMap {
                 // TODO where should we redirect??
-                redirectStrategy.sendRedirect(exchange.exchange, URI.create("/"))
+                redirectStrategy.sendRedirect(
+                    exchange.exchange,
+                    // workaround for STL-458: use URL from 'returnTo' query parameter if provided,
+                    // otherwise use default URL
+                    URI.create(exchange.returnToQueryParam() ?: DEFAULT_REDIRECT_URL)
+                )
             }
+
+    companion object {
+        private const val DEFAULT_REDIRECT_URL = "/"
+    }
 }
 
 internal class JwtAuthenticationLogoutException(originalError: Throwable) : ResponseStatusException(
