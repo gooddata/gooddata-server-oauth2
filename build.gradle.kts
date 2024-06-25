@@ -80,6 +80,12 @@ subprojects {
         withSourcesJar()
     }
 
+    kotlin {
+        jvmToolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+
     publishing {
         publications {
             create<MavenPublication>("library") {
