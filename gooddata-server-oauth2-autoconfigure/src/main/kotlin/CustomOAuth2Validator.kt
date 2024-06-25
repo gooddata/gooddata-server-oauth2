@@ -67,8 +67,11 @@ class CustomOAuth2Validator : OAuth2TokenValidator<Jwt> {
         validateRegex(token, JWTClaimNames.JWT_ID, string255Regex)?.let { validationErrors.add(it) }
         validateRegex(token, JWTClaimNames.SUBJECT, string255Regex)?.let { validationErrors.add(it) }
 
-        return if (validationErrors.isEmpty()) OAuth2TokenValidatorResult.success()
-        else OAuth2TokenValidatorResult.failure(validationErrors)
+        return if (validationErrors.isEmpty()) {
+            OAuth2TokenValidatorResult.success()
+        } else {
+            OAuth2TokenValidatorResult.failure(validationErrors)
+        }
     }
 
     private fun representJwtWithId(jwt: Jwt) =

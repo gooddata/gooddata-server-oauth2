@@ -199,7 +199,9 @@ fun hashStringWithMD5(input: String): String {
  */
 private fun ClientRegistration.Builder.withRedirectUri(oauthIssuerId: String?) = if (oauthIssuerId != null) {
     redirectUri("${OAuthConstants.REDIRECT_URL_BASE}/$oauthIssuerId")
-} else this
+} else {
+    this
+}
 
 /**
  * Adds the OIDC issuer configuration to this receiver.

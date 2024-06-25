@@ -53,14 +53,14 @@ complexity:
     active: false
     threshold: 10
     includeStaticDeclarations: false
-  ComplexMethod:
+  CyclomaticComplexMethod:
     active: true
     threshold: 10
     ignoreSingleWhenExpression: false
     ignoreSimpleWhenEntries: false
   LabeledExpression:
     active: false
-    ignoredLabels: ""
+    ignoredLabels: []
   LargeClass:
     active: true
     threshold: 600
@@ -135,7 +135,7 @@ exceptions:
   active: true
   ExceptionRaisedInUnexpectedLocation:
     active: false
-    methodNames: 'toString,hashCode,equals,finalize'
+    methodNames: [toString, hashCode, equals, finalize]
   InstanceOfCheckForException:
     active: false
     excludes: "**/test/**,**/*.Test.kt,**/*.Spec.kt,**/*.Spek.kt"
@@ -149,7 +149,7 @@ exceptions:
     active: false
   SwallowedException:
     active: false
-    ignoredExceptionTypes: 'InterruptedException,NumberFormatException,ParseException,MalformedURLException'
+    ignoredExceptionTypes: [InterruptedException, NumberFormatException, ParseException, MalformedURLException]
     allowedExceptionNameRegex: "^(_|(ignore|expected).*)"
   ThrowingExceptionFromFinally:
     active: false
@@ -157,7 +157,7 @@ exceptions:
     active: false
   ThrowingExceptionsWithoutMessageOrCause:
     active: false
-    exceptions: 'IllegalArgumentException,IllegalStateException,IOException'
+    exceptions: [IllegalArgumentException, IllegalStateException, IOException]
   ThrowingNewInstanceOfSameException:
     active: false
   TooGenericExceptionCaught:
@@ -206,7 +206,6 @@ formatting:
     active: true
     autoCorrect: true
     indentSize: 4 #TODO make it read from.editorconfig
-    continuationIndentSize: 4 #TODO make it read from.editorconfig
   MaximumLineLength:
     active: true
     maxLineLength: 120 #TODO make it read from.editorconfig
@@ -302,7 +301,7 @@ naming:
   ForbiddenClassName:
     active: false
     excludes: "**/test/**,**/*.Test.kt,**/*.Spec.kt,**/*.Spek.kt"
-    forbiddenName: ''
+    forbiddenName: []
   FunctionMaxLength:
     active: false
     excludes: "**/test/**,**/*.Test.kt,**/*.Spec.kt,**/*.Spek.kt"
@@ -316,13 +315,11 @@ naming:
     excludes: "**/test/**,**/*.Test.kt,**/*.Spec.kt,**/*.Spek.kt"
     functionPattern: '^([a-z$][a-zA-Z$0-9]*)|(`.*`)$'
     excludeClassPattern: '$^'
-    ignoreOverridden: true
   FunctionParameterNaming:
     active: true
     excludes: "**/test/**,**/*.Test.kt,**/*.Spec.kt,**/*.Spek.kt"
     parameterPattern: '[a-z][A-Za-z0-9]*'
     excludeClassPattern: '$^'
-    ignoreOverridden: true
   InvalidPackageDeclaration:
     active: false
     rootPackage: ''
@@ -361,7 +358,6 @@ naming:
     variablePattern: '[a-z][A-Za-z0-9]*'
     privateVariablePattern: '(_)?[a-z][A-Za-z0-9]*'
     excludeClassPattern: '$^'
-    ignoreOverridden: true
 
 performance:
   active: true
@@ -378,8 +374,6 @@ performance:
 
 potential-bugs:
   active: true
-  DuplicateCaseInWhenExpression:
-    active: true
   EqualsAlwaysReturnsTrueOrFalse:
     active: false
   EqualsWithHashCodeExist:
@@ -397,10 +391,6 @@ potential-bugs:
     excludes: "**/test/**,**/*.Test.kt,**/*.Spec.kt,**/*.Spek.kt"
     ignoreAnnotated: []
     ignoreOnClassesPattern: ""
-  MissingWhenCase:
-    active: false
-  RedundantElseInWhen:
-    active: false
   UnconditionalJumpStatementInLoop:
     active: false
   UnreachableCode:
@@ -420,7 +410,7 @@ style:
     active: false
   DataClassContainsFunctions:
     active: false
-    conversionFunctionPrefix: 'to'
+    conversionFunctionPrefix: [to]
   DataClassShouldBeImmutable:
     active: false
   EqualsNullCall:
@@ -432,13 +422,9 @@ style:
   ExpressionBodySyntax:
     active: false
     includeLineWrapping: false
-  ForbiddenComment:
-    active: true
-    values: 'TODO:,FIXME:,STOPSHIP:'
-    allowedPatterns: ""
   ForbiddenImport:
     active: false
-    imports: ''
+    imports: []
   ForbiddenVoid:
     active: false
     ignoreOverridden: false
@@ -446,16 +432,14 @@ style:
   FunctionOnlyReturningConstant:
     active: false
     ignoreOverridableFunction: true
-    excludedFunctions: 'describeContents'
-  LibraryCodeMustSpecifyReturnType:
-    active: false
+    excludedFunctions: [describeContents]
   LoopWithTooManyJumpStatements:
     active: false
     maxJumpCount: 1
   MagicNumber:
     active: true
     excludes: "**/test/**,**/*.Test.kt,**/*.Spec.kt,**/*.Spek.kt"
-    ignoreNumbers: '-1,0,1,2'
+    ignoreNumbers: [ '-1', '0', '1', '2']
     ignoreHashCodeFunction: true
     ignorePropertyDeclaration: false
     ignoreConstantDeclaration: true
@@ -464,8 +448,6 @@ style:
     ignoreNamedArgument: true
     ignoreEnums: false
     ignoreRanges: false
-  MandatoryBracesIfStatements:
-    active: false
   MaxLineLength:
     active: true
     maxLineLength: 120
@@ -486,8 +468,6 @@ style:
     active: true
   OptionalUnit:
     active: false
-  OptionalWhenBraces:
-    active: false
   PreferToOverPairSyntax:
     active: false
   ProtectedMemberInFinalClass:
@@ -499,7 +479,7 @@ style:
   ReturnCount:
     active: true
     max: 2
-    excludedFunctions: "equals"
+    excludedFunctions: [equals]
     excludeLabeled: false
     excludeReturnFromLambda: true
     excludeGuardClauses: false
