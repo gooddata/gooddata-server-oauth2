@@ -12,9 +12,9 @@ jobs:
       group: infra1-runners-arc
       labels: runners-cxa-xlarge
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           key: kotlin-build
           path: .gradle
@@ -35,16 +35,16 @@ jobs:
       labels: runners-cxa-xlarge
     needs: build-kotlin
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: cache
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           key: kotlin-build
           path: .gradle
       - run: |
           ./gradlew test --info
       - name: Archive test outputs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-artifact
           path: '**/build/test-results/**/TEST-*.xml'
