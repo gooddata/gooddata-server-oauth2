@@ -395,7 +395,7 @@ potential-bugs:
   LateinitUsage:
     active: false
     excludes: "**/test/**,**/*.Test.kt,**/*.Spec.kt,**/*.Spek.kt"
-    excludeAnnotatedProperties: ""
+    ignoreAnnotated: []
     ignoreOnClassesPattern: ""
   MissingWhenCase:
     active: false
@@ -516,7 +516,7 @@ style:
     active: false
   UnderscoresInNumericLiterals:
     active: false
-    acceptableDecimalLength: 5
+    acceptableLength: 5
   UnnecessaryAbstractClass:
     active: false
   UnnecessaryApply:
@@ -540,7 +540,7 @@ style:
     active: false
   UseDataClass:
     active: false
-    excludeAnnotatedClasses: ""
+    ignoreAnnotated: []
   UseIfInsteadOfWhen:
     active: false
   UseRequire:
