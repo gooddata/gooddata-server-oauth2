@@ -69,7 +69,7 @@ class CognitoLogoutHandler(
             }.map { (clientRegistration) ->
                 // workaround for STL-458: use URL from 'returnTo' query parameter if provided,
                 // otherwise use default URL
-                val returnTo = URI.create(request.returnToQueryParam()) ?: request.uri.baseUrl()
+                val returnTo = request.returnToQueryParam()?.let { URI.create(it) } ?: request.uri.baseUrl()
                 buildLogoutUrl(
                     clientRegistration.endSessionEndpoint(),
                     clientRegistration.clientId,
