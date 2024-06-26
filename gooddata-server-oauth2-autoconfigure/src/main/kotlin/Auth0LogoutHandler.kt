@@ -52,7 +52,7 @@ class Auth0LogoutHandler(
             }.map { (clientRegistration, issuer) ->
                 // workaround for STL-458: use URL from 'returnTo' query parameter if provided,
                 // otherwise use default URL
-                val returnTo = URI.create(request.returnToQueryParam()) ?: request.uri.baseUrl()
+                val returnTo = request.returnToQueryParam()?.let { URI.create(it) } ?: request.uri.baseUrl()
                 buildLogoutUrl(issuer, clientRegistration.clientId, returnTo)
             }.doOnNext { logoutUrl ->
                 logger.debug { "Auth0 logout URL: $logoutUrl" }
