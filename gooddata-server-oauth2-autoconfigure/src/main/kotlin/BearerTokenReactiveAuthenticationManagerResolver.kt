@@ -27,7 +27,7 @@ import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.core.OAuth2TokenValidator
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.jwt.JwtException
-import org.springframework.security.oauth2.server.resource.BearerTokenAuthenticationToken
+import org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthenticationToken
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.security.oauth2.server.resource.authentication.JwtReactiveAuthenticationManager
 import org.springframework.web.server.ServerWebExchange
@@ -96,7 +96,7 @@ private class JwtAuthenticationManager(
             .flatMap(::authenticate)
     }
 
-    private fun authenticate(jwtToken: BearerTokenAuthenticationToken): Mono<Authentication>? {
+    private fun authenticate(jwtToken: BearerTokenAuthenticationToken): Mono<Authentication> {
         return getOrganizationFromContext().flatMap { organization ->
             val decoder = prepareJwtDecoder(getJwkSet(organization.id), supportedJwsAlgorithms)
                 .apply { setJwtValidator(jwtTokenValidator) }

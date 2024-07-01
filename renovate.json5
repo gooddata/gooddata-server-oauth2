@@ -24,12 +24,12 @@
     {
       "groupName": "spring security",
       "matchPackagePrefixes": ["org.springframework.security:"],
-      "allowedVersions": "<5.7.0"
+      "allowedVersions": "<6.0.0"
     },
     {
       "groupName": "spring boot",
       "matchPackagePrefixes": ["org.springframework.boot"],
-      "allowedVersions": "<2.7.0"
+      "allowedVersions": "<3.0.0"
     },
   ]
 }

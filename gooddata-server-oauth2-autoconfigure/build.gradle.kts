@@ -34,13 +34,14 @@ dependencies {
     val springMockkVersion: String by project
     val tinkVersion: String by project
     val wiremockVersion: String by project
+    val springSecurityVersion: String by project
 
     api("com.fasterxml.jackson.core:jackson-databind")
     api("io.netty:netty-codec-http")
     api("org.springframework.boot:spring-boot")
     api("org.springframework.boot:spring-boot-starter-webflux")
-    api("org.springframework.security:spring-security-oauth2-client:5.6.11")
-    api("org.springframework.security:spring-security-oauth2-resource-server:5.6.11")
+    api("org.springframework.security:spring-security-oauth2-client:$springSecurityVersion")
+    api("org.springframework.security:spring-security-oauth2-resource-server:$springSecurityVersion")
     api("org.springframework:spring-web")
 
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
@@ -48,8 +49,8 @@ dependencies {
     implementation("com.google.crypto.tink:tink:${tinkVersion}")
     implementation("io.github.microutils:kotlin-logging:${kotlinLoggingVersion}")
     implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
-    implementation("org.springframework.security:spring-security-config:5.6.11")
-    implementation("org.springframework.security:spring-security-oauth2-jose:5.6.11")
+    implementation("org.springframework.security:spring-security-config:$springSecurityVersion")
+    implementation("org.springframework.security:spring-security-oauth2-jose:$springSecurityVersion")
 
     testImplementation("com.github.tomakehurst:wiremock:${wiremockVersion}")
     testImplementation("com.google.crypto.tink:tink:${tinkVersion}")
