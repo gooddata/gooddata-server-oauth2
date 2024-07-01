@@ -31,7 +31,7 @@ class OAuth2UserValidatorTest {
 
     private val userValidator = OAuth2UserValidator()
     private val userRequest = mockk<OAuth2UserRequest> {
-        every { clientRegistration } returns mockk {
+        every { clientRegistration } returns mockk(relaxed = true) {
             every { providerDetails } returns mockk {
                 every { userInfoEndpoint } returns mockk {
                     every { userNameAttributeName } returns "userName"
