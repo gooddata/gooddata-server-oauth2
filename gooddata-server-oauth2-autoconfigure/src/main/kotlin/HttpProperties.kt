@@ -16,7 +16,6 @@
 package com.gooddata.oauth2.server
 
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
 import org.springframework.boot.context.properties.bind.DefaultValue
 import org.springframework.http.client.SimpleClientHttpRequestFactory
 
@@ -24,7 +23,6 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory
  * A properties class holding parameters for custom http clients used for communication with Oauth2 provider.
  */
 @ConfigurationProperties(prefix = "spring.security.oauth2.client.http")
-@ConstructorBinding
 class HttpProperties(
 
     /**

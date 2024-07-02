@@ -16,11 +16,9 @@
 package com.gooddata.oauth2.server
 
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
 import org.springframework.boot.context.properties.bind.DefaultValue
 import java.net.URI
 
-@ConstructorBinding
 @ConfigurationProperties(prefix = "spring.security.oauth2.client.applogin")
 class AppLoginProperties(
     /**

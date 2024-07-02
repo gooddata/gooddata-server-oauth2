@@ -69,7 +69,7 @@ subprojects {
         val striktVersion: String by project
         val detektVersion: String by project
 
-        testRuntimeOnly("org.slf4j:slf4j-simple:1.7.36")
+        testRuntimeOnly("org.slf4j:slf4j-simple")
         testImplementation(platform("io.strikt:strikt-bom:${striktVersion}"))
         detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:${detektVersion}")
     }
