@@ -159,7 +159,7 @@ internal class AuthenticationUtilsTest {
             "401 UNAUTHORIZED \"Authorization failed for given issuer \"$issuerLocation\". $messageSpecification",
             ex.message
         )
-        assertEquals(HttpStatus.UNAUTHORIZED, ex.status)
+        assertEquals(HttpStatus.UNAUTHORIZED, ex.statusCode)
     }
 
     @Test
@@ -179,7 +179,7 @@ internal class AuthenticationUtilsTest {
                 "Invalid configuration, missing mandatory attribute client id and/or client secret.\"",
             ex.message
         )
-        assertEquals(HttpStatus.UNAUTHORIZED, ex.status)
+        assertEquals(HttpStatus.UNAUTHORIZED, ex.statusCode)
     }
 
     @Test

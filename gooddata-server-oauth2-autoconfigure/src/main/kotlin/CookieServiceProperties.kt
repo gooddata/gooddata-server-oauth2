@@ -17,12 +17,10 @@ package com.gooddata.oauth2.server
 
 import io.netty.handler.codec.http.cookie.CookieHeaderNames
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
 import org.springframework.boot.context.properties.bind.DefaultValue
 import java.time.Duration
 import java.time.Instant
 
-@ConstructorBinding
 @ConfigurationProperties(prefix = "spring.security.oauth2.client.cookies")
 class CookieServiceProperties(
     /**
