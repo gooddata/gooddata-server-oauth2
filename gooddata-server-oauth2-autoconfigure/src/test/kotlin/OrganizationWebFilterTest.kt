@@ -69,7 +69,7 @@ internal class OrganizationWebFilterTest {
 
         expectThrows<ResponseStatusException> {
             response.block()
-        }.get { status }.isEqualTo(HttpStatus.NOT_FOUND)
+        }.get { statusCode }.isEqualTo(HttpStatus.NOT_FOUND)
     }
 
     companion object {
