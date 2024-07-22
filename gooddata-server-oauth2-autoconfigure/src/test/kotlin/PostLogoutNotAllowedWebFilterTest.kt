@@ -47,7 +47,7 @@ internal class PostLogoutNotAllowedWebFilterTest {
         }
 
         expectThrows<ResponseStatusException> { filter.filter(exchange, chain).block() }
-            .get { status }.isEqualTo(HttpStatus.METHOD_NOT_ALLOWED)
+            .get { statusCode }.isEqualTo(HttpStatus.METHOD_NOT_ALLOWED)
     }
 
     @Test
@@ -58,7 +58,7 @@ internal class PostLogoutNotAllowedWebFilterTest {
         }
 
         expectThrows<ResponseStatusException> { filter.filter(exchange, chain).block() }
-            .get { status }.isEqualTo(HttpStatus.METHOD_NOT_ALLOWED)
+            .get { statusCode }.isEqualTo(HttpStatus.METHOD_NOT_ALLOWED)
     }
 
     @Test

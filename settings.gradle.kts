@@ -26,13 +26,14 @@ pluginManagement {
         val kotlinVersion: String by settings
         val detektVersion: String by settings
         val springBootVersion: String by settings
+        val springDependencyManagementVersion: String by settings
 
         kotlin("jvm") version kotlinVersion
         kotlin("plugin.spring") version kotlinVersion
 
         id("com.adarshr.test-logger") version "3.2.0"
         id("io.gitlab.arturbosch.detekt") version detektVersion
-        id("io.spring.dependency-management") version "1.0.11.RELEASE"
+        id("io.spring.dependency-management") version springDependencyManagementVersion
         id("org.datlowe.maven-publish-auth") version "2.0.2"
         id("org.springframework.boot") version springBootVersion
     }

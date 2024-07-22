@@ -15,16 +15,15 @@
  */
 package com.gooddata.oauth2.server
 
-import java.util.Base64
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.AutoConfigureBefore
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.security.oauth2.client.reactive.ReactiveOAuth2ClientAutoConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
 import org.springframework.http.HttpMethod
 import org.springframework.security.authentication.ReactiveAuthenticationManager
@@ -64,8 +63,9 @@ import org.springframework.util.ClassUtils
 import org.springframework.web.client.RestTemplate
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource
 import org.springframework.web.reactive.config.EnableWebFlux
+import java.util.*
 
-@Configuration
+@AutoConfiguration
 @EnableConfigurationProperties(
     CookieServiceProperties::class,
     HostBasedClientRegistrationRepositoryProperties::class,

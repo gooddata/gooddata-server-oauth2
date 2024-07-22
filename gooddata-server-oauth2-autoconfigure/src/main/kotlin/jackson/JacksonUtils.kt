@@ -69,7 +69,6 @@ internal class AuthorizationGrantTypeConverter : StdConverter<JsonNode, Authoriz
         @Suppress("DEPRECATION")
         return when {
             AuthorizationGrantType.AUTHORIZATION_CODE.equalsString(value) -> AuthorizationGrantType.AUTHORIZATION_CODE
-            AuthorizationGrantType.IMPLICIT.equalsString(value) -> AuthorizationGrantType.IMPLICIT
             AuthorizationGrantType.CLIENT_CREDENTIALS.equalsString(value) -> AuthorizationGrantType.CLIENT_CREDENTIALS
             AuthorizationGrantType.PASSWORD.equalsString(value) -> AuthorizationGrantType.PASSWORD
             else -> null
