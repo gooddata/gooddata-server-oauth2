@@ -17,6 +17,7 @@
 package com.gooddata.oauth2.server
 
 import mu.KotlinLogging
+import org.springframework.http.HttpHeaders
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.server.ServerWebExchange
 
@@ -41,6 +42,7 @@ private fun List<String>.toCorsConfiguration() = CorsConfiguration().apply {
     allowCredentials = true
     allowedMethods = listOf(CorsConfiguration.ALL)
     allowedHeaders = listOf(CorsConfiguration.ALL)
+    exposedHeaders = listOf(HttpHeaders.CONTENT_DISPOSITION)
     val (originPatterns, origins) = this@toCorsConfiguration.partition(String::isWildcardOrigin)
     allowedOrigins = origins.takeIf(List<String>::isNotEmpty)
     allowedOriginPatterns = originPatterns.takeIf(List<String>::isNotEmpty)
