@@ -52,7 +52,7 @@ dependencies {
     implementation("org.springframework.security:spring-security-config:$springSecurityVersion")
     implementation("org.springframework.security:spring-security-oauth2-jose:$springSecurityVersion")
 
-    testImplementation("com.github.tomakehurst:wiremock:${wiremockVersion}")
+    testImplementation("org.wiremock:wiremock-jetty12:${wiremockVersion}")
     testImplementation("com.google.crypto.tink:tink:${tinkVersion}")
     testImplementation("com.ninja-squad:springmockk:${springMockkVersion}")
     testImplementation("io.mockk:mockk:${mockkVersion}")

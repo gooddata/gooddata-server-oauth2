@@ -16,7 +16,6 @@
 package com.gooddata.oauth2.server
 
 import org.springframework.boot.context.properties.ConfigurationProperties
-import org.springframework.boot.context.properties.ConstructorBinding
 import org.springframework.boot.context.properties.bind.DefaultValue
 
 /**
@@ -25,7 +24,6 @@ import org.springframework.boot.context.properties.bind.DefaultValue
  * @param[jwkExpireAfterWriteMinutes] time in minutes after write after which is value expired in JWK cache
  * @see com.gooddata.oauth2.server.JwkCache
  */
-@ConstructorBinding
 @ConfigurationProperties(prefix = "spring.security.oauth2.client.cache")
 class CachingProperties(
 
