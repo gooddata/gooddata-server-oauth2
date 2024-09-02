@@ -16,7 +16,6 @@
 package com.gooddata.oauth2.server
 
 import com.gooddata.oauth2.server.CustomOAuth2Validator.Companion.notAllowedHeaders
-import com.nimbusds.jose.JOSEObjectType
 import com.nimbusds.jwt.JWTClaimNames
 import com.nimbusds.openid.connect.sdk.claims.PersonClaims
 import org.springframework.security.oauth2.core.OAuth2Error
@@ -41,7 +40,8 @@ class CustomOAuth2Validator : OAuth2TokenValidator<Jwt> {
         private val mandatoryAttributes = listOf(
             JWTClaimNames.SUBJECT,
             JWTClaimNames.ISSUED_AT,
-            JWTClaimNames.EXPIRATION_TIME)
+            JWTClaimNames.EXPIRATION_TIME
+        )
     }
 
     /**
@@ -74,8 +74,7 @@ class CustomOAuth2Validator : OAuth2TokenValidator<Jwt> {
         }
     }
 
-    private fun representJwtWithId(jwt: Jwt) =
-        jwt.headers["kid"] != null && jwt.headers["typ"] == JOSEObjectType.JWT.toString()
+    private fun representJwtWithId(jwt: Jwt) = jwt.headers["kid"] != null
 
     private fun validateMandatoryClaims(token: Jwt): List<OAuth2Error> =
         mandatoryAttributes
