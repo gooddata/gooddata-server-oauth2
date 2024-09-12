@@ -44,8 +44,11 @@ OIDC related data (access code, id token and refresh token) is stored in HTTP co
     * Access token, Refresh token
 * **SPRING_SEC_SECURITY_CONTEXT**
     * ID token
-* **REDIRECT_URI**
+* **SPRING_REDIRECT_URI**
     * original requested URI before authentication redirects
+* **SPRING_EXTERNAL_IDP**
+    * only needed for building the OAuth2 authorization request, contains the external provider identifier
+      (used for OIDC federation)
 
 Relevant Spring Security POJOs are serialized to JSON, base64 encoded and stored into HTTP response cookies.
 When cookie needs to be invalidated, its maxAge is set to 0.
@@ -89,6 +92,7 @@ root@a45628275f4a:/# ./tinkey create-keyset --key-template AES256_GCM
     * clears `SPRING_SEC_OAUTH2_AUTHZ_CLIENT`, `SPRING_SEC_SECURITY_CONTEXT` - i.e. OAuth2 tokens
 * **/appLogin**
     * resource that handles unauthenticated requests and redirects authenticated to `redirectTo` query parameter
+    * additional `externalProviderId` query parameter can be used to specify external provider for OIDC federation
 
 ### Multiple organizations support
 
