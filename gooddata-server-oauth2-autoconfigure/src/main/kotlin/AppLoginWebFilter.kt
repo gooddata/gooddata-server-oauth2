@@ -197,7 +197,26 @@ class AppLoginCookieRequestCacheWriter(private val cookieService: ReactiveCookie
      * @param redirectUri the value of the [AppLoginUri.REDIRECT_TO] query parameter
      */
     fun saveRequest(exchange: ServerWebExchange, redirectUri: String): Mono<Void> =
-        cookieService.createCookie(exchange, SPRING_REDIRECT_URI, redirectUri)
+        cookieService.createCookie(exchange, SPRING_REDIRECT_URI, redirectUri).then(createExternalIdpCookie(exchange))
+
+    /**
+     * Creates [SPRING_EXTERNAL_IDP] cookie if needed.
+     */
+    private fun createExternalIdpCookie(exchange: ServerWebExchange) = Mono.defer {
+        val externalIdp = exchange.request.queryParams[EXTERNAL_IDP_PARAM_NAME]?.firstOrNull()
+        if (externalIdp != null) {
+            cookieService.createCookie(exchange, SPRING_EXTERNAL_IDP, externalIdp)
+        } else {
+            Mono.empty()
+        }
+    }
+
+    companion object {
+        /**
+         * Name of the query parameter containing the external identity provider ID (used for OIDC federation).
+         */
+        private const val EXTERNAL_IDP_PARAM_NAME = "externalProviderId"
+    }
 }
 
 class AppLoginException(override val message: String) : ResponseStatusException(HttpStatus.BAD_REQUEST, message)
