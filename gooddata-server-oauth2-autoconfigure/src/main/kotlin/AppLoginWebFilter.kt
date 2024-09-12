@@ -28,7 +28,6 @@ import org.springframework.web.server.WebFilter
 import org.springframework.web.server.WebFilterChain
 import org.springframework.web.util.UriComponentsBuilder
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.switchIfEmpty
 import java.net.URI
 
 /**
@@ -61,7 +60,6 @@ class AppLoginWebFilter(private val appLoginRedirectProcessor: AppLoginRedirectP
  */
 class AppLoginRedirectProcessor(
     private val properties: AppLoginProperties,
-    private val authenticationStoreClient: AuthenticationStoreClient,
 ) {
     private val logger = KotlinLogging.logger {}
 

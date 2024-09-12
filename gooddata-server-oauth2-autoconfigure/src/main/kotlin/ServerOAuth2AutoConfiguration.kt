@@ -228,10 +228,7 @@ class ServerOAuth2AutoConfiguration {
         @Value("\${spring.security.oauth2.config.provider.auth0.customDomain:#{null}}") auth0CustomDomain: String?,
         @Value("\${spring.security.oauth2.config.provider.cognito.customDomain:#{null}}") cognitoCustomDomain: String?,
     ): SecurityWebFilterChain {
-        val appLoginRedirectProcessor = AppLoginRedirectProcessor(
-            appLoginProperties,
-            authenticationStoreClient.`object`,
-        )
+        val appLoginRedirectProcessor = AppLoginRedirectProcessor(appLoginProperties)
         val serverRequestCache = DelegatingServerRequestCache(
             CookieServerRequestCache(cookieService),
             AppLoginCookieRequestCacheWriter(cookieService),

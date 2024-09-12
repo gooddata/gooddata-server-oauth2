@@ -38,11 +38,9 @@ import java.net.URI
 
 @Suppress("ReactiveStreamsUnusedPublisher")
 internal class AppLoginRedirectProcessorTest {
-    private val client = mockk<AuthenticationStoreClient>()
     private val exchange = mockk<ServerWebExchange>()
     private val processor = AppLoginRedirectProcessor(
         AppLoginProperties(URI.create(GLOBAL_ALLOWED_URI)),
-        client,
     )
     private val processFun = mockk<(String) -> Mono<Void>> {
         every { this@mockk.invoke(any()) } returns Mono.empty()
