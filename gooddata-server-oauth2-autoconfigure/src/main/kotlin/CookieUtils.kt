@@ -38,3 +38,8 @@ const val SPRING_SEC_SECURITY_CONTEXT = "SPRING_SEC_SECURITY_CONTEXT"
  * Cookie key for storing serialized redirect URI.
  */
 const val SPRING_REDIRECT_URI = "SPRING_REDIRECT_URI"
+
+/**
+ * Cookie key for storing serialized federated identity provider ID.
+ */
+const val SPRING_EXTERNAL_IDP = "SPRING_EXTERNAL_IDP"

@@ -15,6 +15,8 @@
  */
 package com.gooddata.oauth2.server
 
+import com.gooddata.oauth2.server.oauth2.client.FederationAwareOauth2AuthorizationRequestResolver
+import java.util.Base64
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -63,7 +65,6 @@ import org.springframework.util.ClassUtils
 import org.springframework.web.client.RestTemplate
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource
 import org.springframework.web.reactive.config.EnableWebFlux
-import java.util.*
 
 @AutoConfiguration
 @EnableConfigurationProperties(
@@ -205,6 +206,15 @@ class ServerOAuth2AutoConfiguration {
         }
     }
 
+    /**
+     * Resolver which support OIDC federation.
+     */
+    @Bean
+    fun federationAwareAuthorizationRequestResolver(
+        urlSafeStateAuthorizationRequestResolver: ServerOAuth2AuthorizationRequestResolver,
+        cookieService: ReactiveCookieService,
+    ) = FederationAwareOauth2AuthorizationRequestResolver(urlSafeStateAuthorizationRequestResolver, cookieService)
+
     @Bean
     @Suppress("LongParameterList", "LongMethod")
     fun springSecurityFilterChain(
@@ -221,17 +231,14 @@ class ServerOAuth2AutoConfiguration {
         grantedAuthoritiesMapper: ObjectProvider<GrantedAuthoritiesMapper>,
         jwtDecoderFactory: ObjectProvider<ReactiveJwtDecoderFactory<ClientRegistration>>,
         loginAuthManager: ReactiveAuthenticationManager,
-        urlSafeStateAuthorizationRequestResolver: ServerOAuth2AuthorizationRequestResolver,
+        federationAwareAuthorizationRequestResolver: ServerOAuth2AuthorizationRequestResolver,
         // TODO these properties serve as a temporary hack.
         //  So for now, we will keep this configuration property here.
         //  Can be moved elsewhere or even removed in the following library release.
         @Value("\${spring.security.oauth2.config.provider.auth0.customDomain:#{null}}") auth0CustomDomain: String?,
         @Value("\${spring.security.oauth2.config.provider.cognito.customDomain:#{null}}") cognitoCustomDomain: String?,
     ): SecurityWebFilterChain {
-        val appLoginRedirectProcessor = AppLoginRedirectProcessor(
-            appLoginProperties,
-            authenticationStoreClient.`object`,
-        )
+        val appLoginRedirectProcessor = AppLoginRedirectProcessor(appLoginProperties)
         val serverRequestCache = DelegatingServerRequestCache(
             CookieServerRequestCache(cookieService),
             AppLoginCookieRequestCacheWriter(cookieService),
@@ -294,7 +301,7 @@ class ServerOAuth2AutoConfiguration {
                 authorizedClientRepository = oauth2ClientRepository
                 authenticationFailureHandler = ServerOAuth2FailureHandler()
                 authenticationManager = loginAuthManager
-                authorizationRequestResolver = urlSafeStateAuthorizationRequestResolver
+                authorizationRequestResolver = federationAwareAuthorizationRequestResolver
                 authenticationSuccessHandler = authSuccessHandler
             }
             oauth2Client { }
