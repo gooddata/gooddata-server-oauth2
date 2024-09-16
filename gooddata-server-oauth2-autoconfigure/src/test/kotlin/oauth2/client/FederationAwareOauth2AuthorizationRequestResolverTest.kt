@@ -58,7 +58,7 @@ class FederationAwareOauth2AuthorizationRequestResolverTest {
         StepVerifier.create(oauthRequestToUri(resolver.resolve(EXCHANGE)))
             .expectNext(
                 "https://example.com/oauth2/authorize" +
-                    "?response_type=code&client_id=client-id&idp_identifier=external-idp-id"
+                    "?response_type=code&client_id=client-id&identity_provider=external-idp-id"
             )
             .verifyComplete()
 
