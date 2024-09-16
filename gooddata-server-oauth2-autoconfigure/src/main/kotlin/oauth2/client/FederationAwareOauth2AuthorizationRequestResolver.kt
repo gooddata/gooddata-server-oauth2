@@ -83,6 +83,6 @@ class FederationAwareOauth2AuthorizationRequestResolver(
          * Cognito-specific query parameter for external identity provider ID.
          * See https://docs.aws.amazon.com/cognito/latest/developerguide/authorization-endpoint.html#get-authorize.
          */
-        private const val COGNITO_EXTERNAL_PROVIDER_ID_PARAM_NAME = "idp_identifier"
+        private const val COGNITO_EXTERNAL_PROVIDER_ID_PARAM_NAME = "identity_provider"
     }
 }
