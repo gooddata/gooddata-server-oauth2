@@ -17,7 +17,7 @@ package com.gooddata.oauth2.server
 
 import com.nimbusds.jwt.JWTClaimNames
 import com.nimbusds.openid.connect.sdk.claims.PersonClaims
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.HttpStatus
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.security.web.server.WebFilterExchange

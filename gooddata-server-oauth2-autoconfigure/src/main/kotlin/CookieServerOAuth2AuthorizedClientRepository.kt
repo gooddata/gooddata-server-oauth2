@@ -19,7 +19,7 @@ import com.gooddata.oauth2.server.jackson.SimplifiedOAuth2AuthorizedClient
 import com.gooddata.oauth2.server.jackson.mapper
 import com.gooddata.oauth2.server.jackson.toSimplified
 import java.time.Instant
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository
