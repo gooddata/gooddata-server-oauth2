@@ -17,7 +17,7 @@ package com.gooddata.oauth2.server
 
 import com.gooddata.oauth2.server.jackson.mapper
 import com.nimbusds.jwt.proc.BadJWTException
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextImpl
@@ -203,7 +203,7 @@ class CookieServerSecurityContextRepository(
      */
     private fun logDecodingException(exception: Exception) {
         val message = "Stored JWT token cannot be decoded: ${exception.message}, cause: ${exception.cause?.message}"
-        when (logger.isDebugEnabled) {
+        when (logger.isDebugEnabled()) {
             true -> logger.debug(exception) { message }
             false -> logger.info { message }
         }

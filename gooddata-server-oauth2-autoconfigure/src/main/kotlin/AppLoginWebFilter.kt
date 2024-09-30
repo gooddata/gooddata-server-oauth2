@@ -15,7 +15,7 @@
  */
 package com.gooddata.oauth2.server
 
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.security.web.server.DefaultServerRedirectStrategy

@@ -16,7 +16,7 @@
 package com.gooddata.oauth2.server
 
 import java.time.Instant
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.HttpStatus
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames

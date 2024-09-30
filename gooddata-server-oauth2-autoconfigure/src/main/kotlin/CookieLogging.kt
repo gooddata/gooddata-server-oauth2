@@ -17,7 +17,7 @@ package com.gooddata.oauth2.server
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
-import mu.KLogger
+import io.github.oshai.kotlinlogging.KLogger
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter

@@ -16,7 +16,7 @@
 
 package com.gooddata.oauth2.server
 
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.HttpHeaders
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.server.ServerWebExchange

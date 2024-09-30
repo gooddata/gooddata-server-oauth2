@@ -1,6 +1,6 @@
 package com.gooddata.oauth2.server
 
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.security.authentication.ReactiveAuthenticationManager
 import org.springframework.security.core.Authentication
 import reactor.core.publisher.Flux

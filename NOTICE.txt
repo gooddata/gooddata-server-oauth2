@@ -42,8 +42,7 @@ DEPENDENCIES
 - JSON in Java (20180813) [JSON]
 - JSON Small and Fast Parser (2.4.7) [Apache-2.0]
 - Kotlin extensions for Project Reactor (1.1.3) [Apache-2.0]
-- kotlin-logging (2.0.4) [Apache-2.0]
-- kotlin-logging (2.0.4) [Apache-2.0]
+- kotlin-logging (5.1.4) [Apache-2.0]
 - kotlinx-coroutines-core (1.3.8) [Apache-2.0]
 - kotlinx-coroutines-core (1.5.0) [Apache-2.0]
 - kotlinx-coroutines-core (1.5.0) [Apache-2.0]
@@ -116,8 +115,8 @@ Apache License 2.0
 Creative Commons Zero v1.0 Universal
 Common Development and Distribution License 1.1
 Eclipse Public License 2.0
-GNU General Public License v2.0 
-GNU Lesser General Public License v2.1 
+GNU General Public License v2.0
+GNU Lesser General Public License v2.1
 
 
 [End of Table of Contents]
@@ -370,7 +369,7 @@ jakarta.annotation-api (1.3.5)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
- 
+
 
 * Other Licenses *
 Multi-license: GPL-2.0-with-classpath-exception OR EPL-2.0
@@ -396,7 +395,7 @@ Java Servlet API (4.0.1)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
- 
+
 
 * Other Licenses *
 Apache-2.0, Multi-license: GPL-2.0-with-classpath-exception OR CDDL-1.1
@@ -538,29 +537,7 @@ See the License for the specific language governing permissions and limitations 
 
 
 --------------------------------------------------------------------------------
-kotlin-logging (2.0.4)
---------------------------------------------------------------------------------
-
-* Declared Licenses *
-Apache-2.0
-
-Copyright 2021, kotlin-logging Contributors
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-
-See the License for the specific language governing permissions and limitations under the License.
-
-
---------------------------------------------------------------------------------
-kotlin-logging (2.0.4)
+kotlin-logging (5.1.4)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
@@ -828,7 +805,7 @@ Netty/Codec/HTTP (4.1.65.Final)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
- 
+
 
 * Other Licenses *
 Apache-2.0, MIT, BSD-3-Clause
@@ -957,7 +934,7 @@ Netty/Common (4.1.65.Final)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
- 
+
 
 * Other Licenses *
 Apache-2.0, MIT
@@ -1445,10 +1422,10 @@ Copyright (c) 2004-2017 QOS.ch
  distribute,  sublicense, and/or sell  copies of  the Software,  and to
  permit persons to whom the Software  is furnished to do so, subject to
  the following conditions:
- 
+
  The  above  copyright  notice  and  this permission  notice  shall  be
  included in all copies or substantial portions of the Software.
- 
+
  THE  SOFTWARE IS  PROVIDED  "AS  IS", WITHOUT  WARRANTY  OF ANY  KIND,
  EXPRESS OR  IMPLIED, INCLUDING  BUT NOT LIMITED  TO THE  WARRANTIES OF
  MERCHANTABILITY,    FITNESS    FOR    A   PARTICULAR    PURPOSE    AND
@@ -1463,7 +1440,7 @@ SnakeYAML (1.28)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
- 
+
 
 * Other Licenses *
 Apache-2.0, Multi-license: LGPL-2.1-or-later OR GPL-2.0-or-later OR EPL-1.0 OR BSD-3-Clause OR Apache-2.0
@@ -1503,11 +1480,11 @@ package org.yaml.snakeyaml.external.biz.base64Coder;
 
 /**
  * A Base64 encoder/decoder.
- * 
+ *
  * <p>
  * This class is used to encode and decode data in Base64 format as described in
  * RFC 1521.
- * 
+ *
  * <p>
  * Project home page: <a
  * href="http://www.source-code.biz/base64coder/java/">www.
@@ -1650,7 +1627,7 @@ Spring Boot Web Starter (2.5.2)
 Apache-2.0
 
 
-                           
+
 
 
 --------------------------------------------------------------------------------
@@ -1901,7 +1878,7 @@ See the License for the specific language governing permissions and limitations 
 MIT
 
 
-Copyright (c) 2006 Damien Miller 
+Copyright (c) 2006 Damien Miller
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -2058,7 +2035,7 @@ tomcat-embed-core (9.0.48)
 --------------------------------------------------------------------------------
 
 * Declared Licenses *
- 
+
 
 * Other Licenses *
 Apache-2.0, Multi-license: GPL-2.0-with-classpath-exception OR CDDL-1.1
@@ -2366,22 +2343,22 @@ APPENDIX: LICENSES
 COMMON DEVELOPMENT AND DISTRIBUTION LICENSE (CDDL)Version 1.1
 
 1. Definitions.
-1.1. “Contributor” means each individual or entity that creates or contributes to the creation of Modifications.
-1.2. “Contributor Version” means the combination of the Original Software, prior Modifications used by a Contributor (if any), and the Modifications made by that particular Contributor.
-1.3. “Covered Software” means (a) the Original Software, or (b) Modifications, or (c) the combination of files containing Original Software with files containing Modifications, in each case including portions thereof.
-1.4. “Executable” means the Covered Software in any form other than Source Code.
-1.5. “Initial Developer” means the individual or entity that first makes Original Software available under this License.
-1.6. “Larger Work” means a work which combines Covered Software or portions thereof with code not governed by the terms of this License.
-1.7. “License” means this document.
-1.8. “Licensable” means having the right to grant, to the maximum extent possible, whether at the time of the initial grant or subsequently acquired, any and all of the rights conveyed herein.
-1.9. “Modifications” means the Source Code and Executable form of any of the following:
+1.1. ï¿½Contributorï¿½ means each individual or entity that creates or contributes to the creation of Modifications.
+1.2. ï¿½Contributor Versionï¿½ means the combination of the Original Software, prior Modifications used by a Contributor (if any), and the Modifications made by that particular Contributor.
+1.3. ï¿½Covered Softwareï¿½ means (a) the Original Software, or (b) Modifications, or (c) the combination of files containing Original Software with files containing Modifications, in each case including portions thereof.
+1.4. ï¿½Executableï¿½ means the Covered Software in any form other than Source Code.
+1.5. ï¿½Initial Developerï¿½ means the individual or entity that first makes Original Software available under this License.
+1.6. ï¿½Larger Workï¿½ means a work which combines Covered Software or portions thereof with code not governed by the terms of this License.
+1.7. ï¿½Licenseï¿½ means this document.
+1.8. ï¿½Licensableï¿½ means having the right to grant, to the maximum extent possible, whether at the time of the initial grant or subsequently acquired, any and all of the rights conveyed herein.
+1.9. ï¿½Modificationsï¿½ means the Source Code and Executable form of any of the following:
 A. Any file that results from an addition to, deletion from or modification of the contents of a file containing Original Software or previous Modifications;
 B. Any new file that contains any part of the Original Software or previous Modification; or
 C. Any new file that is contributed or otherwise made available under the terms of this License.
-1.10. “Original Software” means the Source Code and Executable form of computer software code that is originally released under this License.
-1.11. “Patent Claims” means any patent claim(s), now owned or hereafter acquired, including without limitation, method, process, and apparatus claims, in any patent Licensable by grantor.
-1.12. “Source Code” means (a) the common form of computer software code in which modifications are made and (b) associated documentation included in or with such code.
-1.13. “You” (or “Your”) means an individual or a legal entity exercising rights under, and complying with all of the terms of, this License. For legal entities, “You” includes any entity which controls, is controlled by, or is under common control with You. For purposes of this definition, “control” means (a) the power, direct or indirect, to cause the direction or management of such entity, whether by contract or otherwise, or (b) ownership of more than fifty percent (50%) of the outstanding shares or beneficial ownership of such entity.
+1.10. ï¿½Original Softwareï¿½ means the Source Code and Executable form of computer software code that is originally released under this License.
+1.11. ï¿½Patent Claimsï¿½ means any patent claim(s), now owned or hereafter acquired, including without limitation, method, process, and apparatus claims, in any patent Licensable by grantor.
+1.12. ï¿½Source Codeï¿½ means (a) the common form of computer software code in which modifications are made and (b) associated documentation included in or with such code.
+1.13. ï¿½Youï¿½ (or ï¿½Yourï¿½) means an individual or a legal entity exercising rights under, and complying with all of the terms of, this License. For legal entities, ï¿½Youï¿½ includes any entity which controls, is controlled by, or is under common control with You. For purposes of this definition, ï¿½controlï¿½ means (a) the power, direct or indirect, to cause the direction or management of such entity, whether by contract or otherwise, or (b) ownership of more than fifty percent (50%) of the outstanding shares or beneficial ownership of such entity.
 2. License Grants.
 2.1. The Initial Developer Grant.
 Conditioned upon Your compliance with Section 3.1 below and subject to third party intellectual property claims, the Initial Developer hereby grants You a world-wide, royalty-free, non-exclusive license:
@@ -2416,16 +2393,16 @@ You may always continue to use, distribute or otherwise make the Covered Softwar
 4.3. Modified Versions.
 When You are an Initial Developer and You want to create a new license for Your Original Software, You may create and use a modified version of this License if You: (a) rename the license and remove any references to the name of the license steward (except to note that the license differs from this License); and (b) otherwise make it clear that the license contains terms which differ from this License.
 5. DISCLAIMER OF WARRANTY.
-COVERED SOFTWARE IS PROVIDED UNDER THIS LICENSE ON AN “AS IS” BASIS, WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, WITHOUT LIMITATION, WARRANTIES THAT THE COVERED SOFTWARE IS FREE OF DEFECTS, MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE OR NON-INFRINGING. THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE COVERED SOFTWARE IS WITH YOU. SHOULD ANY COVERED SOFTWARE PROVE DEFECTIVE IN ANY RESPECT, YOU (NOT THE INITIAL DEVELOPER OR ANY OTHER CONTRIBUTOR) ASSUME THE COST OF ANY NECESSARY SERVICING, REPAIR OR CORRECTION. THIS DISCLAIMER OF WARRANTY CONSTITUTES AN ESSENTIAL PART OF THIS LICENSE. NO USE OF ANY COVERED SOFTWARE IS AUTHORIZED HEREUNDER EXCEPT UNDER THIS DISCLAIMER.
+COVERED SOFTWARE IS PROVIDED UNDER THIS LICENSE ON AN ï¿½AS ISï¿½ BASIS, WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, WITHOUT LIMITATION, WARRANTIES THAT THE COVERED SOFTWARE IS FREE OF DEFECTS, MERCHANTABLE, FIT FOR A PARTICULAR PURPOSE OR NON-INFRINGING. THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE COVERED SOFTWARE IS WITH YOU. SHOULD ANY COVERED SOFTWARE PROVE DEFECTIVE IN ANY RESPECT, YOU (NOT THE INITIAL DEVELOPER OR ANY OTHER CONTRIBUTOR) ASSUME THE COST OF ANY NECESSARY SERVICING, REPAIR OR CORRECTION. THIS DISCLAIMER OF WARRANTY CONSTITUTES AN ESSENTIAL PART OF THIS LICENSE. NO USE OF ANY COVERED SOFTWARE IS AUTHORIZED HEREUNDER EXCEPT UNDER THIS DISCLAIMER.
 6. TERMINATION.
 6.1. This License and the rights granted hereunder will terminate automatically if You fail to comply with terms herein and fail to cure such breach within 30 days of becoming aware of the breach. Provisions which, by their nature, must remain in effect beyond the termination of this License shall survive.
-6.2. If You assert a patent infringement claim (excluding declaratory judgment actions) against Initial Developer or a Contributor (the Initial Developer or Contributor against whom You assert such claim is referred to as “Participant”) alleging that the Participant Software (meaning the Contributor Version where the Participant is a Contributor or the Original Software where the Participant is the Initial Developer) directly or indirectly infringes any patent, then any and all rights granted directly or indirectly to You by such Participant, the Initial Developer (if the Initial Developer is not the Participant) and all Contributors under Sections 2.1 and/or 2.2 of this License shall, upon 60 days notice from Participant terminate prospectively and automatically at the expiration of such 60 day notice period, unless if within such 60 day period You withdraw Your claim with respect to the Participant Software against such Participant either unilaterally or pursuant to a written agreement with Participant.
+6.2. If You assert a patent infringement claim (excluding declaratory judgment actions) against Initial Developer or a Contributor (the Initial Developer or Contributor against whom You assert such claim is referred to as ï¿½Participantï¿½) alleging that the Participant Software (meaning the Contributor Version where the Participant is a Contributor or the Original Software where the Participant is the Initial Developer) directly or indirectly infringes any patent, then any and all rights granted directly or indirectly to You by such Participant, the Initial Developer (if the Initial Developer is not the Participant) and all Contributors under Sections 2.1 and/or 2.2 of this License shall, upon 60 days notice from Participant terminate prospectively and automatically at the expiration of such 60 day notice period, unless if within such 60 day period You withdraw Your claim with respect to the Participant Software against such Participant either unilaterally or pursuant to a written agreement with Participant.
 6.3. If You assert a patent infringement claim against Participant alleging that the Participant Software directly or indirectly infringes any patent where such claim is resolved (such as by license or settlement) prior to the initiation of patent infringement litigation, then the reasonable value of the licenses granted by such Participant under Sections 2.1 or 2.2 shall be taken into account in determining the amount or value of any payment or license.
 6.4. In the event of termination under Sections 6.1 or 6.2 above, all end user licenses that have been validly granted by You or any distributor hereunder prior to termination (excluding licenses granted to You by any distributor) shall survive termination.
 7. LIMITATION OF LIABILITY.
 UNDER NO CIRCUMSTANCES AND UNDER NO LEGAL THEORY, WHETHER TORT (INCLUDING NEGLIGENCE), CONTRACT, OR OTHERWISE, SHALL YOU, THE INITIAL DEVELOPER, ANY OTHER CONTRIBUTOR, OR ANY DISTRIBUTOR OF COVERED SOFTWARE, OR ANY SUPPLIER OF ANY OF SUCH PARTIES, BE LIABLE TO ANY PERSON FOR ANY INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES OF ANY CHARACTER INCLUDING, WITHOUT LIMITATION, DAMAGES FOR LOSS OF GOODWILL, WORK STOPPAGE, COMPUTER FAILURE OR MALFUNCTION, OR ANY AND ALL OTHER COMMERCIAL DAMAGES OR LOSSES, EVEN IF SUCH PARTY SHALL HAVE BEEN INFORMED OF THE POSSIBILITY OF SUCH DAMAGES. THIS LIMITATION OF LIABILITY SHALL NOT APPLY TO LIABILITY FOR DEATH OR PERSONAL INJURY RESULTING FROM SUCH PARTY'S NEGLIGENCE TO THE EXTENT APPLICABLE LAW PROHIBITS SUCH LIMITATION. SOME JURISDICTIONS DO NOT ALLOW THE EXCLUSION OR LIMITATION OF INCIDENTAL OR CONSEQUENTIAL DAMAGES, SO THIS EXCLUSION AND LIMITATION MAY NOT APPLY TO YOU.
 8. U.S. GOVERNMENT END USERS.
-The Covered Software is a “commercial item,” as that term is defined in 48 C.F.R. 2.101 (Oct. 1995), consisting of “commercial computer software” (as that term is defined at 48 C.F.R. § 252.227-7014(a)(1)) and “commercial computer software documentation” as such terms are used in 48 C.F.R. 12.212 (Sept. 1995). Consistent with 48 C.F.R. 12.212 and 48 C.F.R. 227.7202-1 through 227.7202-4 (June 1995), all U.S. Government End Users acquire Covered Software with only those rights set forth herein. This U.S. Government Rights clause is in lieu of, and supersedes, any other FAR, DFAR, or other clause or provision that addresses Government rights in computer software under this License.
+The Covered Software is a ï¿½commercial item,ï¿½ as that term is defined in 48 C.F.R. 2.101 (Oct. 1995), consisting of ï¿½commercial computer softwareï¿½ (as that term is defined at 48 C.F.R. ï¿½ 252.227-7014(a)(1)) and ï¿½commercial computer software documentationï¿½ as such terms are used in 48 C.F.R. 12.212 (Sept. 1995). Consistent with 48 C.F.R. 12.212 and 48 C.F.R. 227.7202-1 through 227.7202-4 (June 1995), all U.S. Government End Users acquire Covered Software with only those rights set forth herein. This U.S. Government Rights clause is in lieu of, and supersedes, any other FAR, DFAR, or other clause or provision that addresses Government rights in computer software under this License.
 9. MISCELLANEOUS.
 This License represents the complete agreement concerning subject matter hereof. If any provision of this License is held to be unenforceable, such provision shall be reformed only to the extent necessary to make it enforceable. This License shall be governed by the law of the jurisdiction specified in a notice contained within the Original Software (except to the extent applicable law, if any, provides otherwise), excluding such jurisdiction's conflict-of-law provisions. Any litigation relating to this License shall be subject to the jurisdiction of the courts located in the jurisdiction and venue specified in a notice contained within the Original Software, with the losing party responsible for costs, including, without limitation, court costs and reasonable attorneys' fees and expenses. The application of the United Nations Convention on Contracts for the International Sale of Goods is expressly excluded. Any law or regulation which provides that the language of a contract shall be construed against the drafter shall not apply to this License. You agree that You alone are responsible for compliance with the United States export administration regulations (and the export control laws and regulation of any other countries) when You use, distribute or otherwise make available any Covered Software.
 10. RESPONSIBILITY FOR CLAIMS.
@@ -2521,7 +2498,7 @@ GNU General Public License, Version 2.0
 
 GNU GENERAL PUBLIC LICENSE
 Version 2, June 1991
-Copyright (C) 1989, 1991 Free Software Foundation, Inc.  
+Copyright (C) 1989, 1991 Free Software Foundation, Inc.
 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
 Everyone is permitted to copy and distribute verbatim copies
@@ -2592,13 +2569,13 @@ If the program is interactive, make it output a short notice like this when it s
 Gnomovision version 69, Copyright (C) year name of author
 Gnomovision comes with ABSOLUTELY NO WARRANTY; for details
 type `show w'.  This is free software, and you are welcome
-to redistribute it under certain conditions; type `show c' 
+to redistribute it under certain conditions; type `show c'
 for details.
 The hypothetical commands `show w' and `show c' should show the appropriate parts of the General Public License. Of course, the commands you use may be called something other than `show w' and `show c'; they could even be mouse-clicks or menu items--whatever suits your program.
 You should also get your employer (if you work as a programmer) or your school, if any, to sign a "copyright disclaimer" for the program, if necessary. Here is a sample; alter the names:
 Yoyodyne, Inc., hereby disclaims all copyright
 interest in the program `Gnomovision'
-(which makes passes at compilers) written 
+(which makes passes at compilers) written
 by James Hacker.
 
 signature of Ty Coon, 1 April 1989
@@ -2606,7 +2583,7 @@ Ty Coon, President of Vice
 This General Public License does not permit incorporating your program into proprietary programs. If your program is a subroutine library, you may consider it more useful to permit linking proprietary applications with the library. If this is what you want to do, use the GNU Lesser General Public License instead of this License.
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-GNU Library General Public License 2.1 (LGPL 2.1) 
+GNU Library General Public License 2.1 (LGPL 2.1)
 Version 2.1, February 1999
 Copyright (C) 1991, 1999 Free Software Foundation, Inc.
 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA

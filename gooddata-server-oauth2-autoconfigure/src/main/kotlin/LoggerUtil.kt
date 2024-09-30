@@ -23,34 +23,35 @@ import com.gooddata.oauth2.server.LogKey.ORG_ID
 import com.gooddata.oauth2.server.LogKey.STATE
 import com.gooddata.oauth2.server.LogKey.TOKEN_ID
 import com.gooddata.oauth2.server.LogKey.USER_ID
+import io.github.oshai.kotlinlogging.DelegatingKLogger
 import io.netty.handler.logging.LogLevel
 import io.netty.handler.logging.LogLevel.DEBUG
 import io.netty.handler.logging.LogLevel.ERROR
 import io.netty.handler.logging.LogLevel.INFO
 import io.netty.handler.logging.LogLevel.TRACE
 import io.netty.handler.logging.LogLevel.WARN
-import mu.KLogger
+import io.github.oshai.kotlinlogging.KLogger
 import org.slf4j.Logger
 import org.slf4j.Marker
 import org.slf4j.MarkerFactory
 import org.springframework.security.core.Authentication
 import reactor.core.publisher.Mono
 
-val GD_API_MARKER: Marker = MarkerFactory.getMarker("GD_STRUCT_LOG")
+private val GD_API_MARKER: Marker = MarkerFactory.getMarker("GD_STRUCT_LOG")
 
-fun KLogger.logInfo(block: LogBuilder.() -> Unit) {
-    if (isInfoEnabled) {
+internal fun KLogger.logInfo(block: LogBuilder.() -> Unit) {
+    if (isInfoEnabled()) {
         log(this, block, INFO)
     }
 }
 
-fun KLogger.logError(exception: Throwable, block: LogBuilder.() -> Unit) {
-    if (isErrorEnabled) {
+internal fun KLogger.logError(exception: Throwable, block: LogBuilder.() -> Unit) {
+    if (isErrorEnabled()) {
         log(this, block, ERROR, exception)
     }
 }
 
-fun logAuthenticationWithOrgIdAndUserId(
+internal fun logAuthenticationWithOrgIdAndUserId(
     client: AuthenticationStoreClient,
     authentication: Authentication?,
     logger: KLogger,
@@ -71,7 +72,7 @@ fun logAuthenticationWithOrgIdAndUserId(
     }
 }
 
-fun KLogger.logFinishedAuthentication(
+internal fun KLogger.logFinishedAuthentication(
     orgId: String,
     userId: String,
     authMethod: String,
@@ -88,13 +89,13 @@ fun KLogger.logFinishedAuthentication(
     }
 }
 
-private fun log(logger: Logger, block: LogBuilder.() -> Unit, logLevel: LogLevel) {
+private fun log(logger: KLogger, block: LogBuilder.() -> Unit, logLevel: LogLevel) {
     LogBuilder(logLevel)
         .apply(block)
         .writeTo(logger)
 }
 
-private fun log(logger: Logger, block: LogBuilder.() -> Unit, logLevel: LogLevel, exception: Throwable) {
+private fun log(logger: KLogger, block: LogBuilder.() -> Unit, logLevel: LogLevel, exception: Throwable) {
     LogBuilder(logLevel)
         .apply { withException(exception) }
         .apply(block)
@@ -102,7 +103,7 @@ private fun log(logger: Logger, block: LogBuilder.() -> Unit, logLevel: LogLevel
 }
 
 @Suppress("TooManyFunctions")
-class LogBuilder internal constructor(val logLevel: LogLevel) {
+internal class LogBuilder internal constructor(val logLevel: LogLevel) {
     private val params = mutableMapOf<LogKey, Any>()
     private var message: () -> String = { "" }
     private var exception: Throwable? = null
@@ -143,8 +144,9 @@ class LogBuilder internal constructor(val logLevel: LogLevel) {
         params[AUTH_METHOD] = method
     }
 
-    internal fun writeTo(logger: Logger) {
-        log(logger, logLevel, message(), paramsToArray())
+    internal fun writeTo(logger: KLogger) {
+        check(logger is DelegatingKLogger<*>) { "Only DelegatingKLogger<org.slf4j.Logger> is supported" }
+        log(logger.underlyingLogger as Logger, logLevel, message(), paramsToArray())
     }
 
     internal fun paramsToArray(): Array<Any> {
@@ -164,7 +166,7 @@ class LogBuilder internal constructor(val logLevel: LogLevel) {
     }
 }
 
-enum class LogKey(val keyName: String) {
+internal enum class LogKey(val keyName: String) {
     ACTION("action"),
     EXCEPTION("exc"),
     STATE("state"),

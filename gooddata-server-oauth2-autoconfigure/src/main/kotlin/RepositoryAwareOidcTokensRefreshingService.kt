@@ -15,7 +15,7 @@
  */
 package com.gooddata.oauth2.server
 
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.oauth2.client.endpoint.OAuth2RefreshTokenGrantRequest
