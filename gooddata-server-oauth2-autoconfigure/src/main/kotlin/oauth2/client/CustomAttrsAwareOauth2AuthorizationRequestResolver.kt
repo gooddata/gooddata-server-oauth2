@@ -17,6 +17,7 @@ package com.gooddata.oauth2.server.oauth2.client
 
 import com.gooddata.oauth2.server.ReactiveCookieService
 import com.gooddata.oauth2.server.SPRING_EXTERNAL_IDP
+import com.gooddata.oauth2.server.getOrganizationFromContext
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizationRequestResolver
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest
 import org.springframework.web.server.ServerWebExchange
@@ -24,8 +25,11 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.switchIfEmpty
 
 /**
- * The implementation of [ServerOAuth2AuthorizationRequestResolver] that is able to append external identity provider
- * (OIDC federation) info to authorization requests based on [SPRING_EXTERNAL_IDP] cookie in the [ServerWebExchange].
+ * The implementation of [ServerOAuth2AuthorizationRequestResolver] that is able to append ad-hoc authentication attrs
+ * to authorization requests.
+ *
+ * Firstly it can add an external identity provider (OIDC federation) info to authorization requests
+ * based on [SPRING_EXTERNAL_IDP] cookie in the [ServerWebExchange].
  *
  * It wraps the default [ServerOAuth2AuthorizationRequestResolver] which is responsible for building of the original
  * authorization request with standard parameters.
@@ -34,16 +38,18 @@ import reactor.kotlin.core.publisher.switchIfEmpty
  *
  * The new query parameter is Cognito-specific for now, so this does not ensure support for other identity providers.
  *
+ * Secondly, it can add additional authentication attributes if present in the organization definition.
+ *
  * @param defaultResolver the default [ServerOAuth2AuthorizationRequestResolver] to be wrapped
  * @param cookieService the [ReactiveCookieService] to be used for cookie handling
  */
-class FederationAwareOauth2AuthorizationRequestResolver(
+class CustomAttrsAwareOauth2AuthorizationRequestResolver(
     private val defaultResolver: ServerOAuth2AuthorizationRequestResolver,
     private val cookieService: ReactiveCookieService,
 ) : ServerOAuth2AuthorizationRequestResolver {
     override fun resolve(exchange: ServerWebExchange?): Mono<OAuth2AuthorizationRequest> =
         defaultResolver.resolve(exchange).flatMap { authorizationRequest ->
-            enhanceRequestByExternalIdentityParam(authorizationRequest, exchange)
+            enhanceRequestByAdditionalParams(authorizationRequest, exchange)
         }
 
     override fun resolve(
@@ -51,14 +57,16 @@ class FederationAwareOauth2AuthorizationRequestResolver(
         clientRegistrationId: String?,
     ): Mono<OAuth2AuthorizationRequest> =
         defaultResolver.resolve(exchange, clientRegistrationId).flatMap { authorizationRequest ->
-            enhanceRequestByExternalIdentityParam(authorizationRequest, exchange)
+            enhanceRequestByAdditionalParams(authorizationRequest, exchange)
         }
 
     /**
-     * Enhances the provided [authorizationRequest] with external identity provider info based
-     * on the [SPRING_EXTERNAL_IDP] cookie existence. If the cookie is present, it is cleared.
+     * Enhances the provided [authorizationRequest] with external additional authentication attributes.
+     * Adds additional authentication attributes from the organization definition if they are present.
+     * Adds identity provider info based on the [SPRING_EXTERNAL_IDP] cookie existence. If the cookie is present,
+     * it is cleared.
      */
-    private fun enhanceRequestByExternalIdentityParam(
+    private fun enhanceRequestByAdditionalParams(
         authorizationRequest: OAuth2AuthorizationRequest,
         exchange: ServerWebExchange?,
     ): Mono<OAuth2AuthorizationRequest> = Mono.justOrEmpty(exchange)
@@ -72,10 +80,22 @@ class FederationAwareOauth2AuthorizationRequestResolver(
                         additionalParams[COGNITO_EXTERNAL_PROVIDER_ID_PARAM_NAME] = externalIdp
                     }
                     .build()
+            }.switchIfEmpty {
+                Mono.just(authorizationRequest)
+            }.flatMap { request ->
+                getOrganizationFromContext().flatMap { organization ->
+                    Mono.just(OAuth2AuthorizationRequest.from(request)
+                        .additionalParameters { additionalParams ->
+                            // if organization contains additional authentication attributes, add them to the request
+                            organization.oauthCustomAuthAttributes?.takeIf { it.isNotEmpty() }
+                                ?.forEach { (key, value) ->
+                                    additionalParams[key] = value
+                                }
+                        }
+                        .build()
+                    )
+                }
             }
-        }
-        .switchIfEmpty {
-            Mono.just(authorizationRequest)
         }
 
     companion object {
