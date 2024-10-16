@@ -15,7 +15,7 @@
  */
 package com.gooddata.oauth2.server
 
-import com.gooddata.oauth2.server.oauth2.client.FederationAwareOauth2AuthorizationRequestResolver
+import com.gooddata.oauth2.server.oauth2.client.CustomAttrsAwareOauth2AuthorizationRequestResolver
 import java.util.Base64
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Value
@@ -213,7 +213,7 @@ class ServerOAuth2AutoConfiguration {
     fun federationAwareAuthorizationRequestResolver(
         urlSafeStateAuthorizationRequestResolver: ServerOAuth2AuthorizationRequestResolver,
         cookieService: ReactiveCookieService,
-    ) = FederationAwareOauth2AuthorizationRequestResolver(urlSafeStateAuthorizationRequestResolver, cookieService)
+    ) = CustomAttrsAwareOauth2AuthorizationRequestResolver(urlSafeStateAuthorizationRequestResolver, cookieService)
 
     @Bean
     @Suppress("LongParameterList", "LongMethod")

@@ -15,6 +15,9 @@
  */
 package com.gooddata.oauth2.server.oauth2.client
 
+import com.gooddata.oauth2.server.CookieSerializerTest.Companion.ORGANIZATION
+import com.gooddata.oauth2.server.Organization
+import com.gooddata.oauth2.server.OrganizationWebFilter.Companion.orgContextWrite
 import com.gooddata.oauth2.server.ReactiveCookieService
 import com.gooddata.oauth2.server.SPRING_EXTERNAL_IDP
 import io.mockk.every
@@ -31,7 +34,7 @@ import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 
 @Suppress("ReactiveStreamsUnusedPublisher")
-class FederationAwareOauth2AuthorizationRequestResolverTest {
+class CustomAttrsAwareOauth2AuthorizationRequestResolverTest {
 
     private val defaultResolver: ServerOAuth2AuthorizationRequestResolver = mockk {
         every { resolve(any()) } returns Mono.just(DEFAULT_AUTH_REQUEST)
@@ -42,11 +45,14 @@ class FederationAwareOauth2AuthorizationRequestResolverTest {
         every { invalidateCookie(any(), any()) } just runs
     }
 
-    private val resolver = FederationAwareOauth2AuthorizationRequestResolver(defaultResolver, cookieService)
+    private val resolver = CustomAttrsAwareOauth2AuthorizationRequestResolver(defaultResolver, cookieService)
 
     @Test
     fun `resolve without cookie`() {
-        StepVerifier.create(oauthRequestToUri(resolver.resolve(EXCHANGE)))
+        StepVerifier.create(
+            oauthRequestToUri(resolver.resolve(EXCHANGE))
+                .orgContextWrite(ORGANIZATION)
+        )
             .expectNext("https://example.com/oauth2/authorize?response_type=code&client_id=client-id")
             .verifyComplete()
     }
@@ -55,10 +61,16 @@ class FederationAwareOauth2AuthorizationRequestResolverTest {
     fun `resolve with cookie and invalidates it`() {
         every { cookieService.decodeCookie(EXCHANGE, SPRING_EXTERNAL_IDP) } returns Mono.just("external-idp-id")
 
-        StepVerifier.create(oauthRequestToUri(resolver.resolve(EXCHANGE)))
+        StepVerifier.create(
+            oauthRequestToUri(resolver.resolve(EXCHANGE))
+                .orgContextWrite(ORGANIZATION_WITH_CUSTOM_AUTH_ATTRS)
+        )
             .expectNext(
                 "https://example.com/oauth2/authorize" +
-                    "?response_type=code&client_id=client-id&identity_provider=external-idp-id"
+                    "?response_type=code&client_id=client-id" +
+                    "&identity_provider=external-idp-id" +
+                    "&organization=org_vswH67L51ZQW67PS"
+
             )
             .verifyComplete()
 
@@ -67,8 +79,28 @@ class FederationAwareOauth2AuthorizationRequestResolverTest {
 
     @Test
     fun `resolve without cookie and client registration id`() {
-        StepVerifier.create(oauthRequestToUri(resolver.resolve(EXCHANGE, "registration-id")))
+        StepVerifier.create(
+            oauthRequestToUri(
+                resolver.resolve(EXCHANGE, "registration-id")
+            )
+                .orgContextWrite(ORGANIZATION)
+        )
             .expectNext("https://example.com/oauth2/authorize?response_type=code&client_id=client-id")
+            .verifyComplete()
+    }
+
+    @Test
+    fun `resolve without cookie and client registration id with custom authentication attributes`() {
+        StepVerifier.create(
+            oauthRequestToUri(
+                resolver.resolve(EXCHANGE, "registration-id")
+            )
+                .orgContextWrite(ORGANIZATION_WITH_CUSTOM_AUTH_ATTRS)
+        )
+            .expectNext(
+                "https://example.com/oauth2/authorize" +
+                    "?response_type=code&client_id=client-id&organization=org_vswH67L51ZQW67PS"
+            )
             .verifyComplete()
     }
 
@@ -85,5 +117,8 @@ class FederationAwareOauth2AuthorizationRequestResolverTest {
 
         private fun oauthRequestToUri(request: Mono<OAuth2AuthorizationRequest>): Mono<String> =
             request.map(OAuth2AuthorizationRequest::getAuthorizationRequestUri)
+
+        val ORGANIZATION_WITH_CUSTOM_AUTH_ATTRS =
+            Organization(id = "org", oauthCustomAuthAttributes = mapOf("organization" to "org_vswH67L51ZQW67PS"))
     }
 }

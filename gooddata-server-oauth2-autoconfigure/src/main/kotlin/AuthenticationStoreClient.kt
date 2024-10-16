@@ -177,6 +177,8 @@ interface AuthenticationStoreClient {
  * @property oauthSubjectIdClaim name of the claim in ID token that will be used for finding the user in organization.
  * Defaults to `null` and it means that `sub` claim will be used.
  * @property jitEnabled the switch for enabling/disabling of the JIT provisioning
+ * @property oauthCustomAuthAttributes map for additional oauth authentication attributes to be sent
+ * in authentication request
  *
  * @see AuthenticationStoreClient
  */
@@ -189,6 +191,7 @@ data class Organization(
     val oauthIssuerId: String? = null,
     val oauthSubjectIdClaim: String? = null,
     val jitEnabled: Boolean? = null,
+    val oauthCustomAuthAttributes: Map<String, String>? = null,
 )
 
 /**
