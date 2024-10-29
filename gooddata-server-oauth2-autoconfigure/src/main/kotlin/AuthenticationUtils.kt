@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:Suppress("TooManyFunctions")
 package com.gooddata.oauth2.server
 
 import com.gooddata.oauth2.server.OAuthConstants.GD_USER_GROUPS_SCOPE
+import com.gooddata.oauth2.server.oauth2.client.fromOidcConfiguration
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.jwk.JWKSet
 import com.nimbusds.jose.jwk.source.JWKSecurityContextJWKSet
@@ -28,16 +30,20 @@ import com.nimbusds.jwt.proc.BadJWTException
 import com.nimbusds.jwt.proc.DefaultJWTClaimsVerifier
 import com.nimbusds.jwt.proc.DefaultJWTProcessor
 import com.nimbusds.jwt.proc.JWTClaimsSetVerifier
+import com.nimbusds.oauth2.sdk.ParseException
 import com.nimbusds.oauth2.sdk.Scope
 import com.nimbusds.openid.connect.sdk.OIDCScopeValue
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata
 import java.security.MessageDigest
 import java.time.Instant
 import net.minidev.json.JSONObject
+import org.springframework.core.ParameterizedTypeReference
 import org.springframework.core.convert.ConversionService
 import org.springframework.core.convert.TypeDescriptor
 import org.springframework.core.convert.converter.Converter
 import org.springframework.http.HttpStatus
+import org.springframework.http.RequestEntity
+import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.oauth2.client.registration.ClientRegistration
@@ -50,8 +56,12 @@ import org.springframework.security.oauth2.jwt.MappedJwtClaimSetConverter
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder
 import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
+import org.springframework.web.client.RestTemplate
 import org.springframework.web.server.ResponseStatusException
+import org.springframework.web.util.UriComponentsBuilder
 import reactor.core.publisher.Mono
+import java.net.URI
+import java.util.Collections
 
 /**
  * Constants for OAuth type authentication which are not directly available in the Spring Security.
@@ -65,16 +75,37 @@ object OAuthConstants {
      */
     const val REDIRECT_URL_BASE = "{baseUrl}/{action}/oauth2/code/"
     const val GD_USER_GROUPS_SCOPE = "urn.gooddata.scope/user_groups"
+    const val OIDC_METADATA_PATH = "/.well-known/openid-configuration"
+    const val CONNECTION_TIMEOUT = 30_000
+    const val READ_TIMEOUT = 30_000
 }
 
+private val rest: RestTemplate by lazy {
+    val requestFactory = SimpleClientHttpRequestFactory().apply {
+        setConnectTimeout(OAuthConstants.CONNECTION_TIMEOUT)
+        setReadTimeout(OAuthConstants.READ_TIMEOUT)
+    }
+    RestTemplate().apply {
+        this.requestFactory = requestFactory
+    }
+}
+
+private val typeReference: ParameterizedTypeReference<Map<String, Any>> = object :
+    ParameterizedTypeReference<Map<String, Any>>() {}
+
 /**
- * Builds [ClientRegistration] from [Organization] retrieved from [AuthenticationStoreClient].
+ * Builds a client registration based on [Organization] details.
+ *
+ * In the case that the issuer location is an Azure B2C provider, the metadata is retrieved via a separate handler
+ * that performs validation on the endpoints instead of the issuer since Azure B2C openid-configuration does not
+ * return a matching issuer value.
  *
  * @param registrationId registration ID to be used
  * @param organization organization object retrieved from [AuthenticationStoreClient]
  * @param properties static properties for being able to configure pre-configured DEX issuer
- * @param clientRegistrationBuilderCache the cache where non-DEX client registration builders are saved
- * for improving performance
+ * @param clientRegistrationBuilderCache the cache where non-DEX client registration builders are saved for improving
+ * performance
+ * @return A [ClientRegistration]
  */
 @SuppressWarnings("TooGenericExceptionCaught")
 fun buildClientRegistration(
@@ -82,31 +113,136 @@ fun buildClientRegistration(
     organization: Organization,
     properties: HostBasedClientRegistrationRepositoryProperties,
     clientRegistrationBuilderCache: ClientRegistrationBuilderCache,
-): ClientRegistration =
-    if (organization.oauthIssuerLocation != null) {
-        clientRegistrationBuilderCache.get(organization.oauthIssuerLocation) {
-            try {
-                ClientRegistrations.fromIssuerLocation(organization.oauthIssuerLocation)
-            } catch (ex: RuntimeException) {
-                when (ex) {
-                    is IllegalArgumentException,
-                    is IllegalStateException,
-                    -> throw ResponseStatusException(
-                        HttpStatus.UNAUTHORIZED,
-                        "Authorization failed for given issuer \"${organization.oauthIssuerLocation}\". ${ex.message}"
-                    )
+): ClientRegistration {
+    val issuerLocation = organization.oauthIssuerLocation
+        ?: return dexClientRegistration(registrationId, properties, organization)
 
-                    else -> throw ex
-                }
+    return clientRegistrationBuilderCache.get(issuerLocation) {
+        try {
+            if (issuerLocation.toUri().isAzureB2C()) {
+                handleAzureB2CClientRegistration(issuerLocation)
+            } else {
+                ClientRegistrations.fromIssuerLocation(issuerLocation)
             }
-        }
-            .registrationId(registrationId)
-            .withRedirectUri(organization.oauthIssuerId)
+        } catch (ex: RuntimeException) {
+            handleRuntimeException(ex, issuerLocation)
+        } as ClientRegistration.Builder
+    }
+        .registrationId(registrationId)
+        .withRedirectUri(organization.oauthIssuerId)
+        .buildWithIssuerConfig(organization)
+}
+
+/**
+ * Provides a DEX [ClientRegistration] for the given [registrationId] and [organization].
+ *
+ * @param registrationId Identifier for the client registration.
+ * @param properties Properties for host-based client registration repository.
+ * @param organization The organization for which to build the client registration.
+ * @return A [ClientRegistration] configured with a default Dex configuration.
+ */
+private fun dexClientRegistration(
+    registrationId: String,
+    properties: HostBasedClientRegistrationRepositoryProperties,
+    organization: Organization
+): ClientRegistration = ClientRegistration
+    .withRegistrationId(registrationId)
+    .withDexConfig(properties)
+    .buildWithIssuerConfig(organization)
+
+/**
+ * Handles client registration for Azure B2C by validating issuer metadata and building the registration.
+ *
+ * @param issuerLocation The issuer location URL as a string.
+ * @return A configured [ClientRegistration] instance for Azure B2C.
+ * @throws ResponseStatusException if the metadata endpoints do not match the issuer location.
+ */
+private fun handleAzureB2CClientRegistration(
+    issuerLocation: String
+): ClientRegistration.Builder {
+    val uri = buildMetadataUri(issuerLocation)
+    val configuration = retrieveOidcConfiguration(uri)
+
+    return if (isValidAzureB2CMetadata(configuration, uri)) {
+        fromOidcConfiguration(configuration)
     } else {
-        ClientRegistration
-            .withRegistrationId(registrationId)
-            .withDexConfig(properties)
-    }.buildWithIssuerConfig(organization)
+        throw ResponseStatusException(
+            HttpStatus.UNAUTHORIZED,
+            "Authorization failed for given issuer \"$issuerLocation\". Metadata endpoints do not match."
+        )
+    }
+}
+
+/**
+ * Builds metadata retrieval URI based on the provided [issuerLocation].
+ *
+ * @param issuerLocation The issuer location URL as a string.
+ * @return The constructed [URI] for metadata retrieval.
+ */
+internal fun buildMetadataUri(issuerLocation: String): URI {
+    val issuer = URI.create(issuerLocation)
+    return UriComponentsBuilder.fromUri(issuer)
+        .replacePath(issuer.path + OAuthConstants.OIDC_METADATA_PATH)
+        .build(Collections.emptyMap<String, String>())
+}
+
+/**
+ * Retrieves the OpenID Connect configuration from the specified metadata [uri].
+ *
+ * @param uri The URI from which to retrieve the configuration metadata
+ * @return The OIDC configuration as a [Map] of [String] to [Any].
+ * @throws ResponseStatusException if the configuration metadata cannot be retrieved.
+ */
+internal fun retrieveOidcConfiguration(uri: URI): Map<String, Any> {
+    val request: RequestEntity<Void> = RequestEntity.get(uri).build()
+    return rest.exchange(request, typeReference).body
+        ?: throw ResponseStatusException(
+            HttpStatus.UNAUTHORIZED,
+            "Authorization failed: unable to retrieve configuration metadata from \"$uri\"."
+        )
+}
+
+/**
+ * As the issuer in metadata returned from Azure B2C provider is not the same as the configured issuer location,
+ * we must instead validate that the endpoint URLs in the metadata start with the configured issuer location.
+ *
+ * @param configuration The OIDC configuration metadata.
+ * @param uri The issuer location URI to validate against.
+ * @return `true` if all endpoint URLs in the metadata match the configured issuer location; `false` otherwise.
+ */
+internal fun isValidAzureB2CMetadata(
+    configuration: Map<String, Any>,
+    uri: URI
+): Boolean {
+    val metadata = parse(configuration, OIDCProviderMetadata::parse)
+    val issuerASCIIString = uri.toASCIIString()
+    return listOf(
+        metadata.authorizationEndpointURI,
+        metadata.tokenEndpointURI,
+        metadata.endSessionEndpointURI,
+        metadata.jwkSetURI,
+        metadata.userInfoEndpointURI
+    ).all { it.toASCIIString().startsWith(issuerASCIIString) }
+}
+
+/**
+ * Handles [RuntimeException]s that may occur during client registration building
+ *
+ * @param ex The exception that was thrown.
+ * @param issuerLocation The issuer location URL as a string, used for error messaging.
+ * @throws ResponseStatusException with `UNAUTHORIZED` status for known exception types.
+ * @throws RuntimeException for any other exceptions.
+ */
+private fun handleRuntimeException(ex: RuntimeException, issuerLocation: String) {
+    when (ex) {
+        is IllegalArgumentException,
+        is IllegalStateException -> throw ResponseStatusException(
+            HttpStatus.UNAUTHORIZED,
+            "Authorization failed for given issuer \"$issuerLocation\". ${ex.message}"
+        )
+        else -> throw ex
+    }
+}
 
 /**
  * Prepares [NimbusReactiveJwtDecoder] that decodes incoming JWTs and validates these against JWKs from [jwkSet] and
@@ -262,6 +398,15 @@ private fun ClientRegistration.Builder.withDexConfig(
     .userInfoUri("${properties.localAddress}/dex/userinfo")
     .userInfoAuthenticationMethod(AuthenticationMethod.HEADER)
     .jwkSetUri("${properties.localAddress}/dex/keys")
+
+@Suppress("TooGenericExceptionThrown")
+fun <T> parse(body: Map<String, Any>, parser: (JSONObject) -> T): T {
+    return try {
+        parser(JSONObject(body))
+    } catch (ex: ParseException) {
+        throw RuntimeException(ex)
+    }
+}
 
 /**
  * Remove illegal characters from string according to OAuth2 specification
