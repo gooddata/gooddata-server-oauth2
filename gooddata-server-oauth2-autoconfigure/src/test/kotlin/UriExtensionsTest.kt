@@ -70,4 +70,29 @@ class UriExtensionsTest {
         val uri = issuer.toUri()
         expectThat(uri.isCognito()).isFalse()
     }
+
+    @ParameterizedTest
+    @ValueSource(strings = [
+        "https://tenant.b2clogin.com/tenant.onmicrosoft.com/policy/v2.0",
+        "https://tenant.b2clogin.com/tenant.onmicrosoft.com/policy",
+        "https://tenant.b2clogin.com/tenant.onmicrosoft.com/policy/v2.0/",
+        "https://tenant.b2clogin.com/tenant.onmicrosoft.com/policy/"
+    ])
+    fun `valid Azure B2C issuer`(issuer: String) {
+        val uri = (issuer)
+            .toUri()
+        expectThat(uri.isAzureB2C()).isTrue()
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = [
+        "https://b2clogin.azure-idp.example.org",
+        "https://onmicrosoft.b2clogin.com",
+        "https://onmicrosoft-idp.b2clogin.example.com",
+        "https://tenant.b2clogin.com/onmicrosoft.com/policy"
+    ])
+    fun `invalid Azure B2C issuer`(issuer: String) {
+        val uri = issuer.toUri()
+        expectThat(uri.isAzureB2C()).isFalse()
+    }
 }

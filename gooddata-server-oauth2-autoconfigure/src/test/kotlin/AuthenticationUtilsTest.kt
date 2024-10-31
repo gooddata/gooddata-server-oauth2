@@ -16,17 +16,20 @@
 
 package com.gooddata.oauth2.server
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
 import com.gooddata.oauth2.server.OAuthConstants.GD_USER_GROUPS_SCOPE
+import com.gooddata.oauth2.server.oauth2.client.fromOidcConfiguration
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import java.util.stream.Stream
 import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -36,8 +39,10 @@ import org.junit.jupiter.params.provider.MethodSource
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
+import org.springframework.security.oauth2.core.AuthorizationGrantType
 import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
+import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.server.ResponseStatusException
 import strikt.api.expect
 import strikt.api.expectThat
@@ -46,6 +51,8 @@ import strikt.assertions.endsWith
 import strikt.assertions.isEqualTo
 import strikt.assertions.isNotNull
 import strikt.assertions.isNull
+import java.net.URI
+import java.util.stream.Stream
 
 internal class AuthenticationUtilsTest {
 
@@ -54,6 +61,8 @@ internal class AuthenticationUtilsTest {
     lateinit var properties: HostBasedClientRegistrationRepositoryProperties
 
     lateinit var clientRegistrationBuilderCache: ClientRegistrationBuilderCache
+
+    lateinit var objectMapper: ObjectMapper
 
     @BeforeEach
     internal fun setUp() {
@@ -135,6 +144,51 @@ internal class AuthenticationUtilsTest {
             get { clientSecret }.isEqualTo(CLIENT_SECRET)
             get { redirectUri }.endsWith(customIssuerId)
         }
+    }
+
+    @Test
+    fun `should call handleAzureB2CClientRegistration method`() {
+        val azureB2CIssuerId = "someAzureB2CIssuerId"
+        organization = Organization(
+            id = ORGANIZATION_ID,
+            oauthClientId = CLIENT_ID,
+            oauthIssuerLocation = "https://tenant.b2clogin.com/tenant.onmicrosoft.com/policy/v2.0/",
+            oauthIssuerId = azureB2CIssuerId,
+            oauthClientSecret = CLIENT_SECRET
+        )
+
+        try {
+            buildClientRegistration(REGISTRATION_ID, organization, properties, clientRegistrationBuilderCache)
+        } catch (ex: HttpClientErrorException) {
+            // This is expected as the issuer isn't actually available and can be ignored as we just wish to verify
+            // that the `handleAzureB2CClientRegistration` method is called when the issuer is an Azure B2C issuer.
+            assertEquals(HttpStatus.NOT_FOUND, ex.statusCode)
+            assertEquals("404 Not Found: \"The resource you are looking for has been removed, had its name changed, " +
+                "or is temporarily unavailable.\"", ex.message)
+        }
+    }
+
+    @Test
+    fun `building fromOidcConfiguration should set values from provided metadata`() {
+        val clientRegistrationBuilder = fromOidcConfiguration(VALID_AZURE_B2C_OIDC_CONFIG)
+            .clientId(CLIENT_ID)
+            .clientSecret(CLIENT_SECRET)
+
+        expect { that(clientRegistrationBuilder) }
+        val issuer: String = VALID_AZURE_B2C_OIDC_CONFIG["issuer"].toString()
+        val clientRegistration = clientRegistrationBuilder.build()
+        assertEquals(URI.create(issuer).host, clientRegistration.registrationId)
+        assertEquals(IdTokenClaimNames.SUB, clientRegistration.providerDetails.userInfoEndpoint.userNameAttributeName)
+        assertEquals(AuthorizationGrantType.AUTHORIZATION_CODE, clientRegistration.authorizationGrantType)
+        assertEquals("{baseUrl}/{action}/oauth2/code/{registrationId}", clientRegistration.redirectUri)
+        assertEquals(
+            VALID_AZURE_B2C_OIDC_CONFIG["authorization_endpoint"],
+            clientRegistration.providerDetails.authorizationUri
+        )
+        assertEquals(VALID_AZURE_B2C_OIDC_CONFIG, clientRegistration.providerDetails.configurationMetadata)
+        assertEquals(VALID_AZURE_B2C_OIDC_CONFIG["token_endpoint"], clientRegistration.providerDetails.tokenUri)
+        assertEquals(issuer, clientRegistration.providerDetails.issuerUri)
+        assertEquals(issuer, clientRegistration.clientName)
     }
 
     @ParameterizedTest(name = "build client registration throws 401 for {0}")
@@ -266,6 +320,20 @@ internal class AuthenticationUtilsTest {
         expectThat(result).isEqualTo(listOf("group1", "group2"))
     }
 
+    @Test
+    fun `isValidAzureB2CMetadata returns true for valid metadata`() {
+        val uri = URI.create(AZURE_B2C_ISSUER)
+
+        assertTrue(isValidAzureB2CMetadata(VALID_AZURE_B2C_OIDC_CONFIG, uri))
+    }
+
+    @Test
+    fun `isValidAzureB2CMetadata returns false for invalid metadata`() {
+        val uri = URI.create(AZURE_B2C_ISSUER)
+
+        assertFalse(isValidAzureB2CMetadata(INVALID_AZURE_B2C_OIDC_CONFIG, uri))
+    }
+
     private fun mockOidcIssuer(): String {
         wireMockServer.stubFor(
             WireMock.get(WireMock.urlEqualTo(OIDC_CONFIG_PATH)).willReturn(
@@ -282,6 +350,7 @@ internal class AuthenticationUtilsTest {
         private const val CLIENT_SECRET = "secret"
         private const val OIDC_CONFIG_PATH = "/.well-known/openid-configuration"
         private const val USER_ID = "userId"
+        private const val AZURE_B2C_ISSUER = "https://tenant.b2clogin.com/tenant.onmicrosoft.com/policy/v2.0"
         private val ORGANIZATION = Organization(ORGANIZATION_ID)
         private val wireMockServer = WireMockServer(WireMockConfiguration().dynamicPort()).apply {
             start()
@@ -440,5 +509,231 @@ internal class AuthenticationUtilsTest {
               "device_authorization_endpoint": "${wireMockServer.baseUrl()}/oauth2/v1/device/authorize"
             }
         """.trimIndent()
+
+        private val VALID_AZURE_B2C_OIDC_CONFIG: Map<String, Any> = mapOf(
+            "issuer" to "https://some-microsoft-issuer.com/someGuid/v2.0/",
+            "authorization_endpoint" to "${AZURE_B2C_ISSUER}/oauth2/v1/authorize",
+            "token_endpoint" to "${AZURE_B2C_ISSUER}/oauth2/v1/token",
+            "userinfo_endpoint" to "${AZURE_B2C_ISSUER}/oauth2/v1/userinfo",
+            "registration_endpoint" to "${AZURE_B2C_ISSUER}/oauth2/v1/clients",
+            "jwks_uri" to "${AZURE_B2C_ISSUER}/oauth2/v1/keys",
+            "response_types_supported" to listOf(
+                "code",
+                "id_token",
+                "code id_token",
+                "code token",
+                "id_token token",
+                "code id_token token"
+            ),
+            "response_modes_supported" to listOf(
+                "query",
+                "fragment",
+                "form_post",
+                "okta_post_message"
+            ),
+            "grant_types_supported" to listOf(
+                "authorization_code",
+                "implicit",
+                "refresh_token",
+                "password",
+                "urn:ietf:params:oauth:grant-type:device_code"
+            ),
+            "subject_types_supported" to listOf("public"),
+            "id_token_signing_alg_values_supported" to listOf("RS256"),
+            "scopes_supported" to listOf(
+                "openid",
+                "email",
+                "profile",
+                "address",
+                "phone",
+                "offline_access",
+                "groups"
+            ),
+            "token_endpoint_auth_methods_supported" to listOf(
+                "client_secret_basic",
+                "client_secret_post",
+                "client_secret_jwt",
+                "private_key_jwt",
+                "none"
+            ),
+            "claims_supported" to listOf(
+                "iss",
+                "ver",
+                "sub",
+                "aud",
+                "iat",
+                "exp",
+                "jti",
+                "auth_time",
+                "amr",
+                "idp",
+                "nonce",
+                "name",
+                "nickname",
+                "preferred_username",
+                "given_name",
+                "middle_name",
+                "family_name",
+                "email",
+                "email_verified",
+                "profile",
+                "zoneinfo",
+                "locale",
+                "address",
+                "phone_number",
+                "picture",
+                "website",
+                "gender",
+                "birthdate",
+                "updated_at",
+                "at_hash",
+                "c_hash"
+            ),
+            "code_challenge_methods_supported" to listOf("S256"),
+            "introspection_endpoint" to "${AZURE_B2C_ISSUER}/oauth2/v1/introspect",
+            "introspection_endpoint_auth_methods_supported" to listOf(
+                "client_secret_basic",
+                "client_secret_post",
+                "client_secret_jwt",
+                "private_key_jwt",
+                "none"
+            ),
+            "revocation_endpoint" to "${AZURE_B2C_ISSUER}/oauth2/v1/revoke",
+            "revocation_endpoint_auth_methods_supported" to listOf(
+                "client_secret_basic",
+                "client_secret_post",
+                "client_secret_jwt",
+                "private_key_jwt",
+                "none"
+            ),
+            "end_session_endpoint" to "${AZURE_B2C_ISSUER}/oauth2/v1/logout",
+            "request_parameter_supported" to true,
+            "request_uri_parameter_supported" to true,
+            "request_object_signing_alg_values_supported" to listOf(
+                "HS256",
+                "HS384",
+                "HS512",
+                "RS256",
+                "RS384",
+                "RS512",
+                "ES256",
+                "ES384",
+                "ES512"
+            ),
+            "device_authorization_endpoint" to "${AZURE_B2C_ISSUER}/oauth2/v1/device/authorize"
+        )
+
+        private val INVALID_AZURE_B2C_OIDC_CONFIG: Map<String, Any> = mapOf(
+            "issuer" to "https://some-microsoft-issuer.com/someGuid/v2.0/",
+            "authorization_endpoint" to "https://invalid-issuer/oauth2/v1/authorize",
+            "token_endpoint" to "https://invalid-issuer/oauth2/v1/token",
+            "userinfo_endpoint" to "https://invalid-issuer/oauth2/v1/userinfo",
+            "registration_endpoint" to "https://invalid-issuer/oauth2/v1/clients",
+            "jwks_uri" to "https://invalid-issuer/oauth2/v1/keys",
+            "response_types_supported" to listOf(
+                "code",
+                "id_token",
+                "code id_token",
+                "code token",
+                "id_token token",
+                "code id_token token"
+            ),
+            "response_modes_supported" to listOf(
+                "query",
+                "fragment",
+                "form_post",
+                "okta_post_message"
+            ),
+            "grant_types_supported" to listOf(
+                "authorization_code",
+                "implicit",
+                "refresh_token",
+                "password",
+                "urn:ietf:params:oauth:grant-type:device_code"
+            ),
+            "subject_types_supported" to listOf("public"),
+            "id_token_signing_alg_values_supported" to listOf("RS256"),
+            "scopes_supported" to listOf(
+                "openid",
+                "email",
+                "profile",
+                "address",
+                "phone",
+                "offline_access",
+                "groups"
+            ),
+            "token_endpoint_auth_methods_supported" to listOf(
+                "client_secret_basic",
+                "client_secret_post",
+                "client_secret_jwt",
+                "private_key_jwt",
+                "none"
+            ),
+            "claims_supported" to listOf(
+                "iss",
+                "ver",
+                "sub",
+                "aud",
+                "iat",
+                "exp",
+                "jti",
+                "auth_time",
+                "amr",
+                "idp",
+                "nonce",
+                "name",
+                "nickname",
+                "preferred_username",
+                "given_name",
+                "middle_name",
+                "family_name",
+                "email",
+                "email_verified",
+                "profile",
+                "zoneinfo",
+                "locale",
+                "address",
+                "phone_number",
+                "picture",
+                "website",
+                "gender",
+                "birthdate",
+                "updated_at",
+                "at_hash",
+                "c_hash"
+            ),
+            "code_challenge_methods_supported" to listOf("S256"),
+            "introspection_endpoint" to "https://invalid-issuer/oauth2/v1/introspect",
+            "introspection_endpoint_auth_methods_supported" to listOf(
+                "client_secret_basic",
+                "client_secret_post",
+                "client_secret_jwt",
+                "private_key_jwt",
+                "none"
+            ),
+            "revocation_endpoint" to "https://invalid-issuer/oauth2/v1/revoke",
+            "revocation_endpoint_auth_methods_supported" to listOf(
+                "client_secret_basic",
+                "client_secret_post",
+                "client_secret_jwt",
+                "private_key_jwt",
+                "none"
+            ),
+            "end_session_endpoint" to "https://invalid-issuer/oauth2/v1/logout",
+            "request_parameter_supported" to true,
+            "request_uri_parameter_supported" to true,
+            "request_object_signing_alg_values_supported" to listOf(
+                "HS256",
+                "HS384",
+                "HS512",
+                "RS256",
+                "RS384",
+                "RS512",
+                "ES256",
+                "ES384",
+                "ES512"
+            ),
+            "device_authorization_endpoint" to "https://invalid-issuer/oauth2/v1/device/authorize"
+        )
     }
 }

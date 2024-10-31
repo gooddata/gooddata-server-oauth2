@@ -40,3 +40,18 @@ fun URI.isCognito(): Boolean {
     val lowerCasedHost = host?.lowercase() ?: return false
     return lowerCasedHost.endsWith("amazonaws.com") && lowerCasedHost.startsWith("cognito-idp")
 }
+
+/**
+ * Check if URI is Azure B2C issuer
+ */
+@Suppress("ReturnCount")
+fun URI.isAzureB2C(): Boolean {
+    val lowerCasedHost = host?.lowercase() ?: return false
+    val path = path?.lowercase() ?: return false
+
+    val azureB2CPattern = Regex(
+        pattern = "^https://([a-zA-Z0-9-]+)\\.b2clogin\\.com/\\1\\.onmicrosoft\\.com/[a-zA-Z0-9-_]+(/v2\\.0)?/?$"
+    )
+
+    return azureB2CPattern.matches("$scheme://$lowerCasedHost$path")
+}
