@@ -160,27 +160,35 @@ private fun dexClientRegistration(
 private fun handleAzureB2CClientRegistration(
     issuerLocation: String
 ): ClientRegistration.Builder {
-    val uri = buildMetadataUri(issuerLocation)
-    val configuration = retrieveOidcConfiguration(uri)
+    val issuerUri = URI.create(issuerLocation)
+    val metadataUri = buildMetadataUri(issuerUri)
+    val configuration = retrieveOidcConfiguration(metadataUri)
 
-    return if (isValidAzureB2CMetadata(configuration, uri)) {
+    val validationResult = validateAzureB2CMetadata(configuration, issuerUri)
+    return if (validationResult.isValid) {
         fromOidcConfiguration(configuration)
     } else {
+        val mismatches = validationResult.mismatchedEndpoints.entries.joinToString(separator = "\n") {
+            "${it.key}: ${it.value}"
+        }
         throw ResponseStatusException(
             HttpStatus.UNAUTHORIZED,
-            "Authorization failed for given issuer \"$issuerLocation\". Metadata endpoints do not match."
+            """
+            Authorization failed for the given issuer "$issuerLocation".
+            Metadata endpoints do not match the configured issuer location. Mismatched endpoints:
+            $mismatches
+            """.trimIndent()
         )
     }
 }
 
 /**
- * Builds metadata retrieval URI based on the provided [issuerLocation].
+ * Builds metadata retrieval URI based on the provided [issuer].
  *
- * @param issuerLocation The issuer location URL as a string.
+ * @param issuer The issuer location URI.
  * @return The constructed [URI] for metadata retrieval.
  */
-internal fun buildMetadataUri(issuerLocation: String): URI {
-    val issuer = URI.create(issuerLocation)
+internal fun buildMetadataUri(issuer: URI): URI {
     return UriComponentsBuilder.fromUri(issuer)
         .replacePath(issuer.path + OAuthConstants.OIDC_METADATA_PATH)
         .build(Collections.emptyMap<String, String>())
@@ -203,26 +211,57 @@ internal fun retrieveOidcConfiguration(uri: URI): Map<String, Any> {
 }
 
 /**
+ * Result of validating endpoint URLs in the metadata against the configured issuer location.
+ *
+ * @param isValid `true` if all endpoint URLs in the metadata match the configured issuer location; `false` otherwise.
+ * @param mismatchedEndpoints A map of endpoint names to their actual URLs for endpoints that do not match the
+ * configured issuer location.
+ */
+data class MetadataValidationResult(
+    val isValid: Boolean,
+    val mismatchedEndpoints: Map<String, String>
+)
+
+/**
  * As the issuer in metadata returned from Azure B2C provider is not the same as the configured issuer location,
  * we must instead validate that the endpoint URLs in the metadata start with the configured issuer location.
  *
  * @param configuration The OIDC configuration metadata.
  * @param uri The issuer location URI to validate against.
- * @return `true` if all endpoint URLs in the metadata match the configured issuer location; `false` otherwise.
+ * @return A MetadataValidationResult containing whether all endpoint URLs match the configured issuer location,
+ *         and a map of any mismatched endpoints with their actual values.
  */
-internal fun isValidAzureB2CMetadata(
+internal fun validateAzureB2CMetadata(
     configuration: Map<String, Any>,
     uri: URI
-): Boolean {
+): MetadataValidationResult {
     val metadata = parse(configuration, OIDCProviderMetadata::parse)
-    val issuerASCIIString = uri.toASCIIString()
-    return listOf(
-        metadata.authorizationEndpointURI,
-        metadata.tokenEndpointURI,
-        metadata.endSessionEndpointURI,
-        metadata.jwkSetURI,
-        metadata.userInfoEndpointURI
-    ).all { it.toASCIIString().startsWith(issuerASCIIString) }
+    val unversionedIssuer = uri.toASCIIString().removeVersionSegment()
+
+    val endpoints = mapOf(
+        "authorizationEndpointURI" to metadata.authorizationEndpointURI,
+        "tokenEndpointURI" to metadata.tokenEndpointURI,
+        "endSessionEndpointURI" to metadata.endSessionEndpointURI,
+        "jwkSetURI" to metadata.jwkSetURI,
+        "userInfoEndpointURI" to metadata.userInfoEndpointURI
+    )
+
+    val mismatchedEndpoints = endpoints.filterValues {
+        it.toASCIIString().startsWith(prefix = unversionedIssuer, ignoreCase = true).not()
+    }.mapValues { it.value.toASCIIString() }
+
+    return MetadataValidationResult(
+        isValid = mismatchedEndpoints.isEmpty(),
+        mismatchedEndpoints = mismatchedEndpoints
+    )
+}
+
+/**
+ * Remove version segment from the issuer location URL
+ */
+internal fun String.removeVersionSegment(): String {
+    val regex = Regex("""/v\d+(\.\d+)*""")
+    return this.replace(regex, "")
 }
 
 /**
