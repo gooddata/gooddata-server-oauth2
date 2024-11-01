@@ -16,7 +16,6 @@
 
 package com.gooddata.oauth2.server
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
@@ -61,8 +60,6 @@ internal class AuthenticationUtilsTest {
     lateinit var properties: HostBasedClientRegistrationRepositoryProperties
 
     lateinit var clientRegistrationBuilderCache: ClientRegistrationBuilderCache
-
-    lateinit var objectMapper: ObjectMapper
 
     @BeforeEach
     internal fun setUp() {
@@ -321,17 +318,18 @@ internal class AuthenticationUtilsTest {
     }
 
     @Test
-    fun `isValidAzureB2CMetadata returns true for valid metadata`() {
+    fun `validateAzureB2CMetadata returns true for valid metadata`() {
         val uri = URI.create(AZURE_B2C_ISSUER)
-
-        assertTrue(isValidAzureB2CMetadata(VALID_AZURE_B2C_OIDC_CONFIG, uri))
+        assertTrue(validateAzureB2CMetadata(VALID_AZURE_B2C_OIDC_CONFIG, uri).isValid)
     }
 
     @Test
-    fun `isValidAzureB2CMetadata returns false for invalid metadata`() {
+    fun `validateAzureB2CMetadata returns false for invalid metadata`() {
         val uri = URI.create(AZURE_B2C_ISSUER)
-
-        assertFalse(isValidAzureB2CMetadata(INVALID_AZURE_B2C_OIDC_CONFIG, uri))
+        val validationResult = validateAzureB2CMetadata(INVALID_AZURE_B2C_OIDC_CONFIG, uri)
+        assertFalse(validationResult.isValid)
+        // The [INVALID_AZURE_B2C_OIDC_CONFIG] has 5 mismatched endpoints
+        assertEquals(5, validationResult.mismatchedEndpoints.size)
     }
 
     private fun mockOidcIssuer(): String {
@@ -351,6 +349,7 @@ internal class AuthenticationUtilsTest {
         private const val OIDC_CONFIG_PATH = "/.well-known/openid-configuration"
         private const val USER_ID = "userId"
         private const val AZURE_B2C_ISSUER = "https://tenant.b2clogin.com/tenant.onmicrosoft.com/policy/v2.0"
+        private val UNVERSIONED_AZURE_B2C_ISSUER = AZURE_B2C_ISSUER.removeVersionSegment()
         private val ORGANIZATION = Organization(ORGANIZATION_ID)
         private val wireMockServer = WireMockServer(WireMockConfiguration().dynamicPort()).apply {
             start()
@@ -512,11 +511,11 @@ internal class AuthenticationUtilsTest {
 
         private val VALID_AZURE_B2C_OIDC_CONFIG: Map<String, Any> = mapOf(
             "issuer" to "https://some-microsoft-issuer.com/someGuid/v2.0/",
-            "authorization_endpoint" to "${AZURE_B2C_ISSUER}/oauth2/v1/authorize",
-            "token_endpoint" to "${AZURE_B2C_ISSUER}/oauth2/v1/token",
-            "userinfo_endpoint" to "${AZURE_B2C_ISSUER}/oauth2/v1/userinfo",
-            "registration_endpoint" to "${AZURE_B2C_ISSUER}/oauth2/v1/clients",
-            "jwks_uri" to "${AZURE_B2C_ISSUER}/oauth2/v1/keys",
+            "authorization_endpoint" to "${UNVERSIONED_AZURE_B2C_ISSUER}/oauth2/v1/authorize",
+            "token_endpoint" to "${UNVERSIONED_AZURE_B2C_ISSUER}/oauth2/v1/token",
+            "userinfo_endpoint" to "${UNVERSIONED_AZURE_B2C_ISSUER}/oauth2/v1/userinfo",
+            "registration_endpoint" to "${UNVERSIONED_AZURE_B2C_ISSUER}/oauth2/v1/clients",
+            "jwks_uri" to "${UNVERSIONED_AZURE_B2C_ISSUER}/oauth2/v1/keys",
             "response_types_supported" to listOf(
                 "code",
                 "id_token",
@@ -590,7 +589,7 @@ internal class AuthenticationUtilsTest {
                 "c_hash"
             ),
             "code_challenge_methods_supported" to listOf("S256"),
-            "introspection_endpoint" to "${AZURE_B2C_ISSUER}/oauth2/v1/introspect",
+            "introspection_endpoint" to "${UNVERSIONED_AZURE_B2C_ISSUER}/oauth2/v1/introspect",
             "introspection_endpoint_auth_methods_supported" to listOf(
                 "client_secret_basic",
                 "client_secret_post",
@@ -598,7 +597,7 @@ internal class AuthenticationUtilsTest {
                 "private_key_jwt",
                 "none"
             ),
-            "revocation_endpoint" to "${AZURE_B2C_ISSUER}/oauth2/v1/revoke",
+            "revocation_endpoint" to "${UNVERSIONED_AZURE_B2C_ISSUER}/oauth2/v1/revoke",
             "revocation_endpoint_auth_methods_supported" to listOf(
                 "client_secret_basic",
                 "client_secret_post",
@@ -606,7 +605,7 @@ internal class AuthenticationUtilsTest {
                 "private_key_jwt",
                 "none"
             ),
-            "end_session_endpoint" to "${AZURE_B2C_ISSUER}/oauth2/v1/logout",
+            "end_session_endpoint" to "${UNVERSIONED_AZURE_B2C_ISSUER}/oauth2/v1/logout",
             "request_parameter_supported" to true,
             "request_uri_parameter_supported" to true,
             "request_object_signing_alg_values_supported" to listOf(
@@ -620,7 +619,7 @@ internal class AuthenticationUtilsTest {
                 "ES384",
                 "ES512"
             ),
-            "device_authorization_endpoint" to "${AZURE_B2C_ISSUER}/oauth2/v1/device/authorize"
+            "device_authorization_endpoint" to "${UNVERSIONED_AZURE_B2C_ISSUER}/oauth2/v1/device/authorize"
         )
 
         private val INVALID_AZURE_B2C_OIDC_CONFIG: Map<String, Any> = mapOf(
