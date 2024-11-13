@@ -171,13 +171,21 @@ private fun handleAzureB2CClientRegistration(
         val mismatches = validationResult.mismatchedEndpoints.entries.joinToString(separator = "\n") {
             "${it.key}: ${it.value}"
         }
+        val missing = validationResult.missingEndpoints.joinToString("\n")
+        val baseMessage = "Authorization failed for the given issuer \"$issuerLocation\"."
+        val details = buildString {
+            if (mismatches.isNotEmpty()) {
+                appendLine("Mismatched endpoints:\n$mismatches")
+            }
+            if (missing.isNotEmpty()) {
+                if (mismatches.isNotEmpty()) appendLine()
+                appendLine("Missing endpoints:\n$missing")
+            }
+        }
+
         throw ResponseStatusException(
             HttpStatus.UNAUTHORIZED,
-            """
-            Authorization failed for the given issuer "$issuerLocation".
-            Metadata endpoints do not match the configured issuer location. Mismatched endpoints:
-            $mismatches
-            """.trimIndent()
+            if (details.isNotBlank()) "$baseMessage\n\n$details".trim() else baseMessage
         )
     }
 }
@@ -216,10 +224,12 @@ internal fun retrieveOidcConfiguration(uri: URI): Map<String, Any> {
  * @param isValid `true` if all endpoint URLs in the metadata match the configured issuer location; `false` otherwise.
  * @param mismatchedEndpoints A map of endpoint names to their actual URLs for endpoints that do not match the
  * configured issuer location.
+ * @param missingEndpoints A set of endpoint names that are missing from the metadata.
  */
 data class MetadataValidationResult(
     val isValid: Boolean,
-    val mismatchedEndpoints: Map<String, String>
+    val mismatchedEndpoints: Map<String, String>,
+    val missingEndpoints: Set<String>
 )
 
 /**
@@ -246,13 +256,21 @@ internal fun validateAzureB2CMetadata(
         "userInfoEndpointURI" to metadata.userInfoEndpointURI
     )
 
-    val mismatchedEndpoints = endpoints.filterValues {
-        it.toASCIIString().startsWith(prefix = unversionedIssuer, ignoreCase = true).not()
-    }.mapValues { it.value.toASCIIString() }
+    val mismatchedEndpoints = mutableMapOf<String, String>()
+    val missingEndpoints = mutableSetOf<String>()
+
+    endpoints.forEach { (key, uri) ->
+        if (uri == null) {
+            missingEndpoints.add(key)
+        } else if (!uri.toASCIIString().startsWith(prefix = unversionedIssuer, ignoreCase = true)) {
+            mismatchedEndpoints[key] = uri.toASCIIString()
+        }
+    }
 
     return MetadataValidationResult(
-        isValid = mismatchedEndpoints.isEmpty(),
-        mismatchedEndpoints = mismatchedEndpoints
+        isValid = mismatchedEndpoints.isEmpty() && missingEndpoints.isEmpty(),
+        mismatchedEndpoints = mismatchedEndpoints,
+        missingEndpoints = missingEndpoints
     )
 }
 
