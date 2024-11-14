@@ -167,25 +167,36 @@ internal class AuthenticationUtilsTest {
 
     @Test
     fun `building fromOidcConfiguration should set values from provided metadata`() {
+        val azureB2CIssuerId = "someAzureB2CIssuerId"
+        organization = Organization(
+            id = ORGANIZATION_ID,
+            oauthClientId = CLIENT_ID,
+            oauthIssuerLocation = "https://tenant.b2clogin.com/tenant.onmicrosoft.com/policy/v2.0/",
+            oauthIssuerId = azureB2CIssuerId,
+            oauthClientSecret = CLIENT_SECRET
+        )
         val clientRegistrationBuilder = fromOidcConfiguration(VALID_AZURE_B2C_OIDC_CONFIG)
             .clientId(CLIENT_ID)
             .clientSecret(CLIENT_SECRET)
 
         expect { that(clientRegistrationBuilder) }
         val issuer: String = VALID_AZURE_B2C_OIDC_CONFIG["issuer"].toString()
-        val clientRegistration = clientRegistrationBuilder.build()
-        assertEquals(URI.create(issuer).host, clientRegistration.registrationId)
-        assertEquals(IdTokenClaimNames.SUB, clientRegistration.providerDetails.userInfoEndpoint.userNameAttributeName)
-        assertEquals(AuthorizationGrantType.AUTHORIZATION_CODE, clientRegistration.authorizationGrantType)
-        assertEquals("{baseUrl}/{action}/oauth2/code/{registrationId}", clientRegistration.redirectUri)
-        assertEquals(
-            VALID_AZURE_B2C_OIDC_CONFIG["authorization_endpoint"],
-            clientRegistration.providerDetails.authorizationUri
-        )
-        assertEquals(VALID_AZURE_B2C_OIDC_CONFIG, clientRegistration.providerDetails.configurationMetadata)
-        assertEquals(VALID_AZURE_B2C_OIDC_CONFIG["token_endpoint"], clientRegistration.providerDetails.tokenUri)
-        assertEquals(issuer, clientRegistration.providerDetails.issuerUri)
-        assertEquals(issuer, clientRegistration.clientName)
+        val clientRegistration = { clientRegistrationBuilder.buildWithIssuerConfig(organization) }
+        expect {
+            that(clientRegistration()).and {
+                get { registrationId }.isEqualTo(URI.create(issuer).host)
+                get { providerDetails.userInfoEndpoint.userNameAttributeName }.isEqualTo("name")
+                get { authorizationGrantType }.isEqualTo(AuthorizationGrantType.AUTHORIZATION_CODE)
+                get { redirectUri }.isEqualTo("{baseUrl}/{action}/oauth2/code/{registrationId}")
+                get { providerDetails.authorizationUri }
+                    .isEqualTo(VALID_AZURE_B2C_OIDC_CONFIG["authorization_endpoint"] as String?)
+                get { providerDetails.configurationMetadata }.isEqualTo(VALID_AZURE_B2C_OIDC_CONFIG)
+                get { providerDetails.tokenUri }.isEqualTo(VALID_AZURE_B2C_OIDC_CONFIG["token_endpoint"] as String?)
+                get { providerDetails.issuerUri }.isEqualTo(issuer)
+                get { clientName }.isEqualTo(issuer)
+                get { scopes }.containsExactlyInAnyOrder(AZURE_B2C_SCOPES)
+            }
+        }
     }
 
     @ParameterizedTest(name = "build client registration throws 401 for {0}")
@@ -349,6 +360,7 @@ internal class AuthenticationUtilsTest {
         private const val OIDC_CONFIG_PATH = "/.well-known/openid-configuration"
         private const val USER_ID = "userId"
         private const val AZURE_B2C_ISSUER = "https://tenant.b2clogin.com/tenant.onmicrosoft.com/policy/v2.0"
+        private val AZURE_B2C_SCOPES = listOf("openid", "profile", "offline_access", CLIENT_ID)
         private val UNVERSIONED_AZURE_B2C_ISSUER = AZURE_B2C_ISSUER.removeVersionSegment()
         private val ORGANIZATION = Organization(ORGANIZATION_ID)
         private val wireMockServer = WireMockServer(WireMockConfiguration().dynamicPort()).apply {
