@@ -403,7 +403,7 @@ private fun ClientRegistration.Builder.withRedirectUri(oauthIssuerId: String?) =
  * @param organization the organization containing OIDC issuer configuration
  * @return this builder
  */
-private fun ClientRegistration.Builder.buildWithIssuerConfig(
+internal fun ClientRegistration.Builder.buildWithIssuerConfig(
     organization: Organization,
 ): ClientRegistration {
     if (organization.oauthClientId == null || organization.oauthClientSecret == null) {
@@ -418,7 +418,7 @@ private fun ClientRegistration.Builder.buildWithIssuerConfig(
         .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
         .userNameAttributeName("name")
     val supportedScopes = withIssuerConfigBuilder.build().resolveSupportedScopes()
-    return withIssuerConfigBuilder.withScopes(supportedScopes, organization.jitEnabled).build()
+    return withIssuerConfigBuilder.withScopes(supportedScopes, organization).build()
 }
 
 private fun ClientRegistration.resolveSupportedScopes() =
@@ -428,16 +428,27 @@ private fun ClientRegistration.resolveSupportedScopes() =
 
 private fun ClientRegistration.Builder.withScopes(
     supportedScopes: Scope?,
-    jitEnabled: Boolean?
+    organization: Organization
+
 ): ClientRegistration.Builder {
     // in the future, we could check mandatory scopes against the supported ones
     val mandatoryScopes = listOf(OIDCScopeValue.OPENID, OIDCScopeValue.PROFILE).map(Scope.Value::getValue)
-    val userGroupsScope = if (jitEnabled == true) listOf(OIDCScopeValue.EMAIL.value, GD_USER_GROUPS_SCOPE) else listOf()
+    val userGroupsScope = if (organization.jitEnabled == true) {
+        listOf(OIDCScopeValue.EMAIL.value, GD_USER_GROUPS_SCOPE)
+    } else {
+        listOf()
+    }
+    val azureB2CScope = if (organization.oauthIssuerLocation != null &&
+        organization.oauthIssuerLocation.toUri().isAzureB2C()) {
+        listOf(organization.oauthClientId)
+    } else {
+        listOf()
+    }
     val optionalScopes = supportedScopes
         ?.filter { scope -> scope in listOf(OIDCScopeValue.OFFLINE_ACCESS) }
         ?.map(Scope.Value::getValue)
         ?: listOf()
-    return scope(mandatoryScopes + optionalScopes + userGroupsScope)
+    return scope(mandatoryScopes + optionalScopes + userGroupsScope + azureB2CScope)
 }
 
 /**
