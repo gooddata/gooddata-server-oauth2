@@ -103,7 +103,7 @@ private val typeReference: ParameterizedTypeReference<Map<String, Any>> = object
  * @param registrationId registration ID to be used
  * @param organization organization object retrieved from [AuthenticationStoreClient]
  * @param properties static properties for being able to configure pre-configured DEX issuer
- * @param clientRegistrationBuilderCache the cache where non-DEX client registration builders are saved for improving
+ * @param clientRegistrationCache the cache where non-DEX client registrations are saved for improving
  * performance
  * @return A [ClientRegistration]
  */
@@ -112,26 +112,47 @@ fun buildClientRegistration(
     registrationId: String,
     organization: Organization,
     properties: HostBasedClientRegistrationRepositoryProperties,
-    clientRegistrationBuilderCache: ClientRegistrationBuilderCache,
+    clientRegistrationCache: ClientRegistrationCache,
 ): ClientRegistration {
     val issuerLocation = organization.oauthIssuerLocation
+        // fallback to DEX client registration if issuer location is not defined
         ?: return dexClientRegistration(registrationId, properties, organization)
 
-    return clientRegistrationBuilderCache.get(issuerLocation) {
+    // fetch the cached settings obtained from the well-known endpoint for the particular issuerLocation
+    // this saves HTTP requests to well known endpoints everytime the API call is authorized
+    val cachedRegistration = clientRegistrationCache.get(issuerLocation) {
         try {
             if (issuerLocation.toUri().isAzureB2C()) {
                 handleAzureB2CClientRegistration(issuerLocation)
             } else {
                 ClientRegistrations.fromIssuerLocation(issuerLocation)
-            }
+            }.buildWithDummyValues()
         } catch (ex: RuntimeException) {
             handleRuntimeException(ex, issuerLocation)
-        } as ClientRegistration.Builder
+        }
     }
+    // only partial registration is stored in the cache, so we need to set up additional properties needed
+    // for a proper configuration of the authentication flow
+    return ClientRegistration.withClientRegistration(cachedRegistration)
         .registrationId(registrationId)
         .withRedirectUri(organization.oauthIssuerId)
         .buildWithIssuerConfig(organization)
 }
+
+/**
+ * Builds a client registration with dummy values. This will help to pass the "build" checks
+ * during the [ClientRegistration.Builder.build] call.
+ *
+ * _NOTE_: All these values should be replaced by the actual values from the organization configuration.
+ *
+ * @return A [ClientRegistration] with dummy values.
+ */
+private fun ClientRegistration.Builder.buildWithDummyValues(): ClientRegistration =
+    registrationId("dummy_registration")
+        .clientId("dummy_client")
+        .clientSecret("dummy_secret")
+        .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+        .build()
 
 /**
  * Provides a DEX [ClientRegistration] for the given [registrationId] and [organization].
@@ -290,7 +311,7 @@ internal fun String.removeVersionSegment(): String {
  * @throws ResponseStatusException with `UNAUTHORIZED` status for known exception types.
  * @throws RuntimeException for any other exceptions.
  */
-private fun handleRuntimeException(ex: RuntimeException, issuerLocation: String) {
+private fun handleRuntimeException(ex: RuntimeException, issuerLocation: String): Nothing {
     when (ex) {
         is IllegalArgumentException,
         is IllegalStateException -> throw ResponseStatusException(
