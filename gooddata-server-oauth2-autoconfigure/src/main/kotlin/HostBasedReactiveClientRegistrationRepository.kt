@@ -25,7 +25,7 @@ import reactor.core.publisher.Mono
  */
 class HostBasedReactiveClientRegistrationRepository(
     private val properties: HostBasedClientRegistrationRepositoryProperties,
-    private val clientRegistrationBuilderCache: ClientRegistrationBuilderCache,
+    private val clientRegistrationCache: ClientRegistrationCache,
 ) : ReactiveClientRegistrationRepository {
 
     override fun findByRegistrationId(registrationId: String): Mono<ClientRegistration> =
@@ -34,7 +34,7 @@ class HostBasedReactiveClientRegistrationRepository(
                 registrationId = registrationId,
                 organization = it,
                 properties = properties,
-                clientRegistrationBuilderCache = clientRegistrationBuilderCache,
+                clientRegistrationCache = clientRegistrationCache,
             )
         }
 }

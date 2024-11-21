@@ -114,13 +114,13 @@ class ServerOAuth2AutoConfiguration {
     fun clientRegistrationRepository(
         client: ObjectProvider<AuthenticationStoreClient>,
         properties: HostBasedClientRegistrationRepositoryProperties,
-        clientRegistrationBuilderCache: ClientRegistrationBuilderCache,
+        clientRegistrationCache: ClientRegistrationCache,
     ): ReactiveClientRegistrationRepository =
-        HostBasedReactiveClientRegistrationRepository(properties, clientRegistrationBuilderCache)
+        HostBasedReactiveClientRegistrationRepository(properties, clientRegistrationCache)
 
-    @ConditionalOnMissingBean(ClientRegistrationBuilderCache::class)
+    @ConditionalOnMissingBean(ClientRegistrationCache::class)
     @Bean
-    fun clientRegistrationCache(cachingProperties: CachingProperties): ClientRegistrationBuilderCache =
+    fun clientRegistrationCache(cachingProperties: CachingProperties): ClientRegistrationCache =
         CaffeineClientRegistrationCache(
             cachingProperties.clientRegistrationMaxSize,
             cachingProperties.clientRegistrationExpireAfterWriteMinutes

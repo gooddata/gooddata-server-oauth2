@@ -59,12 +59,12 @@ internal class AuthenticationUtilsTest {
 
     lateinit var properties: HostBasedClientRegistrationRepositoryProperties
 
-    lateinit var clientRegistrationBuilderCache: ClientRegistrationBuilderCache
+    lateinit var clientRegistrationCache: ClientRegistrationCache
 
     @BeforeEach
     internal fun setUp() {
         properties = HostBasedClientRegistrationRepositoryProperties("http://remote", "http://localhost")
-        clientRegistrationBuilderCache = CaffeineClientRegistrationCache()
+        clientRegistrationCache = CaffeineClientRegistrationCache()
     }
 
     @Test
@@ -79,7 +79,7 @@ internal class AuthenticationUtilsTest {
             REGISTRATION_ID,
             organization,
             properties,
-            clientRegistrationBuilderCache
+            clientRegistrationCache
         )
         expect {
             that(clientRegistration).and {
@@ -107,7 +107,7 @@ internal class AuthenticationUtilsTest {
                 REGISTRATION_ID,
                 organization,
                 properties,
-                clientRegistrationBuilderCache
+                clientRegistrationCache
             )
         }
         expect {
@@ -135,7 +135,7 @@ internal class AuthenticationUtilsTest {
             oauthClientSecret = CLIENT_SECRET
         )
 
-        expectThat(buildClientRegistration(REGISTRATION_ID, organization, properties, clientRegistrationBuilderCache)) {
+        expectThat(buildClientRegistration(REGISTRATION_ID, organization, properties, clientRegistrationCache)) {
             get { registrationId }.isEqualTo(REGISTRATION_ID)
             get { clientId }.isEqualTo(CLIENT_ID)
             get { clientSecret }.isEqualTo(CLIENT_SECRET)
@@ -155,7 +155,7 @@ internal class AuthenticationUtilsTest {
         )
 
         try {
-            buildClientRegistration(REGISTRATION_ID, organization, properties, clientRegistrationBuilderCache)
+            buildClientRegistration(REGISTRATION_ID, organization, properties, clientRegistrationCache)
         } catch (ex: HttpClientErrorException) {
             // This is expected as the issuer isn't actually available and can be ignored as we just wish to verify
             // that the `handleAzureB2CClientRegistration` method is called when the issuer is an Azure B2C issuer.
@@ -215,7 +215,7 @@ internal class AuthenticationUtilsTest {
         )
 
         val ex = assertThrows<ResponseStatusException> {
-            buildClientRegistration(REGISTRATION_ID, organization, properties, clientRegistrationBuilderCache)
+            buildClientRegistration(REGISTRATION_ID, organization, properties, clientRegistrationCache)
         }
         assertEquals(
             "401 UNAUTHORIZED \"Authorization failed for given issuer \"$issuerLocation\". $messageSpecification",
@@ -234,7 +234,7 @@ internal class AuthenticationUtilsTest {
         )
 
         val ex = assertThrows<ResponseStatusException> {
-            buildClientRegistration(REGISTRATION_ID, organization, properties, clientRegistrationBuilderCache)
+            buildClientRegistration(REGISTRATION_ID, organization, properties, clientRegistrationCache)
         }
         assertEquals(
             "401 UNAUTHORIZED \"Authorization failed for given issuer $issuer. " +

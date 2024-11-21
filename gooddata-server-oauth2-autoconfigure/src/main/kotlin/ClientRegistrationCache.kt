@@ -19,17 +19,21 @@ package com.gooddata.oauth2.server
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 
 /**
- * Stores client registration builders
+ * Stores partial client registrations.
+ *
+ * Partial means that the registration is not fully initialized and may be missing some required properties
+ * for being able to start authorization flow properly. This means that after the using of this cache,
+ * you need to set up additional properties.
  */
-interface ClientRegistrationBuilderCache : Cache<String, ClientRegistration.Builder>
+interface ClientRegistrationCache : Cache<String, ClientRegistration>
 
 /**
  * Caffeine implementation of client registration builders cache.
  * @param maxSize max cache size. Default is [CaffeineCache.CACHE_MAX_SIZE].
- * @param expireAfterWriteMinutes cached values are expired after write after this value in minutes. Default is
+ * @param expireAfterWriteMinutes cached values are expired after write this value in minutes. Default is
  * [CaffeineCache.CACHE_EXPIRE_AFTER_WRITE_MINUTES].
  */
 class CaffeineClientRegistrationCache(
     maxSize: Long = CACHE_MAX_SIZE,
     expireAfterWriteMinutes: Long = CACHE_EXPIRE_AFTER_WRITE_MINUTES
-) : ClientRegistrationBuilderCache, CaffeineCache<String, ClientRegistration.Builder>(maxSize, expireAfterWriteMinutes)
+) : ClientRegistrationCache, CaffeineCache<String, ClientRegistration>(maxSize, expireAfterWriteMinutes)
