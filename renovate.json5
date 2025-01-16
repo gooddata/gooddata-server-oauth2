@@ -10,7 +10,7 @@
   ],
   "ignorePresets": [":dependencyDashboard", "group:springSecurity", "workarounds:javaLTSVersions"],
   "addLabels": ["renovate"],
-  "enabledManagers": ["gradle", "gradle-wrapper" ],
+  "enabledManagers": ["gradle", "gradle-wrapper", "github-actions"],
   "packageRules": [
     {
       "matchPackagePrefixes": ["io.gitlab.arturbosch.detekt"],
