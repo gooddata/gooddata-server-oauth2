@@ -73,7 +73,7 @@ class OidcAuthenticationProcessorTest {
 
         mockOrganization(client, HOSTNAME, organization)
         mockUserByAuthId(client, ORG_ID, "sub", User(USER_ID))
-        coEvery { userContextProvider.getContextView(any(), any(), any(), any()) } returns Context.empty()
+        coEvery { userContextProvider.getContextView(any(), any(), any(), any(), any()) } returns Context.empty()
 
         val webFilterChain = mockk<WebFilterChain> {
             every { filter(any()) } returns Mono.empty()
@@ -94,7 +94,8 @@ class OidcAuthenticationProcessorTest {
                 ORG_ID,
                 USER_ID,
                 "sub",
-                null
+                null,
+                AuthMethod.OIDC
             )
         }
     }
@@ -123,7 +124,7 @@ class OidcAuthenticationProcessorTest {
 
         mockOrganization(client, HOSTNAME, organization)
         mockUserByAuthId(client, ORG_ID, "sub", User(USER_ID))
-        coEvery { userContextProvider.getContextView(any(), any(), any(), null) } returns Context.empty()
+        coEvery { userContextProvider.getContextView(any(), any(), any(), null, any()) } returns Context.empty()
 
         val webFilterChain = mockk<WebFilterChain> {
             every { filter(any()) } returns Mono.empty()
@@ -139,7 +140,7 @@ class OidcAuthenticationProcessorTest {
         verify { serverLogoutHandler wasNot called }
         verify { authenticationEntryPoint wasNot called }
         verify(exactly = 1) { webFilterChain.filter(any()) }
-        coVerify(exactly = 1) { userContextProvider.getContextView(ORG_ID, USER_ID, "non-sub", null) }
+        coVerify(exactly = 1) { userContextProvider.getContextView(ORG_ID, USER_ID, "non-sub", null, AuthMethod.OIDC) }
     }
 
     @Test
@@ -165,7 +166,7 @@ class OidcAuthenticationProcessorTest {
 
         mockOrganization(client, HOSTNAME, organization)
         mockUserByAuthId(client, ORG_ID, "sub", User(USER_ID))
-        coEvery { userContextProvider.getContextView(any(), any(), any(), any()) } returns Context.empty()
+        coEvery { userContextProvider.getContextView(any(), any(), any(), any(), any()) } returns Context.empty()
 
         val webFilterChain = mockk<WebFilterChain> {
             every { filter(any()) } returns Mono.empty()

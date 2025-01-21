@@ -31,7 +31,7 @@ class UserContextAuthenticationProcessor(
         exchange: ServerWebExchange,
         chain: WebFilterChain
     ) = with(authenticationToken) {
-        withUserContext(organization, user, null) {
+        withUserContext(organization, user, null, AuthMethod.API_TOKEN) {
             chain.filter(exchange)
         }
     }

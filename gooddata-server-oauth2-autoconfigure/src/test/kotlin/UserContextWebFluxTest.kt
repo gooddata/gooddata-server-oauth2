@@ -586,9 +586,13 @@ class UserContextWebFluxTest(
         fun userContextHolder() = CoroutineUserContextHolder
 
         @Bean
-        fun reactorUserContextProvider() = ReactorUserContextProvider { organizationId, userId, userName, tokenId ->
-            Context.of(UserContext::class.java, UserContext(organizationId, userId, userName, tokenId))
-        }
+        fun reactorUserContextProvider() =
+            ReactorUserContextProvider { organizationId, userId, userName, tokenId, authMethod ->
+                Context.of(
+                    UserContext::class.java,
+                    UserContext(organizationId, userId, userName, tokenId, authMethod)
+                )
+            }
     }
 
     data class UserContext(
@@ -596,6 +600,7 @@ class UserContextWebFluxTest(
         override val userId: String,
         val userName: String?,
         override var tokenId: String? = null,
+        override var authMethod: AuthMethod,
     ) : AuthenticationUserContext
 
     object CoroutineUserContextHolder : UserContextHolder<UserContext> {
