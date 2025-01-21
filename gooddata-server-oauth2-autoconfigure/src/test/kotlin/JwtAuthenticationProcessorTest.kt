@@ -78,7 +78,7 @@ class JwtAuthenticationProcessorTest {
     fun `user context is stored for jwt authentication`() {
         mockUserById(client, ORGANIZATION_ID, USER_ID)
         mockValidJwt()
-        coEvery { userContextProvider.getContextView(any(), any(), any(), any()) } returns Context.empty()
+        coEvery { userContextProvider.getContextView(any(), any(), any(), any(), any()) } returns Context.empty()
 
         jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain)
             .orgContextWrite(ORGANIZATION)
@@ -87,7 +87,15 @@ class JwtAuthenticationProcessorTest {
         verify { serverLogoutHandler wasNot called }
         verify { authenticationEntryPoint wasNot called }
         verify(exactly = 1) { webFilterChain.filter(any()) }
-        coVerify(exactly = 1) { userContextProvider.getContextView(ORGANIZATION_ID, USER_ID, "sub|123", null) }
+        coVerify(exactly = 1) {
+            userContextProvider.getContextView(
+                ORGANIZATION_ID,
+                USER_ID,
+                "sub|123",
+                null,
+                AuthMethod.JWT
+            )
+        }
     }
 
     @Test
@@ -103,7 +111,7 @@ class JwtAuthenticationProcessorTest {
 
         mockUserById(client, ORGANIZATION_ID, USER_ID)
         mockValidJwt(token = null.toStr())
-        coEvery { userContextProvider.getContextView(any(), any(), any(), any()) } returns Context.empty()
+        coEvery { userContextProvider.getContextView(any(), any(), any(), any(), any()) } returns Context.empty()
 
         jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain)
             .orgContextWrite(ORGANIZATION)
@@ -112,7 +120,15 @@ class JwtAuthenticationProcessorTest {
         verify { serverLogoutHandler wasNot called }
         verify { authenticationEntryPoint wasNot called }
         verify(exactly = 1) { webFilterChain.filter(any()) }
-        coVerify(exactly = 1) { userContextProvider.getContextView(ORGANIZATION_ID, USER_ID, "sub|123", any()) }
+        coVerify(exactly = 1) {
+            userContextProvider.getContextView(
+                ORGANIZATION_ID,
+                USER_ID,
+                "sub|123",
+                any(),
+                AuthMethod.JWT
+            )
+        }
     }
 
     @Test
@@ -167,7 +183,7 @@ class JwtAuthenticationProcessorTest {
     ) {
         mockUserById(client, ORGANIZATION_ID, USER_ID, User(id = USER_ID, name = userName))
         mockValidJwt()
-        coEvery { userContextProvider.getContextView(any(), any(), any(), any()) } returns Context.empty()
+        coEvery { userContextProvider.getContextView(any(), any(), any(), any(), any()) } returns Context.empty()
 
         val claims = if (claimName == null) {
             mapOf(
@@ -194,7 +210,15 @@ class JwtAuthenticationProcessorTest {
         verify { serverLogoutHandler wasNot called }
         verify { authenticationEntryPoint wasNot called }
         verify(exactly = 1) { webFilterChain.filter(any()) }
-        coVerify(exactly = 1) { userContextProvider.getContextView(ORGANIZATION_ID, USER_ID, resolvedName, null) }
+        coVerify(exactly = 1) {
+            userContextProvider.getContextView(
+                ORGANIZATION_ID,
+                USER_ID,
+                resolvedName,
+                null,
+                AuthMethod.JWT
+            )
+        }
     }
 
     private fun mockValidJwt(token: String = TOKEN_ID, valid: Boolean = true) {

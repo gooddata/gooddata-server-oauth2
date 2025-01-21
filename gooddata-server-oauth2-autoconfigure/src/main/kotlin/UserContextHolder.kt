@@ -54,9 +54,16 @@ fun interface ReactorUserContextProvider {
      * @param[userId] the ID of the user
      * @param[userName] the name of the user
      * @param[tokenId] the ID of the ApiToken or null for other tokens
+     * @param[authMethod] the method of authentication
      * @return [ContextView] containing the user's context
      */
-    fun getContextView(organizationId: String, userId: String, userName: String?, tokenId: String?): ContextView
+    fun getContextView(
+        organizationId: String,
+        userId: String,
+        userName: String?,
+        tokenId: String?,
+        authMethod: AuthMethod
+    ): ContextView
 }
 
 /**
@@ -78,4 +85,16 @@ interface AuthenticationUserContext {
      * ID of the apiToken
      */
     val tokenId: String?
+
+    /**
+     * Method of authentication
+     */
+    val authMethod: AuthMethod
+}
+
+enum class AuthMethod(val value: String) {
+    API_TOKEN("API Token"),
+    JWT("JWT"),
+    OIDC("OIDC"),
+    NOT_APPLICABLE("Not applicable"),
 }
