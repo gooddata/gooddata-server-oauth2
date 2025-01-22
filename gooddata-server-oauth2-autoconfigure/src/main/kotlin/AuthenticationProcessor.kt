@@ -42,13 +42,30 @@ sealed class AuthenticationProcessor<in authenticationToken : AbstractAuthentica
         chain: WebFilterChain
     ): Mono<Void>
 
+    @SuppressWarnings("LongParameterList")
     protected fun <T> withUserContext(
         organization: Organization,
         user: User,
         name: String?,
         authMethod: AuthMethod?,
+        authId: String? = null,
         monoProvider: () -> Mono<T>,
     ): Mono<T> = monoProvider().contextWrite(
-        reactorUserContextProvider.getContextView(organization.id, user.id, name, user.usedTokenId, authMethod)
+        when (authMethod) {
+            AuthMethod.OIDC, AuthMethod.JWT -> reactorUserContextProvider.getContextView(
+                organization.id,
+                user.id,
+                name,
+                authId,
+                authMethod
+            )
+            else -> reactorUserContextProvider.getContextView(
+                organization.id,
+                user.id,
+                name,
+                user.usedTokenId,
+                authMethod
+            )
+        }
     )
 }

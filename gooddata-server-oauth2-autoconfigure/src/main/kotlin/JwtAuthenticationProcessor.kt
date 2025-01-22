@@ -52,8 +52,13 @@ class JwtAuthenticationProcessor(
             validateJwtToken(authenticationToken, organization)
         }.flatMap { organization ->
             getUserForJwtToken(exchange, chain, authenticationToken, organization).flatMap { user ->
-                // JWT tokenId shall not be logged in the scope of NAS-4936
-                withUserContext(organization, user, resolveUserName(authenticationToken, user), AuthMethod.JWT) {
+                withUserContext(
+                    organization,
+                    user,
+                    resolveUserName(authenticationToken, user),
+                    AuthMethod.JWT,
+                    authenticationToken.tokenAttributeOrNull(JWTClaimNames.JWT_ID).toString(),
+                ) {
                     chain.filter(exchange)
                 }
             }

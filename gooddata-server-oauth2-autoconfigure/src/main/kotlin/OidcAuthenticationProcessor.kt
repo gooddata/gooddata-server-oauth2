@@ -64,7 +64,13 @@ class OidcAuthenticationProcessor(
                     }
                 )
             } else {
-                withUserContext(userContext.organization, userContext.user, authenticationToken.name, AuthMethod.OIDC) {
+                withUserContext(
+                    userContext.organization,
+                    userContext.user,
+                    authenticationToken.name,
+                    AuthMethod.OIDC,
+                    authenticationToken.getClaim(userContext.organization.oauthSubjectIdClaim)
+                ) {
                     chain.filter(exchange)
                 }
             }
