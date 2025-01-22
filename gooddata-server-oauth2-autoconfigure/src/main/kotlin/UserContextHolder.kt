@@ -53,7 +53,7 @@ fun interface ReactorUserContextProvider {
      * @param[organizationId] the user's organization
      * @param[userId] the ID of the user
      * @param[userName] the name of the user
-     * @param[tokenId] the ID of the ApiToken or null for other tokens
+     * @param[tokenId] the ID of the ApiToken, the JTI for JwtToken, the SubId for OIDC, and null for other tokens
      * @param[authMethod] the method of authentication
      * @return [ContextView] containing the user's context
      */

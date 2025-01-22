@@ -92,7 +92,7 @@ class JwtAuthenticationProcessorTest {
                 ORGANIZATION_ID,
                 USER_ID,
                 "sub|123",
-                null,
+                TOKEN_ID,
                 AuthMethod.JWT
             )
         }
@@ -215,7 +215,7 @@ class JwtAuthenticationProcessorTest {
                 ORGANIZATION_ID,
                 USER_ID,
                 resolvedName,
-                null,
+                TOKEN_ID,
                 AuthMethod.JWT
             )
         }
