@@ -600,7 +600,7 @@ class UserContextWebFluxTest(
         override val userId: String,
         val userName: String?,
         override var tokenId: String? = null,
-        override var authMethod: AuthMethod,
+        override var authMethod: AuthMethod? = null,
     ) : AuthenticationUserContext
 
     object CoroutineUserContextHolder : UserContextHolder<UserContext> {
