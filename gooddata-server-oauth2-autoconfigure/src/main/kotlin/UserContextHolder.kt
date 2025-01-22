@@ -62,7 +62,7 @@ fun interface ReactorUserContextProvider {
         userId: String,
         userName: String?,
         tokenId: String?,
-        authMethod: AuthMethod
+        authMethod: AuthMethod?,
     ): ContextView
 }
 
@@ -89,7 +89,7 @@ interface AuthenticationUserContext {
     /**
      * Method of authentication
      */
-    val authMethod: AuthMethod
+    val authMethod: AuthMethod?
 }
 
 enum class AuthMethod(val value: String) {
