@@ -20,6 +20,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import java.util.stream.Stream
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -122,15 +123,42 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
     fun `should test user patching`(
         case: String,
         user: User,
+        userGroupsInAuthToken: List<String>?,
         patchCount: Int
     ) {
         // given
         val handler = JitProvisioningAuthenticationSuccessHandler(client)
 
+        val usersCurrentUserGroups = user.userGroups
+
+        val tokenClaims = if (userGroupsInAuthToken != null) {
+            mapOf(
+                SUB to SUB,
+                EMAIL to EMAIL,
+                GIVEN_NAME to GIVEN_NAME,
+                FAMILY_NAME to FAMILY_NAME,
+                GD_USER_GROUPS to userGroupsInAuthToken
+            )
+        } else {
+            mapOf(
+                SUB to SUB,
+                EMAIL to EMAIL,
+                GIVEN_NAME to GIVEN_NAME,
+                FAMILY_NAME to FAMILY_NAME,
+            )
+        }
+
+        val authentication: OAuth2AuthenticationToken = mockk {
+            every { principal } returns mockk {
+                every { attributes } returns tokenClaims
+            }
+        }
+
         // when
         mockOrganization(client, HOST, Organization(id = ORG_ID, oauthSubjectIdClaim = SUB, jitEnabled = true))
         mockUserByAuthId(client, ORG_ID, SUB, user)
-        every { client.patchUser(ORG_ID, any()) } returns Mono.just(mockk())
+        val userSlot = slot<User>()
+        every { client.patchUser(ORG_ID, capture(userSlot)) } returns Mono.just(mockk())
 
         // then
         expectThat(
@@ -141,6 +169,14 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         coVerify { client.getOrganizationByHostname(HOST) }
         coVerify { client.getUserByAuthenticationId(ORG_ID, SUB) }
         coVerify(exactly = patchCount) { client.patchUser(ORG_ID, any()) }
+
+        if (patchCount != 0) {
+            if (userGroupsInAuthToken != null) {
+                expectThat(userSlot.captured.userGroups).isEqualTo(userGroupsInAuthToken)
+            } else {
+                expectThat(userSlot.captured.userGroups).isEqualTo(usersCurrentUserGroups)
+            }
+        }
     }
 
     companion object {
@@ -160,20 +196,35 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
                     firstname = GIVEN_NAME,
                     lastname = "NewFamilyName",
                     email = EMAIL,
-                    userGroups = emptyList()
+                    userGroups = listOf("defaultUserGroup")
                 ),
+                null,
                 1
             ),
             Arguments.of(
-                "should update user when users userGroups re changed",
+                "should update user when users userGroups are changed",
                 User(
                     USER_ID,
                     null,
                     firstname = GIVEN_NAME,
                     lastname = FAMILY_NAME,
                     email = EMAIL,
-                    userGroups = listOf("newUserGroup")
+                    userGroups = listOf("defaultUserGroup")
                 ),
+                emptyList<String>(),
+                1
+            ),
+            Arguments.of(
+                "should update user when users userGroups are changed",
+                User(
+                    USER_ID,
+                    null,
+                    firstname = GIVEN_NAME,
+                    lastname = FAMILY_NAME,
+                    email = EMAIL,
+                    userGroups = listOf("defaultUserGroup")
+                ),
+                listOf("NewUserGroup"),
                 1
             ),
             Arguments.of(
@@ -183,8 +234,10 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
                     null,
                     firstname = GIVEN_NAME,
                     lastname = FAMILY_NAME,
-                    email = EMAIL
+                    email = EMAIL,
+                    userGroups = listOf("defaultUserGroup")
                 ),
+                listOf("defaultUserGroup"),
                 0
             )
         )

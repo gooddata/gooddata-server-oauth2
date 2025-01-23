@@ -78,7 +78,9 @@ class JitProvisioningAuthenticationSuccessHandler(
                     user.firstname = firstnameClaim
                     user.lastname = lastnameClaim
                     user.email = emailClaim
-                    user.userGroups = userGroupsClaim
+                    if (userGroupsClaim != null) {
+                        user.userGroups = userGroupsClaim
+                    }
                     client.patchUser(organization.id, user)
                 } else {
                     logMessage("User not changed, skipping update", "finished", organization.id)
