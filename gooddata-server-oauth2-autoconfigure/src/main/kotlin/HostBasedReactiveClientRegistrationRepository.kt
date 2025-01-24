@@ -26,15 +26,21 @@ import reactor.core.publisher.Mono
 class HostBasedReactiveClientRegistrationRepository(
     private val properties: HostBasedClientRegistrationRepositoryProperties,
     private val clientRegistrationCache: ClientRegistrationCache,
+    private val client: AuthenticationStoreClient
 ) : ReactiveClientRegistrationRepository {
 
     override fun findByRegistrationId(registrationId: String): Mono<ClientRegistration> =
-        getOrganizationFromContext().map {
-            buildClientRegistration(
-                registrationId = registrationId,
-                organization = it,
-                properties = properties,
-                clientRegistrationCache = clientRegistrationCache,
-            )
+        getOrganizationFromContext().flatMap { organization ->
+            client.getJitProvisioningSetting(organization.id)
+                .defaultIfEmpty(JitProvisioningSetting(enabled = false))
+                .map { jitProvisioningSetting ->
+                    buildClientRegistration(
+                        registrationId = registrationId,
+                        organization = organization,
+                        jitProvisioningSetting = jitProvisioningSetting,
+                        properties = properties,
+                        clientRegistrationCache = clientRegistrationCache,
+                    )
+                }
         }
 }
