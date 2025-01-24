@@ -16,6 +16,8 @@
 package com.gooddata.oauth2.server
 
 import com.gooddata.oauth2.server.OrganizationWebFilter.Companion.orgContextWrite
+import io.mockk.every
+import io.mockk.mockk
 import org.junit.jupiter.api.Test
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import strikt.api.expectThat
@@ -23,12 +25,18 @@ import strikt.api.expectThrows
 import strikt.assertions.isEqualTo
 import strikt.assertions.isTrue
 import java.util.Optional
+import reactor.core.publisher.Mono
 
 internal class HostBasedReactiveClientRegistrationRepositoryTest {
 
+    private val client = mockk<AuthenticationStoreClient> {
+        every { getJitProvisioningSetting("orgId") } returns Mono.empty()
+    }
+
     private val repository = HostBasedReactiveClientRegistrationRepository(
         HostBasedClientRegistrationRepositoryProperties("remote", "local"),
-        CaffeineClientRegistrationCache()
+        CaffeineClientRegistrationCache(),
+        client
     )
 
     @Test

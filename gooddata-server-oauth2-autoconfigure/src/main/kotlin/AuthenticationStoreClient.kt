@@ -41,6 +41,16 @@ interface AuthenticationStoreClient {
     fun getOrganizationByHostname(hostname: String): Mono<Organization>
 
     /**
+     * Retrieves [JitProvisioningSetting] that corresponds to provided `organizationId`.
+     *
+     * Returns `null` in case no [JitProvisioningSetting] can be found.
+     *
+     * @param organizationId ID of the organization
+     * @return found `JitProvisioningSetting` or `null` in case no [JitProvisioningSetting] is found
+     */
+    fun getJitProvisioningSetting(organizationId: String): Mono<JitProvisioningSetting>
+
+    /**
      * Retrieves [User] that corresponds to provided `organizationId` and `authenticationId` retrieved from
      * OIDC ID token.
      *
@@ -212,4 +222,22 @@ data class User(
     var lastname: String? = null,
     var email: String? = null,
     var userGroups: List<String>? = null,
+)
+
+/**
+ * Represents JIT provisioning setting stored in the persistent storage.
+ *
+ * @property enabled the switch to enable/disable the JIT provisioning
+ * @property userGroupsScopeEnabled the switch to enable/disable the user groups scope in authentication flow
+ * @property userGroupsScopeName the name of the OIDC scope used for user groups provisioning
+ * @property userGroupsDefaults the list of default user groups to be used if user groups are not to be shared via OIDC
+ * authentication flow
+ *
+ * @see AuthenticationStoreClient
+ */
+data class JitProvisioningSetting(
+    val enabled: Boolean,
+    val userGroupsScopeEnabled: Boolean = false,
+    val userGroupsScopeName: String? = null,
+    val userGroupsDefaults: List<String>? = null
 )

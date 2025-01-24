@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 @file:Suppress("TooManyFunctions")
+
 package com.gooddata.oauth2.server
 
 import com.gooddata.oauth2.server.OAuthConstants.GD_USER_GROUPS_SCOPE
@@ -34,8 +35,10 @@ import com.nimbusds.oauth2.sdk.ParseException
 import com.nimbusds.oauth2.sdk.Scope
 import com.nimbusds.openid.connect.sdk.OIDCScopeValue
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata
+import java.net.URI
 import java.security.MessageDigest
 import java.time.Instant
+import java.util.Collections
 import net.minidev.json.JSONObject
 import org.springframework.core.ParameterizedTypeReference
 import org.springframework.core.convert.ConversionService
@@ -60,8 +63,6 @@ import org.springframework.web.client.RestTemplate
 import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.util.UriComponentsBuilder
 import reactor.core.publisher.Mono
-import java.net.URI
-import java.util.Collections
 
 /**
  * Constants for OAuth type authentication which are not directly available in the Spring Security.
@@ -111,12 +112,13 @@ private val typeReference: ParameterizedTypeReference<Map<String, Any>> = object
 fun buildClientRegistration(
     registrationId: String,
     organization: Organization,
+    jitProvisioningSetting: JitProvisioningSetting,
     properties: HostBasedClientRegistrationRepositoryProperties,
     clientRegistrationCache: ClientRegistrationCache,
 ): ClientRegistration {
     val issuerLocation = organization.oauthIssuerLocation
         // fallback to DEX client registration if issuer location is not defined
-        ?: return dexClientRegistration(registrationId, properties, organization)
+        ?: return dexClientRegistration(registrationId, properties, organization, jitProvisioningSetting)
 
     // fetch the cached settings obtained from the well-known endpoint for the particular issuerLocation
     // this saves HTTP requests to well known endpoints everytime the API call is authorized
@@ -136,7 +138,7 @@ fun buildClientRegistration(
     return ClientRegistration.withClientRegistration(cachedRegistration)
         .registrationId(registrationId)
         .withRedirectUri(organization.oauthIssuerId)
-        .buildWithIssuerConfig(organization)
+        .buildWithIssuerConfig(organization, jitProvisioningSetting)
 }
 
 /**
@@ -165,11 +167,12 @@ private fun ClientRegistration.Builder.buildWithDummyValues(): ClientRegistratio
 private fun dexClientRegistration(
     registrationId: String,
     properties: HostBasedClientRegistrationRepositoryProperties,
-    organization: Organization
+    organization: Organization,
+    jitProvisioningSetting: JitProvisioningSetting
 ): ClientRegistration = ClientRegistration
     .withRegistrationId(registrationId)
     .withDexConfig(properties)
-    .buildWithIssuerConfig(organization)
+    .buildWithIssuerConfig(organization, jitProvisioningSetting)
 
 /**
  * Handles client registration for Azure B2C by validating issuer metadata and building the registration.
@@ -318,6 +321,7 @@ private fun handleRuntimeException(ex: RuntimeException, issuerLocation: String)
             HttpStatus.UNAUTHORIZED,
             "Authorization failed for given issuer \"$issuerLocation\". ${ex.message}"
         )
+
         else -> throw ex
     }
 }
@@ -426,6 +430,7 @@ private fun ClientRegistration.Builder.withRedirectUri(oauthIssuerId: String?) =
  */
 internal fun ClientRegistration.Builder.buildWithIssuerConfig(
     organization: Organization,
+    jitProvisioningSetting: JitProvisioningSetting
 ): ClientRegistration {
     if (organization.oauthClientId == null || organization.oauthClientSecret == null) {
         throw ResponseStatusException(
@@ -439,7 +444,7 @@ internal fun ClientRegistration.Builder.buildWithIssuerConfig(
         .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
         .userNameAttributeName("name")
     val supportedScopes = withIssuerConfigBuilder.build().resolveSupportedScopes()
-    return withIssuerConfigBuilder.withScopes(supportedScopes, organization).build()
+    return withIssuerConfigBuilder.withScopes(supportedScopes, organization, jitProvisioningSetting).build()
 }
 
 private fun ClientRegistration.resolveSupportedScopes() =
@@ -449,18 +454,25 @@ private fun ClientRegistration.resolveSupportedScopes() =
 
 private fun ClientRegistration.Builder.withScopes(
     supportedScopes: Scope?,
-    organization: Organization
-
+    organization: Organization,
+    jitProvisioningSetting: JitProvisioningSetting,
 ): ClientRegistration.Builder {
     // in the future, we could check mandatory scopes against the supported ones
     val mandatoryScopes = listOf(OIDCScopeValue.OPENID, OIDCScopeValue.PROFILE).map(Scope.Value::getValue)
     val userGroupsScope = if (organization.jitEnabled == true) {
         listOf(OIDCScopeValue.EMAIL.value, GD_USER_GROUPS_SCOPE)
+    } else if (jitProvisioningSetting.enabled) {
+        if (jitProvisioningSetting.userGroupsScopeEnabled) {
+            listOf(OIDCScopeValue.EMAIL.value, jitProvisioningSetting.userGroupsScopeName ?: GD_USER_GROUPS_SCOPE)
+        } else {
+            listOf(OIDCScopeValue.EMAIL.value)
+        }
     } else {
         listOf()
     }
     val azureB2CScope = if (organization.oauthIssuerLocation != null &&
-        organization.oauthIssuerLocation.toUri().isAzureB2C()) {
+        organization.oauthIssuerLocation.toUri().isAzureB2C()
+    ) {
         listOf(organization.oauthClientId)
     } else {
         listOf()

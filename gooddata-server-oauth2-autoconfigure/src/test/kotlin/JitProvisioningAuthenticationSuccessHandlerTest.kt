@@ -49,19 +49,19 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
                 SUB to SUB,
                 EMAIL to EMAIL,
                 GIVEN_NAME to GIVEN_NAME,
-                FAMILY_NAME to FAMILY_NAME,
-                GD_USER_GROUPS to emptyList<String>()
+                FAMILY_NAME to FAMILY_NAME
             )
         }
     }
 
     @Test
-    fun `should skip JIT provisioning if disabled`() {
+    fun `should skip JIT provisioning if disabled on both org and orgSetting level`() {
         // given
         val handler = JitProvisioningAuthenticationSuccessHandler(client)
 
         // when
         mockOrganization(client, HOST, Organization(id = ORG_ID, jitEnabled = false))
+        every { client.getJitProvisioningSetting(ORG_ID) } returns Mono.empty()
 
         // then
         expectThat(
@@ -70,10 +70,11 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         ).isNull()
 
         coVerify { client.getOrganizationByHostname(HOST) }
+        coVerify { client.getJitProvisioningSetting(ORG_ID) }
     }
 
     @Test
-    fun `should raise an exception when mandatory attributes are missing`() {
+    fun `should raise an exception when JIT enabled on Organization lvl and mandatory attributes are missing`() {
         // given
         val handler = JitProvisioningAuthenticationSuccessHandler(client)
 
@@ -97,7 +98,32 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
     }
 
     @Test
-    fun `should perform JIT provisioning when user does not exist`() {
+    fun `should raise an exception when JIT enabled via OrganizationSettings and mandatory attributes are missing`() {
+        // given
+        val handler = JitProvisioningAuthenticationSuccessHandler(client)
+
+        // when
+        mockOrganization(client, HOST, Organization(id = ORG_ID, jitEnabled = false))
+        every { client.getJitProvisioningSetting(ORG_ID) } returns Mono.just(JitProvisioningSetting(enabled = true))
+
+        val authentication: OAuth2AuthenticationToken = mockk {
+            every { principal } returns mockk {
+                every { attributes } returns emptyMap()
+            }
+        }
+        // then
+        expectThrows<JitProvisioningAuthenticationSuccessHandler.MissingMandatoryClaimsException> {
+            handler.onAuthenticationSuccess(exchange, authentication)
+                .block()
+        }.and {
+            get { message }.isEqualTo(
+                "401 UNAUTHORIZED \"Authorization failed. Missing mandatory claims: [given_name, family_name, email]\""
+            )
+        }
+    }
+
+    @Test
+    fun `should perform JIT provisioning when JIT enabled on Organization lvl and user does not exist`() {
         // given
         val handler = JitProvisioningAuthenticationSuccessHandler(client)
 
@@ -116,6 +142,60 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         coVerify { client.getOrganizationByHostname(HOST) }
         coVerify { client.getUserByAuthenticationId(ORG_ID, SUB) }
         coVerify { client.createUser(ORG_ID, SUB, GIVEN_NAME, FAMILY_NAME, EMAIL, emptyList()) }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("jitOptions")
+    fun `should perform JIT provisioning when JIT enabled via OrganizationSetting and user does not exist`(
+        case: String,
+        userGroupsInAuthToken: List<String>?,
+        userGroupsInOrgSetting: List<String>?,
+        expectedUserGroups: List<String>
+    ) {
+        // given
+        val handler = JitProvisioningAuthenticationSuccessHandler(client)
+
+        val tokenClaims = if (userGroupsInAuthToken != null) {
+            mapOf(
+                SUB to SUB,
+                EMAIL to EMAIL,
+                GIVEN_NAME to GIVEN_NAME,
+                FAMILY_NAME to FAMILY_NAME,
+                GD_USER_GROUPS to userGroupsInAuthToken
+            )
+        } else {
+            mapOf(
+                SUB to SUB,
+                EMAIL to EMAIL,
+                GIVEN_NAME to GIVEN_NAME,
+                FAMILY_NAME to FAMILY_NAME,
+            )
+        }
+
+        val authentication: OAuth2AuthenticationToken = mockk {
+            every { principal } returns mockk {
+                every { attributes } returns tokenClaims
+            }
+        }
+
+        // when
+        mockOrganization(client, HOST, Organization(id = ORG_ID, oauthSubjectIdClaim = SUB, jitEnabled = false))
+        every { client.getJitProvisioningSetting(ORG_ID) } returns
+            Mono.just(JitProvisioningSetting(enabled = true, userGroupsDefaults = userGroupsInOrgSetting))
+        mockUserByAuthId(client, ORG_ID, SUB, null)
+        every { client.createUser(ORG_ID, SUB, GIVEN_NAME, FAMILY_NAME, EMAIL, expectedUserGroups) } returns
+            Mono.just(mockk<User> { every { id } returns USER_ID })
+
+        // then
+        expectThat(
+            handler.onAuthenticationSuccess(exchange, authentication)
+                .block()
+        ).isNull()
+
+        coVerify { client.getOrganizationByHostname(HOST) }
+        coVerify { client.getJitProvisioningSetting(ORG_ID) }
+        coVerify { client.getUserByAuthenticationId(ORG_ID, SUB) }
+        coVerify { client.createUser(ORG_ID, SUB, GIVEN_NAME, FAMILY_NAME, EMAIL, expectedUserGroups) }
     }
 
     @ParameterizedTest(name = "{0}")
@@ -185,6 +265,28 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         private const val SUB = "sub"
         private const val HOST = "gooddata.com"
         private const val USER_ID = "userId"
+
+        @JvmStatic
+        fun jitOptions() = Stream.of(
+            Arguments.of(
+                "without user groups",
+                emptyList<String>(),
+                emptyList<String>(),
+                emptyList<String>(),
+            ),
+            Arguments.of(
+                "with default user groups",
+                null,
+                listOf("defaultUserGroup"),
+                listOf("defaultUserGroup"),
+            ),
+            Arguments.of(
+                "with default user groups and user groups in token",
+                listOf("adminUserGroup", "secondUserGroup"),
+                listOf("defaultUserGroup"),
+                listOf("adminUserGroup", "secondUserGroup"),
+            )
+        )
 
         @JvmStatic
         fun users() = Stream.of(

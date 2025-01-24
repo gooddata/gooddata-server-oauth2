@@ -23,6 +23,10 @@ internal fun mockOrganization(client: AuthenticationStoreClient, host: String, o
     every { client.getOrganizationByHostname(host) } returns Mono.just(organization)
 }
 
+internal fun mockOrganizationSettings(client: AuthenticationStoreClient, organizationId: String) {
+    every { client.getJitProvisioningSetting(organizationId) } returns Mono.empty()
+}
+
 internal fun mockOrganizationError(client: AuthenticationStoreClient, host: String, exception: Throwable) {
     every { client.getOrganizationByHostname(host) } returns Mono.error(exception)
 }

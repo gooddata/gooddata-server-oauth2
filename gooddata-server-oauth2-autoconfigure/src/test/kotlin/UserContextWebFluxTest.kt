@@ -137,6 +137,7 @@ class UserContextWebFluxTest(
             allowedOrigins = listOf("https://localhost:8443"),
         )
         mockOrganization(authenticationStoreClient, LOCALHOST, organization)
+        mockOrganizationSettings(authenticationStoreClient, "organizationTestId")
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns organization
         everyValidSecurityContext()
         mockUserByAuthId(authenticationStoreClient, ORG_ID, SUB_CLAIM_VALUE, User("userId"))
@@ -569,6 +570,7 @@ class UserContextWebFluxTest(
                 oauthClientSecret = "clientSecret",
             )
         )
+        mockOrganizationSettings(authenticationStoreClient, ORG_ID)
     }
 
     private fun mockCookieSecurityProperties() = mockCookieSecurityProperties(

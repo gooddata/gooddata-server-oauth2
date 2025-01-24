@@ -115,8 +115,13 @@ class ServerOAuth2AutoConfiguration {
         client: ObjectProvider<AuthenticationStoreClient>,
         properties: HostBasedClientRegistrationRepositoryProperties,
         clientRegistrationCache: ClientRegistrationCache,
+        authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>
     ): ReactiveClientRegistrationRepository =
-        HostBasedReactiveClientRegistrationRepository(properties, clientRegistrationCache)
+        HostBasedReactiveClientRegistrationRepository(
+            properties,
+            clientRegistrationCache,
+            authenticationStoreClient.`object`
+        )
 
     @ConditionalOnMissingBean(ClientRegistrationCache::class)
     @Bean

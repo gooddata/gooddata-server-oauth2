@@ -61,6 +61,8 @@ internal class AuthenticationUtilsTest {
 
     lateinit var clientRegistrationCache: ClientRegistrationCache
 
+    val jitProvisioningSetting = JitProvisioningSetting(enabled = false)
+
     @BeforeEach
     internal fun setUp() {
         properties = HostBasedClientRegistrationRepositoryProperties("http://remote", "http://localhost")
@@ -78,6 +80,7 @@ internal class AuthenticationUtilsTest {
         val clientRegistration = buildClientRegistration(
             REGISTRATION_ID,
             organization,
+            jitProvisioningSetting,
             properties,
             clientRegistrationCache
         )
@@ -106,6 +109,7 @@ internal class AuthenticationUtilsTest {
             buildClientRegistration(
                 REGISTRATION_ID,
                 organization,
+                jitProvisioningSetting,
                 properties,
                 clientRegistrationCache
             )
@@ -114,12 +118,41 @@ internal class AuthenticationUtilsTest {
             that(clientRegistrationProvider()).and {
                 get { registrationId }.isEqualTo(REGISTRATION_ID)
                 get { clientId }.isEqualTo(CLIENT_ID)
+                get { clientSecret }.isEqualTo(CLIENT_SECRET)
                 get { scopes }.containsExactlyInAnyOrder(expectedScopes)
             }
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("jitOrgSettingArguments")
+    fun buildClientRegistrationIssuerLocationWithCacheJitSettings(
+        jitSettings: JitProvisioningSetting,
+        expectedScopes: List<String>
+    ) {
+        organization = Organization(
+            id = ORGANIZATION_ID,
+            oauthClientId = CLIENT_ID,
+            oauthIssuerLocation = mockOidcIssuer(),
+            oauthClientSecret = CLIENT_SECRET,
+            jitEnabled = false
+        )
+
+        val clientRegistrationProvider = {
+            buildClientRegistration(
+                REGISTRATION_ID,
+                organization,
+                jitSettings,
+                properties,
+                clientRegistrationCache
+            )
+        }
+        expect {
             that(clientRegistrationProvider()).and {
                 get { registrationId }.isEqualTo(REGISTRATION_ID)
                 get { clientId }.isEqualTo(CLIENT_ID)
                 get { clientSecret }.isEqualTo(CLIENT_SECRET)
+                get { scopes }.containsExactlyInAnyOrder(expectedScopes)
             }
         }
     }
@@ -135,7 +168,15 @@ internal class AuthenticationUtilsTest {
             oauthClientSecret = CLIENT_SECRET
         )
 
-        expectThat(buildClientRegistration(REGISTRATION_ID, organization, properties, clientRegistrationCache)) {
+        expectThat(
+            buildClientRegistration(
+                REGISTRATION_ID,
+                organization,
+                jitProvisioningSetting,
+                properties,
+                clientRegistrationCache
+            )
+        ) {
             get { registrationId }.isEqualTo(REGISTRATION_ID)
             get { clientId }.isEqualTo(CLIENT_ID)
             get { clientSecret }.isEqualTo(CLIENT_SECRET)
@@ -155,13 +196,17 @@ internal class AuthenticationUtilsTest {
         )
 
         try {
-            buildClientRegistration(REGISTRATION_ID, organization, properties, clientRegistrationCache)
+            buildClientRegistration(
+                REGISTRATION_ID, organization, jitProvisioningSetting, properties, clientRegistrationCache
+            )
         } catch (ex: HttpClientErrorException) {
             // This is expected as the issuer isn't actually available and can be ignored as we just wish to verify
             // that the `handleAzureB2CClientRegistration` method is called when the issuer is an Azure B2C issuer.
             assertEquals(HttpStatus.NOT_FOUND, ex.statusCode)
-            assertEquals("404 Not Found: \"The resource you are looking for has been removed, had its name changed, " +
-                "or is temporarily unavailable.\"", ex.message)
+            assertEquals(
+                "404 Not Found: \"The resource you are looking for has been removed, had its name changed, " +
+                    "or is temporarily unavailable.\"", ex.message
+            )
         }
     }
 
@@ -181,7 +226,9 @@ internal class AuthenticationUtilsTest {
 
         expect { that(clientRegistrationBuilder) }
         val issuer: String = VALID_AZURE_B2C_OIDC_CONFIG["issuer"].toString()
-        val clientRegistration = { clientRegistrationBuilder.buildWithIssuerConfig(organization) }
+        val clientRegistration = {
+            clientRegistrationBuilder.buildWithIssuerConfig(organization, jitProvisioningSetting)
+        }
         expect {
             that(clientRegistration()).and {
                 get { registrationId }.isEqualTo(URI.create(issuer).host)
@@ -215,7 +262,13 @@ internal class AuthenticationUtilsTest {
         )
 
         val ex = assertThrows<ResponseStatusException> {
-            buildClientRegistration(REGISTRATION_ID, organization, properties, clientRegistrationCache)
+            buildClientRegistration(
+                REGISTRATION_ID,
+                organization,
+                jitProvisioningSetting,
+                properties,
+                clientRegistrationCache
+            )
         }
         assertEquals(
             "401 UNAUTHORIZED \"Authorization failed for given issuer \"$issuerLocation\". $messageSpecification",
@@ -234,7 +287,13 @@ internal class AuthenticationUtilsTest {
         )
 
         val ex = assertThrows<ResponseStatusException> {
-            buildClientRegistration(REGISTRATION_ID, organization, properties, clientRegistrationCache)
+            buildClientRegistration(
+                REGISTRATION_ID,
+                organization,
+                jitProvisioningSetting,
+                properties,
+                clientRegistrationCache
+            )
         }
         assertEquals(
             "401 UNAUTHORIZED \"Authorization failed for given issuer $issuer. " +
@@ -400,6 +459,25 @@ internal class AuthenticationUtilsTest {
             Arguments.of(false, listOf("openid", "profile", "offline_access"))
         )
 
+        @JvmStatic
+        fun jitOrgSettingArguments() = Stream.of(
+            Arguments.of(
+                JitProvisioningSetting(enabled = false), listOf("openid", "profile", "offline_access")
+            ),
+            Arguments.of(
+                JitProvisioningSetting(enabled = true), listOf("openid", "profile", "email", "offline_access")
+            ),
+            Arguments.of(
+                JitProvisioningSetting(enabled = true, userGroupsScopeEnabled = true),
+                listOf("openid", "profile", "email", "offline_access", GD_USER_GROUPS_SCOPE)
+            ),
+            Arguments.of(
+                JitProvisioningSetting(
+                    enabled = true, userGroupsScopeEnabled = true, userGroupsScopeName = "gdUserGroups"
+                ),
+                listOf("openid", "profile", "email", "offline_access", "gdUserGroups")
+            )
+        )
         @Language("json")
         private val OIDC_CONFIG = """
             {

@@ -52,15 +52,22 @@ class JitProvisioningAuthenticationSuccessHandler(
             if (organization.jitEnabled == true) {
                 provisionUser(authenticationToken, organization)
             } else {
-                logMessage("JIT provisioning disabled, skipping", "finished", "")
-                Mono.empty()
+                client.getJitProvisioningSetting(organization.id).flatMap {
+                    if (it.enabled) {
+                        provisionUser(authenticationToken, organization, it.userGroupsDefaults)
+                    } else {
+                        logMessage("JIT provisioning disabled, skipping", "finished", "")
+                        Mono.empty()
+                    }
+                }
             }
         }
     }
 
     private fun provisionUser(
         authenticationToken: OAuth2AuthenticationToken,
-        organization: Organization
+        organization: Organization,
+        userGroups: List<String>? = null
     ): Mono<User> {
         checkMandatoryClaims(authenticationToken, organization.id)
         logMessage("Initiating JIT provisioning", "started", organization.id)
@@ -68,7 +75,7 @@ class JitProvisioningAuthenticationSuccessHandler(
         val firstnameClaim = authenticationToken.getClaim(GIVEN_NAME)
         val lastnameClaim = authenticationToken.getClaim(FAMILY_NAME)
         val emailClaim = authenticationToken.getClaim(EMAIL)
-        val userGroupsClaim = authenticationToken.getClaimList(GD_USER_GROUPS)
+        val userGroupsClaim = authenticationToken.getClaimList(GD_USER_GROUPS) ?: userGroups
 
         return client.getUserByAuthenticationId(organization.id, subClaim)
             .flatMap { user ->
