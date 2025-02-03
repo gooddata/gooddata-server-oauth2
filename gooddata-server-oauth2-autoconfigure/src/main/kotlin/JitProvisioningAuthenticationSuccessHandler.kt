@@ -50,11 +50,12 @@ class JitProvisioningAuthenticationSuccessHandler(
             webFilterExchange?.exchange?.request?.uri?.host ?: ""
         ).flatMap { organization ->
             if (organization.jitEnabled == true) {
-                provisionUser(authenticationToken, organization)
+                provisionUser(authenticationToken, organization, GD_USER_GROUPS)
             } else {
                 client.getJitProvisioningSetting(organization.id).flatMap {
                     if (it.enabled) {
-                        provisionUser(authenticationToken, organization, it.userGroupsDefaults)
+                        val userGroupsClaimName = it.userGroupsClaimName ?: GD_USER_GROUPS
+                        provisionUser(authenticationToken, organization, userGroupsClaimName, it.userGroupsDefaults)
                     } else {
                         logMessage("JIT provisioning disabled, skipping", "finished", "")
                         Mono.empty()
@@ -67,6 +68,7 @@ class JitProvisioningAuthenticationSuccessHandler(
     private fun provisionUser(
         authenticationToken: OAuth2AuthenticationToken,
         organization: Organization,
+        userGroupsClaimName: String,
         userGroups: List<String>? = null
     ): Mono<User> {
         checkMandatoryClaims(authenticationToken, organization.id)
@@ -75,7 +77,7 @@ class JitProvisioningAuthenticationSuccessHandler(
         val firstnameClaim = authenticationToken.getClaim(GIVEN_NAME)
         val lastnameClaim = authenticationToken.getClaim(FAMILY_NAME)
         val emailClaim = authenticationToken.getClaim(EMAIL)
-        val userGroupsClaim = authenticationToken.getClaimList(GD_USER_GROUPS) ?: userGroups
+        val userGroupsClaim = authenticationToken.getClaimList(userGroupsClaimName) ?: userGroups
 
         return client.getUserByAuthenticationId(organization.id, subClaim)
             .flatMap { user ->

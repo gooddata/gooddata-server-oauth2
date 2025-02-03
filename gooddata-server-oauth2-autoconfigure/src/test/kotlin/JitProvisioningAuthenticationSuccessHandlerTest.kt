@@ -148,6 +148,7 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
     @MethodSource("jitOptions")
     fun `should perform JIT provisioning when JIT enabled via OrganizationSetting and user does not exist`(
         case: String,
+        userGroupsClaimName: String,
         userGroupsInAuthToken: List<String>?,
         userGroupsInOrgSetting: List<String>?,
         expectedUserGroups: List<String>
@@ -161,7 +162,7 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
                 EMAIL to EMAIL,
                 GIVEN_NAME to GIVEN_NAME,
                 FAMILY_NAME to FAMILY_NAME,
-                GD_USER_GROUPS to userGroupsInAuthToken
+                userGroupsClaimName to userGroupsInAuthToken
             )
         } else {
             mapOf(
@@ -181,7 +182,13 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         // when
         mockOrganization(client, HOST, Organization(id = ORG_ID, oauthSubjectIdClaim = SUB, jitEnabled = false))
         every { client.getJitProvisioningSetting(ORG_ID) } returns
-            Mono.just(JitProvisioningSetting(enabled = true, userGroupsDefaults = userGroupsInOrgSetting))
+            Mono.just(
+                JitProvisioningSetting(
+                    enabled = true,
+                    userGroupsClaimName = userGroupsClaimName,
+                    userGroupsDefaults = userGroupsInOrgSetting
+                )
+            )
         mockUserByAuthId(client, ORG_ID, SUB, null)
         every { client.createUser(ORG_ID, SUB, GIVEN_NAME, FAMILY_NAME, EMAIL, expectedUserGroups) } returns
             Mono.just(mockk<User> { every { id } returns USER_ID })
@@ -270,20 +277,30 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         fun jitOptions() = Stream.of(
             Arguments.of(
                 "without user groups",
+                GD_USER_GROUPS,
                 emptyList<String>(),
                 emptyList<String>(),
                 emptyList<String>(),
             ),
             Arguments.of(
                 "with default user groups",
+                GD_USER_GROUPS,
                 null,
                 listOf("defaultUserGroup"),
                 listOf("defaultUserGroup"),
             ),
             Arguments.of(
                 "with default user groups and user groups in token",
+                GD_USER_GROUPS,
                 listOf("adminUserGroup", "secondUserGroup"),
                 listOf("defaultUserGroup"),
+                listOf("adminUserGroup", "secondUserGroup"),
+            ),
+            Arguments.of(
+                "with user groups in token with custom claim name",
+                "custom_user_groups_claim_name",
+                listOf("adminUserGroup", "secondUserGroup"),
+                null,
                 listOf("adminUserGroup", "secondUserGroup"),
             )
         )
