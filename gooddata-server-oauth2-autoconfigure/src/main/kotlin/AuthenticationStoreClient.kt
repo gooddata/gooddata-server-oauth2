@@ -239,5 +239,6 @@ data class JitProvisioningSetting(
     val enabled: Boolean,
     val userGroupsScopeEnabled: Boolean = false,
     val userGroupsScopeName: String? = null,
+    val userGroupsClaimName: String? = null,
     val userGroupsDefaults: List<String>? = null
 )
