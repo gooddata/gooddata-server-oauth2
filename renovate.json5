@@ -9,8 +9,10 @@
     ":semanticCommitTypeAll(chore)"
   ],
   "ignorePresets": [":dependencyDashboard", "group:springSecurity", "workarounds:javaLTSVersions"],
-  "addLabels": ["renovate"],
   "enabledManagers": ["gradle", "gradle-wrapper", "github-actions"],
+  "gradle": {
+      "enabled": true
+  },
   "packageRules": [
     {
       "matchPackagePrefixes": ["io.gitlab.arturbosch.detekt"],
