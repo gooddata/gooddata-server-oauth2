@@ -49,17 +49,13 @@ class JitProvisioningAuthenticationSuccessHandler(
         return client.getOrganizationByHostname(
             webFilterExchange?.exchange?.request?.uri?.host ?: ""
         ).flatMap { organization ->
-            if (organization.jitEnabled == true) {
-                provisionUser(authenticationToken, organization, GD_USER_GROUPS)
-            } else {
-                client.getJitProvisioningSetting(organization.id).flatMap {
-                    if (it.enabled) {
-                        val userGroupsClaimName = it.userGroupsClaimName ?: GD_USER_GROUPS
-                        provisionUser(authenticationToken, organization, userGroupsClaimName, it.userGroupsDefaults)
-                    } else {
-                        logMessage("JIT provisioning disabled, skipping", "finished", "")
-                        Mono.empty()
-                    }
+            client.getJitProvisioningSetting(organization.id).flatMap {
+                if (it.enabled) {
+                    val userGroupsClaimName = it.userGroupsClaimName ?: GD_USER_GROUPS
+                    provisionUser(authenticationToken, organization, userGroupsClaimName, it.userGroupsDefaults)
+                } else {
+                    logMessage("JIT provisioning disabled, skipping", "finished", "")
+                    Mono.empty()
                 }
             }
         }
