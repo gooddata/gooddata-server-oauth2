@@ -55,12 +55,12 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
     }
 
     @Test
-    fun `should skip JIT provisioning if disabled on both org and orgSetting level`() {
+    fun `should skip JIT provisioning if disabled `() {
         // given
         val handler = JitProvisioningAuthenticationSuccessHandler(client)
 
         // when
-        mockOrganization(client, HOST, Organization(id = ORG_ID, jitEnabled = false))
+        mockOrganization(client, HOST, Organization(id = ORG_ID))
         every { client.getJitProvisioningSetting(ORG_ID) } returns Mono.empty()
 
         // then
@@ -74,36 +74,12 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
     }
 
     @Test
-    fun `should raise an exception when JIT enabled on Organization lvl and mandatory attributes are missing`() {
+    fun `should raise an exception when JIT enabled and mandatory attributes are missing`() {
         // given
         val handler = JitProvisioningAuthenticationSuccessHandler(client)
 
         // when
-        mockOrganization(client, HOST, Organization(id = ORG_ID, jitEnabled = true))
-
-        val authentication: OAuth2AuthenticationToken = mockk {
-            every { principal } returns mockk {
-                every { attributes } returns emptyMap()
-            }
-        }
-        // then
-        expectThrows<JitProvisioningAuthenticationSuccessHandler.MissingMandatoryClaimsException> {
-            handler.onAuthenticationSuccess(exchange, authentication)
-                .block()
-        }.and {
-            get { message }.isEqualTo(
-                "401 UNAUTHORIZED \"Authorization failed. Missing mandatory claims: [given_name, family_name, email]\""
-            )
-        }
-    }
-
-    @Test
-    fun `should raise an exception when JIT enabled via OrganizationSettings and mandatory attributes are missing`() {
-        // given
-        val handler = JitProvisioningAuthenticationSuccessHandler(client)
-
-        // when
-        mockOrganization(client, HOST, Organization(id = ORG_ID, jitEnabled = false))
+        mockOrganization(client, HOST, Organization(id = ORG_ID))
         every { client.getJitProvisioningSetting(ORG_ID) } returns Mono.just(JitProvisioningSetting(enabled = true))
 
         val authentication: OAuth2AuthenticationToken = mockk {
@@ -122,31 +98,9 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         }
     }
 
-    @Test
-    fun `should perform JIT provisioning when JIT enabled on Organization lvl and user does not exist`() {
-        // given
-        val handler = JitProvisioningAuthenticationSuccessHandler(client)
-
-        // when
-        mockOrganization(client, HOST, Organization(id = ORG_ID, oauthSubjectIdClaim = SUB, jitEnabled = true))
-        mockUserByAuthId(client, ORG_ID, SUB, null)
-        every { client.createUser(ORG_ID, SUB, GIVEN_NAME, FAMILY_NAME, EMAIL, emptyList()) } returns
-            Mono.just(mockk<User> { every { id } returns USER_ID })
-
-        // then
-        expectThat(
-            handler.onAuthenticationSuccess(exchange, authentication)
-                .block()
-        ).isNull()
-
-        coVerify { client.getOrganizationByHostname(HOST) }
-        coVerify { client.getUserByAuthenticationId(ORG_ID, SUB) }
-        coVerify { client.createUser(ORG_ID, SUB, GIVEN_NAME, FAMILY_NAME, EMAIL, emptyList()) }
-    }
-
     @ParameterizedTest(name = "{0}")
     @MethodSource("jitOptions")
-    fun `should perform JIT provisioning when JIT enabled via OrganizationSetting and user does not exist`(
+    fun `should perform JIT provisioning when JIT enabled and user does not exist`(
         case: String,
         userGroupsClaimName: String,
         userGroupsInAuthToken: List<String>?,
@@ -180,7 +134,7 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         }
 
         // when
-        mockOrganization(client, HOST, Organization(id = ORG_ID, oauthSubjectIdClaim = SUB, jitEnabled = false))
+        mockOrganization(client, HOST, Organization(id = ORG_ID, oauthSubjectIdClaim = SUB))
         every { client.getJitProvisioningSetting(ORG_ID) } returns
             Mono.just(
                 JitProvisioningSetting(
@@ -242,7 +196,14 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         }
 
         // when
-        mockOrganization(client, HOST, Organization(id = ORG_ID, oauthSubjectIdClaim = SUB, jitEnabled = true))
+        mockOrganization(client, HOST, Organization(id = ORG_ID, oauthSubjectIdClaim = SUB))
+        every { client.getJitProvisioningSetting(ORG_ID) } returns
+            Mono.just(
+                JitProvisioningSetting(
+                    enabled = true,
+                    userGroupsScopeEnabled = true
+                )
+            )
         mockUserByAuthId(client, ORG_ID, SUB, user)
         val userSlot = slot<User>()
         every { client.patchUser(ORG_ID, capture(userSlot)) } returns Mono.just(mockk())

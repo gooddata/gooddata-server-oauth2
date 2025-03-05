@@ -459,9 +459,7 @@ private fun ClientRegistration.Builder.withScopes(
 ): ClientRegistration.Builder {
     // in the future, we could check mandatory scopes against the supported ones
     val mandatoryScopes = listOf(OIDCScopeValue.OPENID, OIDCScopeValue.PROFILE).map(Scope.Value::getValue)
-    val userGroupsScope = if (organization.jitEnabled == true) {
-        listOf(OIDCScopeValue.EMAIL.value, GD_USER_GROUPS_SCOPE)
-    } else if (jitProvisioningSetting.enabled) {
+    val userGroupsScope = if (jitProvisioningSetting.enabled) {
         if (jitProvisioningSetting.userGroupsScopeEnabled) {
             listOf(OIDCScopeValue.EMAIL.value, jitProvisioningSetting.userGroupsScopeName ?: GD_USER_GROUPS_SCOPE)
         } else {
