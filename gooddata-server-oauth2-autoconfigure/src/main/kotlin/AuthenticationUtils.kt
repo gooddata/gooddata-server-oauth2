@@ -430,7 +430,7 @@ private fun ClientRegistration.Builder.withRedirectUri(oauthIssuerId: String?) =
  */
 internal fun ClientRegistration.Builder.buildWithIssuerConfig(
     organization: Organization,
-    jitProvisioningSetting: JitProvisioningSetting
+    jitProvisioningSetting: JitProvisioningSetting,
 ): ClientRegistration {
     if (organization.oauthClientId == null || organization.oauthClientSecret == null) {
         throw ResponseStatusException(
@@ -468,6 +468,7 @@ private fun ClientRegistration.Builder.withScopes(
     } else {
         listOf()
     }
+    val oauthCustomScopes = organization.oauthCustomScopes ?: listOf()
     val azureB2CScope = if (organization.oauthIssuerLocation != null &&
         organization.oauthIssuerLocation.toUri().isAzureB2C()
     ) {
@@ -479,7 +480,7 @@ private fun ClientRegistration.Builder.withScopes(
         ?.filter { scope -> scope in listOf(OIDCScopeValue.OFFLINE_ACCESS) }
         ?.map(Scope.Value::getValue)
         ?: listOf()
-    return scope(mandatoryScopes + optionalScopes + userGroupsScope + azureB2CScope)
+    return scope(mandatoryScopes + optionalScopes + userGroupsScope + azureB2CScope + oauthCustomScopes)
 }
 
 /**
