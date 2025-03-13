@@ -108,13 +108,14 @@ private val typeReference: ParameterizedTypeReference<Map<String, Any>> = object
  * performance
  * @return A [ClientRegistration]
  */
-@SuppressWarnings("TooGenericExceptionCaught")
+@SuppressWarnings("TooGenericExceptionCaught", "LongParameterList")
 fun buildClientRegistration(
     registrationId: String,
     organization: Organization,
     jitProvisioningSetting: JitProvisioningSetting,
     properties: HostBasedClientRegistrationRepositoryProperties,
     clientRegistrationCache: ClientRegistrationCache,
+    oauthToDbSetting: OauthToDbSetting,
 ): ClientRegistration {
     val issuerLocation = organization.oauthIssuerLocation
         // fallback to DEX client registration if issuer location is not defined
@@ -138,7 +139,7 @@ fun buildClientRegistration(
     return ClientRegistration.withClientRegistration(cachedRegistration)
         .registrationId(registrationId)
         .withRedirectUri(organization.oauthIssuerId)
-        .buildWithIssuerConfig(organization, jitProvisioningSetting)
+        .buildWithIssuerConfig(organization, jitProvisioningSetting, oauthToDbSetting)
 }
 
 /**
@@ -430,7 +431,8 @@ private fun ClientRegistration.Builder.withRedirectUri(oauthIssuerId: String?) =
  */
 internal fun ClientRegistration.Builder.buildWithIssuerConfig(
     organization: Organization,
-    jitProvisioningSetting: JitProvisioningSetting
+    jitProvisioningSetting: JitProvisioningSetting,
+    oauthToDbSetting: OauthToDbSetting? = null,
 ): ClientRegistration {
     if (organization.oauthClientId == null || organization.oauthClientSecret == null) {
         throw ResponseStatusException(
@@ -444,7 +446,9 @@ internal fun ClientRegistration.Builder.buildWithIssuerConfig(
         .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
         .userNameAttributeName("name")
     val supportedScopes = withIssuerConfigBuilder.build().resolveSupportedScopes()
-    return withIssuerConfigBuilder.withScopes(supportedScopes, organization, jitProvisioningSetting).build()
+    return withIssuerConfigBuilder.withScopes(
+        supportedScopes, organization, jitProvisioningSetting, oauthToDbSetting
+    ).build()
 }
 
 private fun ClientRegistration.resolveSupportedScopes() =
@@ -452,10 +456,12 @@ private fun ClientRegistration.resolveSupportedScopes() =
         .takeIf(JSONObject::isNotEmpty)
         ?.let { confMetadata -> OIDCProviderMetadata.parse(confMetadata).scopes }
 
+@Suppress("CyclomaticComplexMethod")
 private fun ClientRegistration.Builder.withScopes(
     supportedScopes: Scope?,
     organization: Organization,
     jitProvisioningSetting: JitProvisioningSetting,
+    oauthToDbSetting: OauthToDbSetting? = null,
 ): ClientRegistration.Builder {
     // in the future, we could check mandatory scopes against the supported ones
     val mandatoryScopes = listOf(OIDCScopeValue.OPENID, OIDCScopeValue.PROFILE).map(Scope.Value::getValue)
@@ -465,6 +471,13 @@ private fun ClientRegistration.Builder.withScopes(
         } else {
             listOf(OIDCScopeValue.EMAIL.value)
         }
+    } else {
+        listOf()
+    }
+    val userDbRoleScope = if (
+        oauthToDbSetting != null && oauthToDbSetting.enabled && oauthToDbSetting.userDbRoleScope != null
+    ) {
+        listOf(oauthToDbSetting.userDbRoleScope)
     } else {
         listOf()
     }
@@ -479,7 +492,7 @@ private fun ClientRegistration.Builder.withScopes(
         ?.filter { scope -> scope in listOf(OIDCScopeValue.OFFLINE_ACCESS) }
         ?.map(Scope.Value::getValue)
         ?: listOf()
-    return scope(mandatoryScopes + optionalScopes + userGroupsScope + azureB2CScope)
+    return scope(mandatoryScopes + optionalScopes + userGroupsScope + azureB2CScope + userDbRoleScope)
 }
 
 /**

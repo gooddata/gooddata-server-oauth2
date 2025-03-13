@@ -49,6 +49,7 @@ sealed class AuthenticationProcessor<in authenticationToken : AbstractAuthentica
         name: String?,
         authMethod: AuthMethod?,
         authId: String? = null,
+        accessToken: String? = null,
         monoProvider: () -> Mono<T>,
     ): Mono<T> = monoProvider().contextWrite(
         when (authMethod) {
@@ -57,14 +58,16 @@ sealed class AuthenticationProcessor<in authenticationToken : AbstractAuthentica
                 user.id,
                 name,
                 authId,
-                authMethod
+                authMethod,
+                accessToken,
             )
             else -> reactorUserContextProvider.getContextView(
                 organization.id,
                 user.id,
                 name,
                 user.usedTokenId,
-                authMethod
+                authMethod,
+                accessToken,
             )
         }
     )

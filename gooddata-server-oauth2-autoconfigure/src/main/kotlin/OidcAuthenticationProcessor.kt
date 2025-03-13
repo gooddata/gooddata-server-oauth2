@@ -18,7 +18,9 @@ package com.gooddata.oauth2.server
 import java.time.Instant
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.HttpStatus
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
+import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizedClientRepository
 import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
 import org.springframework.security.web.server.ServerAuthenticationEntryPoint
 import org.springframework.security.web.server.WebFilterExchange
@@ -44,6 +46,7 @@ class OidcAuthenticationProcessor(
     private val authenticationEntryPoint: ServerAuthenticationEntryPoint,
     private val serverLogoutHandler: ServerLogoutHandler,
     private val reactorUserContextProvider: ReactorUserContextProvider,
+    private val oauth2ClientRepository: ServerOAuth2AuthorizedClientRepository,
 ) : AuthenticationProcessor<OAuth2AuthenticationToken>(reactorUserContextProvider) {
 
     private val logger = KotlinLogging.logger {}
@@ -52,8 +55,16 @@ class OidcAuthenticationProcessor(
         authenticationToken: OAuth2AuthenticationToken,
         exchange: ServerWebExchange,
         chain: WebFilterChain,
-    ): Mono<Void> =
-        getUserContextForAuthenticationToken(authenticationToken).flatMap { userContext ->
+    ): Mono<Void> {
+        val authorizedClientMono = oauth2ClientRepository.loadAuthorizedClient<OAuth2AuthorizedClient>(
+            authenticationToken.authorizedClientRegistrationId,
+            authenticationToken,
+            exchange,
+        )
+        val userContextMono = getUserContextForAuthenticationToken(authenticationToken)
+        return Mono.zip(authorizedClientMono, userContextMono).flatMap { tuple ->
+            val authorizedClient = tuple.t1
+            val userContext = tuple.t2
             if (userContext.user == null) {
                 logger.info { "Session was logged out" }
                 serverLogoutHandler.logout(WebFilterExchange(exchange, chain), authenticationToken).then(
@@ -69,12 +80,14 @@ class OidcAuthenticationProcessor(
                     userContext.user,
                     authenticationToken.name,
                     AuthMethod.OIDC,
-                    authenticationToken.getClaim(userContext.organization.oauthSubjectIdClaim)
+                    authenticationToken.getClaim(userContext.organization.oauthSubjectIdClaim),
+                    authorizedClient.accessToken.tokenValue,
                 ) {
                     chain.filter(exchange)
                 }
             }
         }
+    }
 
     /**
      * Takes provided [OAuth2AuthenticationToken] and tries to retrieve [Organization] and [User] that correspond to it.

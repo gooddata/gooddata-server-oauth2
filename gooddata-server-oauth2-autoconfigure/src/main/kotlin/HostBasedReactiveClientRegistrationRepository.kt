@@ -31,13 +31,20 @@ class HostBasedReactiveClientRegistrationRepository(
 
     override fun findByRegistrationId(registrationId: String): Mono<ClientRegistration> =
         getOrganizationFromContext().flatMap { organization ->
-            client.getJitProvisioningSetting(organization.id)
+            // Retrieve the jitProvisioningSetting as a Mono
+            val jitProvisioningMono = client.getJitProvisioningSetting(organization.id)
                 .defaultIfEmpty(JitProvisioningSetting(enabled = false))
-                .map { jitProvisioningSetting ->
+            // Retrieve the oauthToDbSetting as a Mono
+            val oauthToDbSettingMono = client.getOauthToDbSetting(organization.id)
+                .defaultIfEmpty(OauthToDbSetting(enabled = false))
+            // Combine both Monos so that when both complete, you can build the client registration
+            Mono.zip(jitProvisioningMono, oauthToDbSettingMono)
+                .map { tuple ->
                     buildClientRegistration(
                         registrationId = registrationId,
                         organization = organization,
-                        jitProvisioningSetting = jitProvisioningSetting,
+                        jitProvisioningSetting = tuple.t1,
+                        oauthToDbSetting = tuple.t2,
                         properties = properties,
                         clientRegistrationCache = clientRegistrationCache,
                     )

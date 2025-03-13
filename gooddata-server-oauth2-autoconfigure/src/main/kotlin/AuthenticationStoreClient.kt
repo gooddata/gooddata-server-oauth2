@@ -51,6 +51,16 @@ interface AuthenticationStoreClient {
     fun getJitProvisioningSetting(organizationId: String): Mono<JitProvisioningSetting>
 
     /**
+     * Retrieves [OauthToDbSetting] that corresponds to provided `organizationId`.
+     *
+     * Returns `null` in case no [OauthToDbSetting] can be found.
+     *
+     * @param organizationId ID of the organization
+     * @return found `OauthToDbSetting` or `null` in case no [OauthToDbSetting] is found
+     */
+    fun getOauthToDbSetting(organizationId: String): Mono<OauthToDbSetting>
+
+    /**
      * Retrieves [User] that corresponds to provided `organizationId` and `authenticationId` retrieved from
      * OIDC ID token.
      *
@@ -238,5 +248,19 @@ data class JitProvisioningSetting(
     val userGroupsScopeEnabled: Boolean = false,
     val userGroupsScopeName: String? = null,
     val userGroupsClaimName: String? = null,
-    val userGroupsDefaults: List<String>? = null
+    val userGroupsDefaults: List<String>? = null,
+)
+
+/**
+ * Represents Oauth to database setting stored in the persistent storage.
+ *
+ * @property enabled the switch to enable/disable the JIT provisioning
+ * @property userDbRoleScope the scope which contains database(e.g. Snowflake) role. Database provider may require it.
+ * authentication flow
+ *
+ * @see AuthenticationStoreClient
+ */
+data class OauthToDbSetting(
+    val enabled: Boolean,
+    val userDbRoleScope: String? = null,
 )

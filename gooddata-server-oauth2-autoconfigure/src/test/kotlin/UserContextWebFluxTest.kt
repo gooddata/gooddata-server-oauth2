@@ -589,7 +589,7 @@ class UserContextWebFluxTest(
 
         @Bean
         fun reactorUserContextProvider() =
-            ReactorUserContextProvider { organizationId, userId, userName, tokenId, authMethod ->
+            ReactorUserContextProvider { organizationId, userId, userName, tokenId, authMethod, _ ->
                 Context.of(
                     UserContext::class.java,
                     UserContext(organizationId, userId, userName, tokenId, authMethod)

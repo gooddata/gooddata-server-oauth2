@@ -62,6 +62,7 @@ internal class AuthenticationUtilsTest {
     lateinit var clientRegistrationCache: ClientRegistrationCache
 
     val jitProvisioningSetting = JitProvisioningSetting(enabled = false)
+    val oauthToDbSetting = OauthToDbSetting(enabled = false)
 
     @BeforeEach
     internal fun setUp() {
@@ -82,7 +83,8 @@ internal class AuthenticationUtilsTest {
             organization,
             jitProvisioningSetting,
             properties,
-            clientRegistrationCache
+            clientRegistrationCache,
+            oauthToDbSetting,
         )
         expect {
             that(clientRegistration).and {
@@ -113,7 +115,8 @@ internal class AuthenticationUtilsTest {
                 organization,
                 jitSettings,
                 properties,
-                clientRegistrationCache
+                clientRegistrationCache,
+                oauthToDbSetting,
             )
         }
         expect {
@@ -143,7 +146,8 @@ internal class AuthenticationUtilsTest {
                 organization,
                 jitProvisioningSetting,
                 properties,
-                clientRegistrationCache
+                clientRegistrationCache,
+                oauthToDbSetting,
             )
         ) {
             get { registrationId }.isEqualTo(REGISTRATION_ID)
@@ -166,7 +170,12 @@ internal class AuthenticationUtilsTest {
 
         try {
             buildClientRegistration(
-                REGISTRATION_ID, organization, jitProvisioningSetting, properties, clientRegistrationCache
+                REGISTRATION_ID,
+                organization,
+                jitProvisioningSetting,
+                properties,
+                clientRegistrationCache,
+                oauthToDbSetting,
             )
         } catch (ex: HttpClientErrorException) {
             // This is expected as the issuer isn't actually available and can be ignored as we just wish to verify
@@ -236,7 +245,8 @@ internal class AuthenticationUtilsTest {
                 organization,
                 jitProvisioningSetting,
                 properties,
-                clientRegistrationCache
+                clientRegistrationCache,
+                oauthToDbSetting,
             )
         }
         assertEquals(
@@ -261,7 +271,8 @@ internal class AuthenticationUtilsTest {
                 organization,
                 jitProvisioningSetting,
                 properties,
-                clientRegistrationCache
+                clientRegistrationCache,
+                oauthToDbSetting,
             )
         }
         assertEquals(
