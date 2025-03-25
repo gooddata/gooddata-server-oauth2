@@ -33,7 +33,7 @@ class UserContextAuthenticationProcessorTest {
 
     @Test
     fun `bearer context is stored`() {
-        coEvery { userContextProvider.getContextView(any(), any(), any(), any(), any()) } returns Context.empty()
+        coEvery { userContextProvider.getContextView(any(), any(), any(), any(), any(), any()) } returns Context.empty()
 
         val authenticationToken = UserContextAuthenticationToken(
             Organization("organizationId"),
@@ -53,7 +53,9 @@ class UserContextAuthenticationProcessorTest {
                 "userId",
                 null,
                 any(),
-                AuthMethod.API_TOKEN)
+                AuthMethod.API_TOKEN,
+                null,
+            )
         }
     }
 }

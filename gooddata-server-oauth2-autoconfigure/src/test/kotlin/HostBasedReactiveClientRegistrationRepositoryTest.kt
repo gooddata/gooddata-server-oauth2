@@ -31,6 +31,7 @@ internal class HostBasedReactiveClientRegistrationRepositoryTest {
 
     private val client = mockk<AuthenticationStoreClient> {
         every { getJitProvisioningSetting("orgId") } returns Mono.empty()
+        every { getOauthToDbSetting("orgId") } returns Mono.empty()
     }
 
     private val repository = HostBasedReactiveClientRegistrationRepository(
