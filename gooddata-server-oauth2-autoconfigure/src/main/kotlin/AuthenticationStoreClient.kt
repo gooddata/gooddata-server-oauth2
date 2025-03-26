@@ -188,6 +188,7 @@ interface AuthenticationStoreClient {
  * Defaults to `null` and it means that `sub` claim will be used.
  * @property oauthCustomAuthAttributes map for additional oauth authentication attributes to be sent
  * in authentication request
+ * @property oauthCustomScopes map for additional scopes which may be required by other providers (e.g. Snowflake DB)
  *
  * @see AuthenticationStoreClient
  */
@@ -200,6 +201,7 @@ data class Organization(
     val oauthIssuerId: String? = null,
     val oauthSubjectIdClaim: String? = null,
     val oauthCustomAuthAttributes: Map<String, String>? = null,
+    val oauthCustomScopes: List<String>? = null,
 )
 
 /**
@@ -238,5 +240,5 @@ data class JitProvisioningSetting(
     val userGroupsScopeEnabled: Boolean = false,
     val userGroupsScopeName: String? = null,
     val userGroupsClaimName: String? = null,
-    val userGroupsDefaults: List<String>? = null
+    val userGroupsDefaults: List<String>? = null,
 )

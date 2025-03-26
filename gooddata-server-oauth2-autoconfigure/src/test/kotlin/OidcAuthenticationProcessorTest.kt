@@ -23,7 +23,10 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Test
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
+import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizedClientRepository
+import org.springframework.security.oauth2.core.OAuth2AccessToken
 import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
 import org.springframework.security.oauth2.core.oidc.OidcIdToken
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser
@@ -47,8 +50,27 @@ class OidcAuthenticationProcessorTest {
 
     private val userContextProvider: ReactorUserContextProvider = mockk()
 
+    private val oauth2ClientRepository: ServerOAuth2AuthorizedClientRepository = mockk() {
+        every { loadAuthorizedClient<OAuth2AuthorizedClient>(any(), any(), any()) } returns Mono.just(
+            mockk {
+                every { accessToken } returns OAuth2AccessToken(
+                    OAuth2AccessToken.TokenType.BEARER,
+                    ACCESS_TOKEN,
+                    Instant.MIN,
+                    Instant.MAX,
+                )
+            }
+        )
+    }
+
     private val oidcAuthenticationProcessor =
-        OidcAuthenticationProcessor(client, authenticationEntryPoint, serverLogoutHandler, userContextProvider)
+        OidcAuthenticationProcessor(
+            client,
+            authenticationEntryPoint,
+            serverLogoutHandler,
+            userContextProvider,
+            oauth2ClientRepository,
+        )
 
     @Test
     fun `user context is stored for Oidc authentication`() {
@@ -73,7 +95,7 @@ class OidcAuthenticationProcessorTest {
 
         mockOrganization(client, HOSTNAME, organization)
         mockUserByAuthId(client, ORG_ID, "sub", User(USER_ID))
-        coEvery { userContextProvider.getContextView(any(), any(), any(), any(), any()) } returns Context.empty()
+        coEvery { userContextProvider.getContextView(any(), any(), any(), any(), any(), any()) } returns Context.empty()
 
         val webFilterChain = mockk<WebFilterChain> {
             every { filter(any()) } returns Mono.empty()
@@ -95,7 +117,8 @@ class OidcAuthenticationProcessorTest {
                 USER_ID,
                 "sub",
                 "sub",
-                AuthMethod.OIDC
+                AuthMethod.OIDC,
+                ACCESS_TOKEN,
             )
         }
     }
@@ -124,7 +147,7 @@ class OidcAuthenticationProcessorTest {
 
         mockOrganization(client, HOSTNAME, organization)
         mockUserByAuthId(client, ORG_ID, "sub", User(USER_ID))
-        coEvery { userContextProvider.getContextView(any(), any(), any(), any(), any()) } returns Context.empty()
+        coEvery { userContextProvider.getContextView(any(), any(), any(), any(), any(), any()) } returns Context.empty()
 
         val webFilterChain = mockk<WebFilterChain> {
             every { filter(any()) } returns Mono.empty()
@@ -140,7 +163,11 @@ class OidcAuthenticationProcessorTest {
         verify { serverLogoutHandler wasNot called }
         verify { authenticationEntryPoint wasNot called }
         verify(exactly = 1) { webFilterChain.filter(any()) }
-        coVerify(exactly = 1) { userContextProvider.getContextView(ORG_ID, USER_ID, "non-sub", "sub", AuthMethod.OIDC) }
+        coVerify(exactly = 1) {
+            userContextProvider.getContextView(
+                ORG_ID, USER_ID, "non-sub", "sub", AuthMethod.OIDC, ACCESS_TOKEN
+            )
+        }
     }
 
     @Test
@@ -166,7 +193,7 @@ class OidcAuthenticationProcessorTest {
 
         mockOrganization(client, HOSTNAME, organization)
         mockUserByAuthId(client, ORG_ID, "sub", User(USER_ID))
-        coEvery { userContextProvider.getContextView(any(), any(), any(), any(), any()) } returns Context.empty()
+        coEvery { userContextProvider.getContextView(any(), any(), any(), any(), any(), any()) } returns Context.empty()
 
         val webFilterChain = mockk<WebFilterChain> {
             every { filter(any()) } returns Mono.empty()
@@ -223,5 +250,6 @@ class OidcAuthenticationProcessorTest {
         private const val USER_ID = "userId"
         private val ORGANIZATION = Organization(ORG_ID)
         private const val OID_SUBJECT_ID_CLAIM_NAME = "oid"
+        private const val ACCESS_TOKEN = "accessToken"
     }
 }

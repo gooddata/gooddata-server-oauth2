@@ -82,7 +82,7 @@ internal class AuthenticationUtilsTest {
             organization,
             jitProvisioningSetting,
             properties,
-            clientRegistrationCache
+            clientRegistrationCache,
         )
         expect {
             that(clientRegistration).and {
@@ -98,7 +98,7 @@ internal class AuthenticationUtilsTest {
     @MethodSource("jitOrgSettingArguments")
     fun buildClientRegistrationIssuerLocationWithCache(
         jitSettings: JitProvisioningSetting,
-        expectedScopes: List<String>
+        expectedScopes: List<String>,
     ) {
         organization = Organization(
             id = ORGANIZATION_ID,
@@ -113,7 +113,7 @@ internal class AuthenticationUtilsTest {
                 organization,
                 jitSettings,
                 properties,
-                clientRegistrationCache
+                clientRegistrationCache,
             )
         }
         expect {
@@ -143,7 +143,7 @@ internal class AuthenticationUtilsTest {
                 organization,
                 jitProvisioningSetting,
                 properties,
-                clientRegistrationCache
+                clientRegistrationCache,
             )
         ) {
             get { registrationId }.isEqualTo(REGISTRATION_ID)
@@ -166,7 +166,11 @@ internal class AuthenticationUtilsTest {
 
         try {
             buildClientRegistration(
-                REGISTRATION_ID, organization, jitProvisioningSetting, properties, clientRegistrationCache
+                REGISTRATION_ID,
+                organization,
+                jitProvisioningSetting,
+                properties,
+                clientRegistrationCache,
             )
         } catch (ex: HttpClientErrorException) {
             // This is expected as the issuer isn't actually available and can be ignored as we just wish to verify
@@ -236,7 +240,7 @@ internal class AuthenticationUtilsTest {
                 organization,
                 jitProvisioningSetting,
                 properties,
-                clientRegistrationCache
+                clientRegistrationCache,
             )
         }
         assertEquals(
@@ -261,7 +265,7 @@ internal class AuthenticationUtilsTest {
                 organization,
                 jitProvisioningSetting,
                 properties,
-                clientRegistrationCache
+                clientRegistrationCache,
             )
         }
         assertEquals(
@@ -402,13 +406,13 @@ internal class AuthenticationUtilsTest {
         }
 
         @JvmStatic
-        fun userGroups() = Stream.of(
+        fun userGroups(): Stream<Arguments> = Stream.of(
             Arguments.of("group1,group2"),
             Arguments.of(listOf("group1", "group2"))
         )
 
         @JvmStatic
-        fun illegalIssuerArguments() = Stream.of(
+        fun illegalIssuerArguments(): Stream<Arguments> = Stream.of(
             Arguments.of(
                 "non matching issuer",
                 "https://gooddata-stg.us.auth0.com/wrong",
@@ -441,6 +445,7 @@ internal class AuthenticationUtilsTest {
                 listOf("openid", "profile", "email", "offline_access", "gdUserGroups")
             )
         )
+
         @Language("json")
         private val OIDC_CONFIG = """
             {

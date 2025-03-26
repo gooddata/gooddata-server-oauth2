@@ -57,12 +57,14 @@ fun interface ReactorUserContextProvider {
      * @param[authMethod] the method of authentication
      * @return [ContextView] containing the user's context
      */
+    @Suppress("LongParameterList")
     fun getContextView(
         organizationId: String,
         userId: String,
         userName: String?,
         tokenId: String?,
         authMethod: AuthMethod?,
+        accessToken: String?,
     ): ContextView
 }
 
