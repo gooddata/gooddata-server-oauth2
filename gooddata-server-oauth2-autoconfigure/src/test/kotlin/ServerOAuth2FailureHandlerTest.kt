@@ -28,7 +28,8 @@ import strikt.assertions.isEqualTo
 
 class ServerOAuth2FailureHandlerTest {
 
-    private val handler: ServerOAuth2FailureHandler = ServerOAuth2FailureHandler()
+    private val auditClient = mockk<AuthenticationAuditClient>(relaxed = true)
+    private val handler: ServerOAuth2FailureHandler = ServerOAuth2FailureHandler(auditClient)
 
     @Test
     fun `on authentication failure response with message is set`() {

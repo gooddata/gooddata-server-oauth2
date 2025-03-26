@@ -26,6 +26,7 @@ import org.springframework.security.authentication.ReactiveAuthenticationManager
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.core.OAuth2TokenValidator
 import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.security.oauth2.jwt.JwtClaimNames
 import org.springframework.security.oauth2.jwt.JwtException
 import org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthenticationToken
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
@@ -39,12 +40,15 @@ import java.text.ParseException
  */
 class BearerTokenReactiveAuthenticationManagerResolver(
     private val client: AuthenticationStoreClient,
+    private val auditClient: AuthenticationAuditClient,
 ) : ReactiveAuthenticationManagerResolver<ServerWebExchange> {
     override fun resolve(exchange: ServerWebExchange): Mono<ReactiveAuthenticationManager> =
         Mono.just(exchange).map {
+            val sourceIp = exchange.request.remoteAddress?.address?.hostAddress
+
             CustomDelegatingReactiveAuthenticationManager(
-                JwtAuthenticationManager(client),
-                PersistentApiTokenAuthenticationManager(client)
+                JwtAuthenticationManager(client, auditClient, sourceIp),
+                PersistentApiTokenAuthenticationManager(client, auditClient, sourceIp)
             )
         }
 }
@@ -54,6 +58,8 @@ class BearerTokenReactiveAuthenticationManagerResolver(
  */
 private class PersistentApiTokenAuthenticationManager(
     private val client: AuthenticationStoreClient,
+    private val auditClient: AuthenticationAuditClient,
+    private val sourceIp: String?,
 ) : ReactiveAuthenticationManager {
     private val logger = KotlinLogging.logger { }
 
@@ -63,16 +69,24 @@ private class PersistentApiTokenAuthenticationManager(
             .cast(BearerTokenAuthenticationToken::class.java)
             .flatMap { authToken ->
                 getOrganizationFromContext().flatMap { organization ->
-                    client.getUserByApiToken(organization.id, authToken.token).map { user ->
-                        UserContextAuthenticationToken(organization, user).also {
-                            logger.logFinishedAuthentication(
-                                organization.id,
-                                user.id,
-                                "API Token",
-                            ) {
-                                withTokenId(user.usedTokenId)
-                            }
-                        }
+                    client.getUserByApiToken(organization.id, authToken.token).flatMap { user ->
+                        val token = UserContextAuthenticationToken(organization, user)
+                        auditClient.recordLoginSuccess(
+                            orgId = organization.id,
+                            userId = user.id,
+                            source = sourceIp,
+                            sessionContextType = AuthMethod.API_TOKEN,
+                            sessionContextIdentifier = user.usedTokenId
+                        ).thenReturn(token)
+                    }.onErrorResume { ex ->
+                        auditClient.recordLoginFailure(
+                            orgId = organization.id,
+                            userId = "", // User ID is not available during failed authentication
+                            source = sourceIp,
+                            sessionContextType = AuthMethod.API_TOKEN,
+                            sessionContextIdentifier = "",
+                            errorCode = "INVALID_BEARER_TOKEN",
+                        ).then(Mono.error(ex))
                     }
                 }
             }
@@ -83,6 +97,8 @@ private class PersistentApiTokenAuthenticationManager(
  */
 private class JwtAuthenticationManager(
     private val client: AuthenticationStoreClient,
+    private val auditClient: AuthenticationAuditClient,
+    private val sourceIp: String?,
     private val jwtTokenValidator: OAuth2TokenValidator<Jwt> = CustomOAuth2Validator(),
 ) : ReactiveAuthenticationManager {
 
@@ -101,18 +117,96 @@ private class JwtAuthenticationManager(
             val decoder = prepareJwtDecoder(getJwkSet(organization.id), supportedJwsAlgorithms)
                 .apply { setJwtValidator(jwtTokenValidator) }
             JwtReactiveAuthenticationManager(decoder).authenticate(jwtToken)
-                .onErrorMap({ it.cause is JwtException }) { ex ->
+                .onErrorResume({ it.cause is JwtException }) { ex ->
                     logger.logError(ex) {
                         withAction("login")
                         withMessage { "authentication failed: ${ex.message}" }
                         withState("error")
                         withAuthenticationMethod(AUTH_METHOD)
                     }
-                    parseJwtException(ex, jwtToken)
+                    recordAuditForJwtAuthenticationError(organization.id, ex, jwtToken)
                 }
                 .doOnNext { token ->
                     logFinishedJwtAuthentication(organization.id, token)
                 }
+        }
+    }
+
+    @Suppress("LongMethod", "CyclomaticComplexMethod", "NestedBlockDepth")
+    private fun recordAuditForJwtAuthenticationError(
+        orgId: String,
+        ex: Throwable,
+        jwtToken: BearerTokenAuthenticationToken
+    ): Mono<Authentication> {
+        return when (ex.cause?.cause) {
+            is ParseException -> {
+                auditClient.recordLoginFailure(
+                    orgId = orgId,
+                    userId = "",
+                    source = sourceIp,
+                    sessionContextType = AuthMethod.JWT,
+                    sessionContextIdentifier = "",
+                    errorCode = "JWT_DECODE_ERROR",
+                    details = mapOf("errorMessage" to "JWT token could not be parsed")
+                ).then(
+                    Mono.error(JwtDecodeException())
+                )
+            }
+            else -> {
+                try {
+                    val jwt = SignedJWT.parse(jwtToken.token)
+                    val subClaim = jwt.jwtClaimsSet.getStringClaim(JwtClaimNames.SUB)
+                    val details = mutableMapOf<String, Any>()
+
+                    listOf(
+                        JwtClaimNames.ISS,
+                        JwtClaimNames.AUD,
+                        JwtClaimNames.EXP,
+                        JwtClaimNames.JTI,
+                        JwtClaimNames.IAT,
+                        JwtClaimNames.NBF
+                    ).forEach { claimName ->
+                        jwt.jwtClaimsSet.getClaim(claimName)?.let {
+                            details[claimName] = it.toString()
+                        }
+                    }
+
+                    val errorMessage = when (ex.cause?.cause) {
+                        is InternalJwtExpiredException -> "JWT token has expired"
+                        is BadJWSException -> "JWT signature verification failed"
+                        else -> invalidClaimsMessage(jwtToken.missingMandatoryClaims())
+                    }
+                    details["errorMessage"] = errorMessage
+
+                    auditClient.recordLoginFailure(
+                        orgId = orgId,
+                        userId = subClaim ?: "",
+                        source = sourceIp,
+                        sessionContextType = AuthMethod.JWT,
+                        sessionContextIdentifier = subClaim ?: "",
+                        errorCode = when (ex.cause?.cause) {
+                            is InternalJwtExpiredException -> "JWT_EXPIRED"
+                            is BadJWSException -> "JWT_SIGNATURE_ERROR"
+                            else -> "JWT_VERIFICATION_ERROR"
+                        },
+                        details = details
+                    ).then(
+                        Mono.error(parseJwtException(ex, jwtToken))
+                    )
+                } catch (_: ParseException) {
+                    auditClient.recordLoginFailure(
+                        orgId = orgId,
+                        userId = "",
+                        source = sourceIp,
+                        sessionContextType = AuthMethod.JWT,
+                        sessionContextIdentifier = "",
+                        errorCode = "JWT_DECODE_ERROR",
+                        details = mapOf("errorMessage" to "JWT token could not be parsed")
+                    ).then(
+                        Mono.error(parseJwtException(ex, jwtToken))
+                    )
+                }
+            }
         }
     }
 
@@ -131,7 +225,13 @@ private class JwtAuthenticationManager(
     private fun logFinishedJwtAuthentication(organizationId: String, token: Authentication) {
         if (token is JwtAuthenticationToken) {
             client.getUserById(organizationId, token.name).map { user ->
-                logger.logFinishedAuthentication(organizationId, user.id, AUTH_METHOD) {}
+                auditClient.recordLoginSuccess(
+                    orgId = organizationId,
+                    userId = user.id,
+                    source = sourceIp,
+                    sessionContextType = AuthMethod.JWT,
+                    sessionContextIdentifier = token.name
+                )
             }
         }
     }
@@ -146,7 +246,7 @@ private class JwtAuthenticationManager(
         private fun BearerTokenAuthenticationToken.missingMandatoryClaims(): List<String> = try {
             val tokenClaims = SignedJWT.parse(token).jwtClaimsSet.claims.keys
             mandatoryClaims.minus(tokenClaims)
-        } catch (ex: ParseException) {
+        } catch (_: ParseException) {
             emptyList()
         }
     }

@@ -34,8 +34,6 @@ import io.github.oshai.kotlinlogging.KLogger
 import org.slf4j.Logger
 import org.slf4j.Marker
 import org.slf4j.MarkerFactory
-import org.springframework.security.core.Authentication
-import reactor.core.publisher.Mono
 
 private val GD_API_MARKER: Marker = MarkerFactory.getMarker("GD_STRUCT_LOG")
 
@@ -48,44 +46,6 @@ internal fun KLogger.logInfo(block: LogBuilder.() -> Unit) {
 internal fun KLogger.logError(exception: Throwable, block: LogBuilder.() -> Unit) {
     if (isErrorEnabled()) {
         log(this, block, ERROR, exception)
-    }
-}
-
-internal fun logAuthenticationWithOrgIdAndUserId(
-    client: AuthenticationStoreClient,
-    authentication: Authentication?,
-    logger: KLogger,
-    logBody: LogBuilder.() -> Unit,
-): Mono<Void> {
-    return getOrganizationFromContext().flatMap { organization ->
-        findAuthenticatedUser(client, organization, authentication)
-            .switchIfEmpty(Mono.just(User("<unauthorized user>")))
-            .flatMap { user ->
-                logger.logInfo {
-                    logBody()
-                    withOrganizationId(organization.id)
-                    withUserId(user.id)
-                    withAuthenticationId(authentication?.getClaim(organization) ?: "")
-                }
-                Mono.empty()
-            }
-    }
-}
-
-internal fun KLogger.logFinishedAuthentication(
-    orgId: String,
-    userId: String,
-    authMethod: String,
-    additionalParam: LogBuilder.() -> Unit,
-) {
-    logInfo {
-        withMessage { "User Authenticated" }
-        withAction("login")
-        withState("finished")
-        withOrganizationId(orgId)
-        withUserId(userId)
-        withAuthenticationMethod(authMethod)
-        additionalParam()
     }
 }
 
