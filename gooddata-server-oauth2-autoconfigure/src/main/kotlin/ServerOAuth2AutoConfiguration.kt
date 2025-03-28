@@ -229,6 +229,7 @@ class ServerOAuth2AutoConfiguration {
         cookieService: ReactiveCookieService,
         serverSecurityContextRepository: ServerSecurityContextRepository,
         authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>,
+        auditClient: ObjectProvider<AuthenticationAuditClient>,
         appLoginProperties: AppLoginProperties,
         userContextHolder: ObjectProvider<UserContextHolder<*>>,
         userContextProvider: ObjectProvider<ReactorUserContextProvider>,
@@ -265,11 +266,16 @@ class ServerOAuth2AutoConfiguration {
             Auth0LogoutHandler(clientRegistrationRepository, auth0CustomDomain),
             JwtAuthenticationLogoutHandler(authenticationStoreClient.`object`),
             client = authenticationStoreClient.`object`,
+            auditClient = auditClient.`object`,
         )
 
         val authSuccessHandler = DelegatingServerAuthenticationSuccessHandler(
             JitProvisioningAuthenticationSuccessHandler(authenticationStoreClient.`object`),
-            LoggingRedirectServerAuthenticationSuccessHandler(authenticationStoreClient.`object`, serverRequestCache)
+            LoggingRedirectServerAuthenticationSuccessHandler(
+                authenticationStoreClient.`object`,
+                auditClient.`object`,
+                serverRequestCache
+            )
         )
 
         return serverHttpSecurity.securityContextRepository(serverSecurityContextRepository).configure {
@@ -298,13 +304,15 @@ class ServerOAuth2AutoConfiguration {
                 hsts { }
             }
             oauth2ResourceServer {
-                authenticationManagerResolver =
-                    BearerTokenReactiveAuthenticationManagerResolver(authenticationStoreClient.`object`)
+                authenticationManagerResolver = BearerTokenReactiveAuthenticationManagerResolver(
+                    authenticationStoreClient.`object`,
+                    auditClient.`object`
+                )
             }
             oauth2Login {
                 authorizationRequestRepository = CookieServerAuthorizationRequestRepository(cookieService)
                 authorizedClientRepository = oauth2ClientRepository
-                authenticationFailureHandler = ServerOAuth2FailureHandler()
+                authenticationFailureHandler = ServerOAuth2FailureHandler(auditClient.`object`)
                 authenticationManager = loginAuthManager
                 authorizationRequestResolver = federationAwareAuthorizationRequestResolver
                 authenticationSuccessHandler = authSuccessHandler

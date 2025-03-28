@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest
 import org.springframework.security.oauth2.core.user.OAuth2User
 import org.springframework.web.server.ResponseStatusException
+import reactor.core.publisher.Mono
 import strikt.api.expectThat
 import strikt.api.expectThrows
 import strikt.assertions.isEqualTo
@@ -29,7 +30,8 @@ import strikt.assertions.isNotNull
 
 class OAuth2UserValidatorTest {
 
-    private val userValidator = OAuth2UserValidator()
+    private val auditClient = mockk<AuthenticationAuditClient>(relaxed = true)
+    private val userValidator = OAuth2UserValidator(auditClient)
     private val userRequest = mockk<OAuth2UserRequest> {
         every { clientRegistration } returns mockk(relaxed = true) {
             every { providerDetails } returns mockk {
@@ -46,10 +48,22 @@ class OAuth2UserValidatorTest {
         val user = mockk<OAuth2User> {
             every { attributes } returns mapOf("userName" to "")
         }
+        val organization = mockk<Organization> {
+            every { id } returns "test-org-id"
+        }
+        every {
+            auditClient.recordLoginFailure(
+                any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns Mono.empty()
 
         // then
+        val mono = Mono.defer {
+            userValidator.validateUser(userRequest, user)
+        }.contextWrite { it.put(OrganizationContext::class, OrganizationContext(organization)) }
+
         expectThrows<ResponseStatusException> {
-            userValidator.validateUser(userRequest, user).block()
+            mono.block()
         }.and {
             get { message }.isEqualTo(
                 "401 UNAUTHORIZED \"Authorization failed, \"user name\" attribute - userName contains invalid " +

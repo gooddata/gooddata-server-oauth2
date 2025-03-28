@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * You may obtain a copy of the License a
  *
  *      https://www.apache.org/licenses/LICENSE-2.0
  *
@@ -26,15 +26,32 @@ import reactor.core.publisher.Mono
 /**
  * Handles the authentications failure
  */
-class ServerOAuth2FailureHandler : ServerAuthenticationFailureHandler {
+class ServerOAuth2FailureHandler(
+    private val auditClient: AuthenticationAuditClient
+) : ServerAuthenticationFailureHandler {
 
     override fun onAuthenticationFailure(exchange: WebFilterExchange, exception: AuthenticationException): Mono<Void> {
         val errorDescription = exchange.getRequestErrorDescription()
             ?: exception.message?.nullIfBlank()?.removeIllegalCharacters()
             ?: DEFAULT_ERROR_DESCRIPTION
-        return exchange.setResponse(
-            HttpStatus.UNAUTHORIZED,
-            "Unable to authenticate: ${exchange.getRequestErrorCode()}: $errorDescription"
+        val errorCode = exchange.getRequestErrorCode()
+
+        return getOrganizationFromContext().flatMap { organization ->
+            val sourceIp = exchange.exchange.request.remoteAddress?.address?.hostAddress
+            auditClient.recordLoginFailure(
+                orgId = organization.id,
+                userId = "",
+                source = sourceIp,
+                sessionContextType = AuthMethod.OIDC,
+                sessionContextIdentifier = null,
+                errorCode = errorCode,
+                details = mapOf("errorMessage" to errorDescription)
+            )
+        }.then(
+            exchange.setResponse(
+                HttpStatus.UNAUTHORIZED,
+                "Unable to authenticate: $errorCode: $errorDescription"
+            )
         )
     }
 

@@ -100,8 +100,11 @@ class ReactiveCommunicationClientsConfiguration(private val httpProperties: Http
         }
 
     @Bean
-    fun oauth2UserService(webClient: WebClient): ReactiveOAuth2UserService<OAuth2UserRequest, OAuth2User> =
-        CustomReactiveOAuth2UserService().apply {
+    fun oauth2UserService(
+        webClient: WebClient,
+        auditClient: AuthenticationAuditClient
+    ): ReactiveOAuth2UserService<OAuth2UserRequest, OAuth2User> =
+        CustomReactiveOAuth2UserService(auditClient).apply {
             setWebClient(webClient)
         }
 

@@ -74,6 +74,9 @@ class UserContextWebFluxTest(
     @MockkBean
     lateinit var authenticationStoreClient: AuthenticationStoreClient
 
+    @MockkBean
+    lateinit var authenticationAuditClient: AuthenticationAuditClient
+
     private val exchange = mockk<ServerWebExchange> {
         every { request.uri.host } returns LOCALHOST
     }
@@ -90,6 +93,15 @@ class UserContextWebFluxTest(
         every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns organization
         mockUserByAuthId(authenticationStoreClient, ORG_ID, SUB_CLAIM_VALUE, USER)
         mockCookieSecurityProperties()
+        every {
+            authenticationAuditClient.recordLoginSuccess(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        } returns Mono.empty()
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
@@ -117,6 +129,15 @@ class UserContextWebFluxTest(
         everyValidOrganization()
         mockUserByAuthId(authenticationStoreClient, ORG_ID, SUB_CLAIM_VALUE, USER)
         mockCookieSecurityProperties()
+        every {
+            authenticationAuditClient.recordLoginSuccess(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        } returns Mono.empty()
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
@@ -142,6 +163,15 @@ class UserContextWebFluxTest(
         everyValidSecurityContext()
         mockUserByAuthId(authenticationStoreClient, ORG_ID, SUB_CLAIM_VALUE, User("userId"))
         mockCookieSecurityProperties()
+        every {
+            authenticationAuditClient.recordLoginSuccess(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        } returns Mono.empty()
 
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
@@ -281,6 +311,15 @@ class UserContextWebFluxTest(
             SUB_CLAIM_VALUE,
             User(USER_ID, lastLogoutAllTimestamp = Instant.ofEpochSecond(1))
         )
+        every {
+            authenticationAuditClient.recordLoginSuccess(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        } returns Mono.empty()
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
@@ -302,6 +341,15 @@ class UserContextWebFluxTest(
         every { authenticationStoreClient.getUserByApiToken(ORG_ID, "supersecuretoken") } returns Mono.just(
             User(USER_ID)
         )
+        every {
+            authenticationAuditClient.recordLoginSuccess(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        } returns Mono.empty()
 
         webClient.get().uri("http://localhost/")
             .header("Authorization", "Bearer supersecuretoken")
@@ -358,6 +406,17 @@ class UserContextWebFluxTest(
         every { authenticationStoreClient.getUserByApiToken(ORG_ID, "supersecuretoken") } returns Mono.error(
             InvalidBearerTokenException("msg")
         )
+        every {
+            authenticationAuditClient.recordLoginFailure(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+            )
+        } returns Mono.empty()
 
         webClient.get().uri("http://localhost/")
             .header("Authorization", "Bearer supersecuretoken")
@@ -438,6 +497,16 @@ class UserContextWebFluxTest(
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
         every { serverSecurityContextRepository.save(any(), null) } returns Mono.empty()
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.empty()
+        every {
+            authenticationAuditClient.recordLogout(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+            )
+        } returns Mono.empty()
 
         webClient.get().uri("http://localhost/logout")
             .exchange()
@@ -459,6 +528,16 @@ class UserContextWebFluxTest(
         every { serverSecurityContextRepository.load(any()) } returns Mono.empty()
         every { serverSecurityContextRepository.save(any(), null) } returns Mono.empty()
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.empty()
+        every {
+            authenticationAuditClient.recordLogout(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+            )
+        } returns Mono.empty()
 
         webClient.get().uri("http://localhost/logout?returnTo=/userReturnTo")
             .exchange()
@@ -475,6 +554,25 @@ class UserContextWebFluxTest(
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.empty()
         everyValidOrganization()
         mockUserByAuthId(authenticationStoreClient, ORG_ID, SUB_CLAIM_VALUE, User(USER_ID))
+        every {
+            authenticationAuditClient.recordLoginSuccess(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        } returns Mono.empty()
+        every {
+            authenticationAuditClient.recordLogout(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+            )
+        } returns Mono.empty()
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 
@@ -495,6 +593,25 @@ class UserContextWebFluxTest(
         every { clientRegistrationRepository.findByRegistrationId(any()) } returns Mono.empty()
         everyValidOrganization()
         mockUserByAuthId(authenticationStoreClient, ORG_ID, SUB_CLAIM_VALUE, User(USER_ID))
+        every {
+            authenticationAuditClient.recordLoginSuccess(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        } returns Mono.empty()
+        every {
+            authenticationAuditClient.recordLogout(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+            )
+        } returns Mono.empty()
         val authenticationToken = ResourceUtils.resource("oauth2_authentication_token.json").readText()
         val authorizedClient = ResourceUtils.resource("simplified_oauth2_authorized_client.json").readText()
 

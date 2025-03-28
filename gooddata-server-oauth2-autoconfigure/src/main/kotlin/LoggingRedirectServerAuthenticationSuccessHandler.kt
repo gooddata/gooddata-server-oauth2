@@ -9,7 +9,8 @@ import reactor.core.publisher.Mono
 
 class LoggingRedirectServerAuthenticationSuccessHandler(
     private val client: AuthenticationStoreClient,
-    cache: ServerRequestCache
+    private val auditClient: AuthenticationAuditClient,
+    cache: ServerRequestCache,
 ) : RedirectServerAuthenticationSuccessHandler() {
 
     init {
@@ -22,13 +23,22 @@ class LoggingRedirectServerAuthenticationSuccessHandler(
         webFilterExchange: WebFilterExchange?,
         authentication: Authentication?,
     ): Mono<Void> {
+        val sourceIp = webFilterExchange?.exchange?.request?.remoteAddress?.address?.hostAddress
+
         return super.onAuthenticationSuccess(webFilterExchange, authentication)
             .then(
-                logAuthenticationWithOrgIdAndUserId(client, authentication, logger) {
-                    withMessage { "User Authenticated" }
-                    withAction("login")
-                    withState("finished")
-                    withAuthenticationMethod("OIDC")
+                getOrganizationFromContext().flatMap { organization ->
+                    findAuthenticatedUser(client, organization, authentication)
+                        .switchIfEmpty(Mono.just(User("<unauthorized user>")))
+                        .flatMap { user ->
+                            auditClient.recordLoginSuccess(
+                                orgId = organization.id,
+                                userId = user.id,
+                                source = sourceIp,
+                                sessionContextType = AuthMethod.OIDC,
+                                sessionContextIdentifier = authentication?.getClaim(organization) ?: ""
+                            )
+                        }
                 }
             )
     }
