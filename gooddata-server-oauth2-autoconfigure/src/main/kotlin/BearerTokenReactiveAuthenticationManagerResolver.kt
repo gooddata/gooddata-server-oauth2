@@ -45,6 +45,7 @@ class BearerTokenReactiveAuthenticationManagerResolver(
     override fun resolve(exchange: ServerWebExchange): Mono<ReactiveAuthenticationManager> =
         Mono.just(exchange).map {
             val sourceIp = exchange.request.remoteAddress?.address?.hostAddress
+                ?: exchange.request.remoteAddress?.hostName
 
             CustomDelegatingReactiveAuthenticationManager(
                 JwtAuthenticationManager(client, auditClient, sourceIp),
@@ -61,7 +62,6 @@ private class PersistentApiTokenAuthenticationManager(
     private val auditClient: AuthenticationAuditClient,
     private val sourceIp: String?,
 ) : ReactiveAuthenticationManager {
-    private val logger = KotlinLogging.logger { }
 
     override fun authenticate(authentication: Authentication?): Mono<Authentication> =
         Mono.justOrEmpty(authentication)

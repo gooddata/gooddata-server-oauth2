@@ -24,6 +24,7 @@ class LoggingRedirectServerAuthenticationSuccessHandler(
         authentication: Authentication?,
     ): Mono<Void> {
         val sourceIp = webFilterExchange?.exchange?.request?.remoteAddress?.address?.hostAddress
+            ?: webFilterExchange?.exchange?.request?.remoteAddress?.hostName
 
         return super.onAuthenticationSuccess(webFilterExchange, authentication)
             .then(

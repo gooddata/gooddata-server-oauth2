@@ -27,6 +27,7 @@ class DelegatingServerLogoutSuccessHandler(
     @Suppress("CyclomaticComplexMethod")
     override fun onLogoutSuccess(exchange: WebFilterExchange, authentication: Authentication): Mono<Void> {
         val sourceIp = exchange.exchange.request.remoteAddress?.address?.hostAddress
+            ?: exchange.exchange.request.remoteAddress?.hostName
 
         return Flux.fromIterable(delegates).concatMap { delegate ->
             delegate.onLogoutSuccess(exchange, authentication)

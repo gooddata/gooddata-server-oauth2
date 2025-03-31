@@ -38,6 +38,7 @@ class ServerOAuth2FailureHandler(
 
         return getOrganizationFromContext().flatMap { organization ->
             val sourceIp = exchange.exchange.request.remoteAddress?.address?.hostAddress
+                ?: exchange.exchange.request.remoteAddress?.hostName
             auditClient.recordLoginFailure(
                 orgId = organization.id,
                 userId = "",
