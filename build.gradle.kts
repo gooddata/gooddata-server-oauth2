@@ -40,12 +40,6 @@ allprojects {
     apply(plugin = "org.jetbrains.kotlin.jvm")
 
     group = "com.gooddata.oauth2.server"
-
-    repositories {
-        mavenLocal()
-        mavenCentral()
-        maven("https://plugins.gradle.org/m2/")
-    }
 }
 
 subprojects {
@@ -89,18 +83,6 @@ subprojects {
         publications {
             create<MavenPublication>("library") {
                 from(components["java"])
-            }
-        }
-        repositories {
-            maven {
-                name = "gooddata" // Name must match the `server` in `.m2/settings.xml`.
-                // Internal Nexus with write access only from Jenkins slaves/self-hosted runners
-                url = uri("https://nexus.intgdc.com/repository/gooddata")
-
-                credentials {
-                    username = System.getenv("NEXUS_USERNAME")
-                    password = System.getenv("NEXUS_PASSWORD")
-                }
             }
         }
     }
