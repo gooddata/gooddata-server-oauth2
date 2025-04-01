@@ -78,7 +78,7 @@ class JwtAuthenticationProcessorTest {
     fun `user context is stored for jwt authentication`() {
         mockUserById(client, ORGANIZATION_ID, USER_ID)
         mockValidJwt()
-        coEvery { userContextProvider.getContextView(any(), any(), any(), any(), any()) } returns Context.empty()
+        coEvery { userContextProvider.getContextView(any(), any(), any(), any(), any(), any()) } returns Context.empty()
 
         jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain)
             .orgContextWrite(ORGANIZATION)
@@ -93,7 +93,8 @@ class JwtAuthenticationProcessorTest {
                 USER_ID,
                 "sub|123",
                 TOKEN_ID,
-                AuthMethod.JWT
+                AuthMethod.JWT,
+                null,
             )
         }
     }
@@ -111,7 +112,7 @@ class JwtAuthenticationProcessorTest {
 
         mockUserById(client, ORGANIZATION_ID, USER_ID)
         mockValidJwt(token = null.toStr())
-        coEvery { userContextProvider.getContextView(any(), any(), any(), any(), any()) } returns Context.empty()
+        coEvery { userContextProvider.getContextView(any(), any(), any(), any(), any(), any()) } returns Context.empty()
 
         jwtAuthenticationProcessor.authenticate(authenticationToken, webExchange, webFilterChain)
             .orgContextWrite(ORGANIZATION)
@@ -126,7 +127,8 @@ class JwtAuthenticationProcessorTest {
                 USER_ID,
                 "sub|123",
                 any(),
-                AuthMethod.JWT
+                AuthMethod.JWT,
+                null,
             )
         }
     }
@@ -183,7 +185,7 @@ class JwtAuthenticationProcessorTest {
     ) {
         mockUserById(client, ORGANIZATION_ID, USER_ID, User(id = USER_ID, name = userName))
         mockValidJwt()
-        coEvery { userContextProvider.getContextView(any(), any(), any(), any(), any()) } returns Context.empty()
+        coEvery { userContextProvider.getContextView(any(), any(), any(), any(), any(), any()) } returns Context.empty()
 
         val claims = if (claimName == null) {
             mapOf(
@@ -216,7 +218,8 @@ class JwtAuthenticationProcessorTest {
                 USER_ID,
                 resolvedName,
                 TOKEN_ID,
-                AuthMethod.JWT
+                AuthMethod.JWT,
+                null,
             )
         }
     }

@@ -339,7 +339,8 @@ class ServerOAuth2AutoConfiguration {
                         authenticationStoreClient.`object`,
                         hostBasedAuthEntryPoint,
                         logoutHandler,
-                        userContextProvider.`object`
+                        userContextProvider.`object`,
+                        oauth2ClientRepository,
                     ),
                     JwtAuthenticationProcessor(
                         authenticationStoreClient.`object`,
