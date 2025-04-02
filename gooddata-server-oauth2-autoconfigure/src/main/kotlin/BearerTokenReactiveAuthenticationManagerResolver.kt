@@ -29,7 +29,6 @@ import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.jwt.JwtClaimNames
 import org.springframework.security.oauth2.jwt.JwtException
 import org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthenticationToken
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.security.oauth2.server.resource.authentication.JwtReactiveAuthenticationManager
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
@@ -223,16 +222,14 @@ private class JwtAuthenticationManager(
     private fun getJwkSet(organizationId: String): Mono<JWKSet> = client.getJwks(organizationId).map(::JWKSet)
 
     private fun logFinishedJwtAuthentication(organizationId: String, token: Authentication) {
-        if (token is JwtAuthenticationToken) {
-            client.getUserById(organizationId, token.name).map { user ->
-                auditClient.recordLoginSuccess(
-                    orgId = organizationId,
-                    userId = user.id,
-                    source = sourceIp,
-                    sessionContextType = AuthMethod.JWT,
-                    sessionContextIdentifier = token.name
-                )
-            }
+        client.getUserById(organizationId, token.name).map { user ->
+            auditClient.recordLoginSuccess(
+                orgId = organizationId,
+                userId = user.id,
+                source = sourceIp,
+                sessionContextType = AuthMethod.JWT,
+                sessionContextIdentifier = token.name
+            )
         }
     }
 
