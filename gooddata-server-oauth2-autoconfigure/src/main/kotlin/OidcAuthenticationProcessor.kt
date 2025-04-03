@@ -29,6 +29,8 @@ import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilterChain
 import reactor.core.publisher.Mono
+import java.util.Optional
+import kotlin.jvm.optionals.getOrNull
 
 /**
  * If `SecurityContext` contains [OAuth2AuthenticationToken] the [OidcAuthenticationProcessor] handles the
@@ -56,14 +58,16 @@ class OidcAuthenticationProcessor(
         exchange: ServerWebExchange,
         chain: WebFilterChain,
     ): Mono<Void> {
-        val authorizedClientMono = oauth2ClientRepository.loadAuthorizedClient<OAuth2AuthorizedClient>(
-            authenticationToken.authorizedClientRegistrationId,
-            authenticationToken,
-            exchange,
-        )
+        val authorizedClientMono: Mono<Optional<OAuth2AuthorizedClient>> =
+            oauth2ClientRepository.loadAuthorizedClient<OAuth2AuthorizedClient?>(
+                authenticationToken.authorizedClientRegistrationId,
+                authenticationToken,
+                exchange,
+            ).map { Optional.of(it) }.defaultIfEmpty(Optional.empty<OAuth2AuthorizedClient>())
+
         val userContextMono = getUserContextForAuthenticationToken(authenticationToken)
         return Mono.zip(authorizedClientMono, userContextMono).flatMap { tuple ->
-            val authorizedClient = tuple.t1
+            val authorizedClient = tuple.t1.getOrNull()
             val userContext = tuple.t2
             if (userContext.user == null) {
                 logger.info { "Session was logged out" }
@@ -81,7 +85,7 @@ class OidcAuthenticationProcessor(
                     authenticationToken.name,
                     AuthMethod.OIDC,
                     authenticationToken.getClaim(userContext.organization.oauthSubjectIdClaim),
-                    authorizedClient.accessToken.tokenValue,
+                    authorizedClient?.accessToken?.tokenValue, // Handle null authorizedClient
                 ) {
                     chain.filter(exchange)
                 }
