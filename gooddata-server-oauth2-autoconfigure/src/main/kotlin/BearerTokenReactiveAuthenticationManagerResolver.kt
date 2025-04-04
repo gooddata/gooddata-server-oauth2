@@ -125,8 +125,8 @@ private class JwtAuthenticationManager(
                     }
                     recordAuditForJwtAuthenticationError(organization.id, ex, jwtToken)
                 }
-                .doOnNext { token ->
-                    logFinishedJwtAuthentication(organization.id, token)
+                .flatMap { token ->
+                    logFinishedJwtAuthentication(organization.id, token).thenReturn(token)
                 }
         }
     }
@@ -221,8 +221,8 @@ private class JwtAuthenticationManager(
 
     private fun getJwkSet(organizationId: String): Mono<JWKSet> = client.getJwks(organizationId).map(::JWKSet)
 
-    private fun logFinishedJwtAuthentication(organizationId: String, token: Authentication) {
-        client.getUserById(organizationId, token.name).map { user ->
+    private fun logFinishedJwtAuthentication(organizationId: String, token: Authentication): Mono<Void> {
+        return client.getUserById(organizationId, token.name).flatMap { user ->
             auditClient.recordLoginSuccess(
                 orgId = organizationId,
                 userId = user.id,
