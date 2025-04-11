@@ -19,6 +19,7 @@
 package com.gooddata.oauth2.server
 
 import org.springframework.http.HttpMethod
+import org.springframework.http.HttpStatus
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.security.web.server.savedrequest.ServerRequestCache
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers
@@ -53,7 +54,19 @@ class CookieServerRequestCache(private val cookieService: ReactiveCookieService)
 
     override fun removeMatchingRequest(exchange: ServerWebExchange): Mono<ServerHttpRequest> {
         return Mono.just(exchange)
-            .doOnNext { cookieService.invalidateCookie(it, SPRING_REDIRECT_URI) }
-            .thenReturn(exchange.request)
+            .flatMap { webExchange ->
+                if (webExchange.response.statusCode == HttpStatus.UNAUTHORIZED) {
+                    // For 401 responses, always preserve the redirect URI
+                    // If there's an existing one, keep it
+                    // If not, the saveRequest() will set it later
+                    Mono.just(webExchange.request)
+                } else {
+                    // For non-401 responses (like successful authentication),
+                    // we can safely invalidate the cookie as we don't need it anymore
+                    Mono.just(webExchange)
+                        .doOnNext { cookieService.invalidateCookie(it, SPRING_REDIRECT_URI) }
+                        .thenReturn(webExchange.request)
+                }
+            }
     }
 }

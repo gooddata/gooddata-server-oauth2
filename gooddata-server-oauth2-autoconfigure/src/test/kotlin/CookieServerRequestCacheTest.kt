@@ -26,6 +26,7 @@ import io.netty.handler.codec.http.cookie.CookieHeaderNames
 import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpCookie
+import org.springframework.http.HttpStatus
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.util.CollectionUtils
@@ -37,6 +38,7 @@ import strikt.assertions.isTrue
 import java.net.URI
 import java.time.Duration
 import java.time.Instant
+import strikt.assertions.isNotNull
 
 internal class CookieServerRequestCacheTest {
 
@@ -164,6 +166,52 @@ internal class CookieServerRequestCacheTest {
             get { isPresent }.isTrue()
             get { get() }.isEqualTo(URI.create(redirect))
         }
+    }
+
+    @Test
+    fun `should preserve redirect URI during 401 response`() {
+        val webExchange = mockk<ServerWebExchange> {
+            every { request.uri.host } returns "localhost"
+            every { attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
+            every { response.statusCode } returns HttpStatus.UNAUTHORIZED
+        }
+
+        val redirect = "/requestURI?query=true"
+        val exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.get("http://localhost/").cookie(
+                HttpCookie(SPRING_REDIRECT_URI, cookieSerializer.encodeCookieBlocking(webExchange, redirect))
+            )
+        )
+        exchange.response.statusCode = HttpStatus.UNAUTHORIZED
+
+        val request = cache.removeMatchingRequest(exchange).block()
+
+        // Verify the cookie was not invalidated
+        verify(exactly = 0) { cookieService.invalidateCookie(exchange, SPRING_REDIRECT_URI) }
+        expectThat(request).isNotNull()
+    }
+
+    @Test
+    fun `should clear redirect URI for non-401 response`() {
+        val webExchange = mockk<ServerWebExchange> {
+            every { request.uri.host } returns "localhost"
+            every { attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
+            every { response.statusCode } returns HttpStatus.FOUND
+        }
+
+        val redirect = "/requestURI?query=true"
+        val exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.get("http://localhost/").cookie(
+                HttpCookie(SPRING_REDIRECT_URI, cookieSerializer.encodeCookieBlocking(webExchange, redirect))
+            )
+        )
+        exchange.response.statusCode = HttpStatus.FOUND
+
+        val request = cache.removeMatchingRequest(exchange).block()
+
+        // Verify the cookie was invalidated
+        verify(exactly = 1) { cookieService.invalidateCookie(exchange, SPRING_REDIRECT_URI) }
+        expectThat(request).isNotNull()
     }
 
     companion object {
