@@ -21,6 +21,8 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import org.junit.jupiter.api.Test
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest
+import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient
 import org.springframework.security.oauth2.client.endpoint.OAuth2RefreshTokenGrantRequest
 import org.springframework.security.oauth2.client.endpoint.ReactiveOAuth2AccessTokenResponseClient
@@ -62,7 +64,7 @@ internal class RepositoryAwareOidcTokensRefreshingServiceTest {
         every { authorizedClientRepository.saveAuthorizedClient(any(), any(), any()) } returns Mono.empty()
         every { refreshTokenResponseClient.getTokenResponse(any()) } returns Mono.just(refreshResponse)
 
-        val refreshedTokens = refreshService.refreshTokensIfPossible(CLIENT_REGISTRATION, mockk(), mockk()).block()
+        val refreshedTokens = refreshService.refreshTokensIfPossible(CLIENT_REGISTRATION, mockk(), EXCHANGE).block()
 
         val refreshRequest = slot<OAuth2RefreshTokenGrantRequest>()
         val newOAuth2Client = slot<OAuth2AuthorizedClient>()
@@ -95,7 +97,7 @@ internal class RepositoryAwareOidcTokensRefreshingServiceTest {
 
     private fun verifyEmptyRefresh() {
         val refreshedTokens =
-            refreshService.refreshTokensIfPossible(CLIENT_REGISTRATION, mockk(), mockk()).blockOptional()
+            refreshService.refreshTokensIfPossible(CLIENT_REGISTRATION, mockk(), EXCHANGE).blockOptional()
 
         verify(exactly = 0) { authorizedClientRepository.saveAuthorizedClient(any(), any(), any()) }
         expectThat(refreshedTokens).get { isEmpty }.isTrue()
@@ -138,6 +140,9 @@ internal class RepositoryAwareOidcTokensRefreshingServiceTest {
     }
 
     companion object {
+        private val EXCHANGE = MockServerWebExchange.from(MockServerHttpRequest.get("/dummy")).apply {
+            putOrganizationAttribute(Organization("org123"))
+        }
         private val CLIENT_REGISTRATION = mockk<ClientRegistration>(relaxed = true) {
             every { registrationId } returns "id123"
         }

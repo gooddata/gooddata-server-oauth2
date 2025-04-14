@@ -35,7 +35,7 @@ class OrganizationWebFilter(
         val hostname = exchange.request.uri.host
         return authenticationStoreClient.getOrganizationByHostname(hostname).flatMap { organization ->
             // organization is also saved to the ServerWebExchange attributes and used in blocking calls
-            exchange.attributes[ORGANIZATION_CACHE_KEY] = organization
+            exchange.putOrganizationAttribute(organization)
             chain.filter(exchange).orgContextWrite(organization)
         }
     }
@@ -73,8 +73,37 @@ fun getOrganizationFromContext(): Mono<Organization> = Mono.deferContextual { co
     }
 }
 
+/**
+ * Retrieves the `Organization` instance stored in the attributes of the `ServerWebExchange`.
+ * If no `Organization` is found, a `MissingOrganizationContextException` is thrown.
+ *
+ * @return the `Organization` instance from the exchange attributes
+ * @throws MissingOrganizationContextException if no `Organization` is present in the attributes
+ */
 fun ServerWebExchange.getOrganizationFromAttributes(): Organization =
+    maybeOrganizationFromAttributes() ?: throw MissingOrganizationContextException()
+
+/**
+ * Extracts an organization from the attributes of the current ServerWebExchange.
+ *
+ * The method checks if the attributes of the exchange contain an entry with the key
+ * `ORGANIZATION_CACHE_KEY`, and verifies if the associated value is an instance of
+ * the `Organization` class. If so, it returns the `Organization`; otherwise, it returns null.
+ *
+ * @return the extracted `Organization` instance if present, or null if the key is missing
+ *         or the value is not an instance of `Organization`.
+ */
+fun ServerWebExchange.maybeOrganizationFromAttributes(): Organization? =
     when (val organization = attributes[ORGANIZATION_CACHE_KEY]) {
         is Organization -> organization
-        else -> throw MissingOrganizationContextException()
+        else -> null
     }
+
+/**
+ * Adds the provided organization object to the attributes map of the server web exchange.
+ *
+ * @param organization the organization to be added as an attribute
+ */
+fun ServerWebExchange.putOrganizationAttribute(organization: Organization) {
+    attributes[ORGANIZATION_CACHE_KEY] = organization
+}
