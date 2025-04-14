@@ -23,6 +23,8 @@ import com.ninjasquad.springmockk.SpykBean
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import java.time.Duration
+import java.time.Instant
 import net.javacrumbs.jsonunit.core.util.ResourceUtils
 import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
@@ -49,8 +51,6 @@ import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
 import reactor.util.context.Context
-import java.time.Duration
-import java.time.Instant
 
 @WebFluxTest(properties = ["spring.security.oauth2.client.applogin.allow-redirect=https://localhost:8443"])
 @Import(ServerOAuth2AutoConfiguration::class, UserContextWebFluxTest.Config::class)
@@ -512,7 +512,6 @@ class UserContextWebFluxTest(
             .exchange()
             .expectStatus().isFound
             .expectHeader().location("/")
-            .expectCookie().exists("SPRING_REDIRECT_URI")
     }
 
     @Test
@@ -543,7 +542,6 @@ class UserContextWebFluxTest(
             .exchange()
             .expectStatus().isFound
             .expectHeader().location("/userReturnTo")
-            .expectCookie().exists("SPRING_REDIRECT_URI")
     }
 
     @Test
@@ -582,7 +580,6 @@ class UserContextWebFluxTest(
             .exchange()
             .expectStatus().isFound
             .expectHeader().location("/")
-            .expectCookie().exists("SPRING_REDIRECT_URI")
     }
 
     @Test
@@ -621,7 +618,6 @@ class UserContextWebFluxTest(
             .exchange()
             .expectStatus().isFound
             .expectHeader().location("/userReturnTo")
-            .expectCookie().exists("SPRING_REDIRECT_URI")
     }
 
     @Test
@@ -634,7 +630,6 @@ class UserContextWebFluxTest(
         webClient.post().uri("http://localhost/logout")
             .exchange()
             .expectStatus().isEqualTo(HttpStatus.METHOD_NOT_ALLOWED)
-            .expectCookie().exists("SPRING_REDIRECT_URI")
     }
 
     @Test
@@ -647,7 +642,6 @@ class UserContextWebFluxTest(
         webClient.post().uri("http://localhost/logout/all")
             .exchange()
             .expectStatus().isEqualTo(HttpStatus.METHOD_NOT_ALLOWED)
-            .expectCookie().exists("SPRING_REDIRECT_URI")
     }
 
     private fun encodeCookieBlocking(authenticationToken: String) =

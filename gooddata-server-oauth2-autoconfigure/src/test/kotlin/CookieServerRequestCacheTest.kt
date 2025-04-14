@@ -23,10 +23,12 @@ import io.mockk.slot
 import io.mockk.spyk
 import io.mockk.verify
 import io.netty.handler.codec.http.cookie.CookieHeaderNames
+import java.net.URI
+import java.time.Duration
+import java.time.Instant
 import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpCookie
-import org.springframework.http.HttpStatus
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.util.CollectionUtils
@@ -35,10 +37,6 @@ import reactor.core.publisher.Mono
 import strikt.api.expectThat
 import strikt.assertions.isEqualTo
 import strikt.assertions.isTrue
-import java.net.URI
-import java.time.Duration
-import java.time.Instant
-import strikt.assertions.isNotNull
 
 internal class CookieServerRequestCacheTest {
 
@@ -68,7 +66,9 @@ internal class CookieServerRequestCacheTest {
     """
 
     private val client: AuthenticationStoreClient = mockk {
-        mockCookieSecurityProperties(this, ORG_ID,
+        mockCookieSecurityProperties(
+            this,
+            ORG_ID,
             CookieSecurityProperties(
                 keySet = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(keyset.toByteArray())),
                 lastRotation = Instant.now(),
@@ -98,22 +98,6 @@ internal class CookieServerRequestCacheTest {
         }
 
         verify(exactly = 1) { cookieService.createCookie(exchange, SPRING_REDIRECT_URI, any()) }
-    }
-
-    @Test
-    fun `should remove redirect URI from cookies`() {
-        val request = MockServerHttpRequest.get("http://localhost/requestURI").queryParam("query", "true").build()
-        val exchange = MockServerWebExchange.from(request)
-        every { cookieService.invalidateCookie(any(), any()) } returns Unit
-
-        val matchingRequest = cache.removeMatchingRequest(exchange)
-
-        expectThat(matchingRequest.blockOptional()) {
-            get { isPresent }.isTrue()
-            get { get() }.isEqualTo(request)
-        }
-
-        verify(exactly = 1) { cookieService.invalidateCookie(exchange, SPRING_REDIRECT_URI) }
     }
 
     @Test
@@ -169,11 +153,10 @@ internal class CookieServerRequestCacheTest {
     }
 
     @Test
-    fun `should preserve redirect URI during 401 response`() {
+    fun `should invalidate cookie after reading redirect URI`() {
         val webExchange = mockk<ServerWebExchange> {
             every { request.uri.host } returns "localhost"
             every { attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
-            every { response.statusCode } returns HttpStatus.UNAUTHORIZED
         }
 
         val redirect = "/requestURI?query=true"
@@ -182,36 +165,12 @@ internal class CookieServerRequestCacheTest {
                 HttpCookie(SPRING_REDIRECT_URI, cookieSerializer.encodeCookieBlocking(webExchange, redirect))
             )
         )
-        exchange.response.statusCode = HttpStatus.UNAUTHORIZED
 
-        val request = cache.removeMatchingRequest(exchange).block()
+        val uri = cache.getRedirectUri(exchange).block()
 
-        // Verify the cookie was not invalidated
-        verify(exactly = 0) { cookieService.invalidateCookie(exchange, SPRING_REDIRECT_URI) }
-        expectThat(request).isNotNull()
-    }
+        expectThat(uri).isEqualTo(URI.create(redirect))
 
-    @Test
-    fun `should clear redirect URI for non-401 response`() {
-        val webExchange = mockk<ServerWebExchange> {
-            every { request.uri.host } returns "localhost"
-            every { attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(ORG_ID)
-            every { response.statusCode } returns HttpStatus.FOUND
-        }
-
-        val redirect = "/requestURI?query=true"
-        val exchange = MockServerWebExchange.from(
-            MockServerHttpRequest.get("http://localhost/").cookie(
-                HttpCookie(SPRING_REDIRECT_URI, cookieSerializer.encodeCookieBlocking(webExchange, redirect))
-            )
-        )
-        exchange.response.statusCode = HttpStatus.FOUND
-
-        val request = cache.removeMatchingRequest(exchange).block()
-
-        // Verify the cookie was invalidated
         verify(exactly = 1) { cookieService.invalidateCookie(exchange, SPRING_REDIRECT_URI) }
-        expectThat(request).isNotNull()
     }
 
     companion object {
