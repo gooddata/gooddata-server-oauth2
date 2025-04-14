@@ -117,7 +117,7 @@ class CookieServerSecurityContextRepository(
             attributes[OAUTH_TOKEN_CACHE_KEY] = expandedToken
         }
         .onErrorResume(CookieDecodeException::class.java) { exception ->
-            logDecodingException(exception)
+            logDecodingException(this, exception)
             Mono.just(this)
                 .doOnNext(::deleteSecurityContextCookie)
                 .flatMap { webExchange ->
@@ -201,11 +201,19 @@ class CookieServerSecurityContextRepository(
      * @receiver the Kotlin logger
      * @param[exception] token decoding [Exception] which should be logged
      */
-    private fun logDecodingException(exception: Exception) {
+    private fun logDecodingException(exchange: ServerWebExchange, exception: Exception) {
+        val organizationId = exchange.maybeOrganizationFromAttributes()?.id
         val message = "Stored JWT token cannot be decoded: ${exception.message}, cause: ${exception.cause?.message}"
         when (logger.isDebugEnabled()) {
-            true -> logger.debug(exception) { message }
-            false -> logger.info { message }
+            true -> logger.logDebug {
+                withOrganizationId(organizationId)
+                withException(exception)
+                withMessage { message }
+            }
+            false -> logger.logInfo {
+                withOrganizationId(organizationId)
+                withMessage { message }
+            }
         }
     }
 

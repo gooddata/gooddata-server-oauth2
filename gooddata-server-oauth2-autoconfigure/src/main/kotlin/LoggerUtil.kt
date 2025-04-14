@@ -49,6 +49,12 @@ internal fun KLogger.logError(exception: Throwable, block: LogBuilder.() -> Unit
     }
 }
 
+internal fun KLogger.logDebug(block: LogBuilder.() -> Unit) {
+    if (isDebugEnabled()) {
+        log(this, block, DEBUG)
+    }
+}
+
 private fun log(logger: KLogger, block: LogBuilder.() -> Unit, logLevel: LogLevel) {
     LogBuilder(logLevel)
         .apply(block)
@@ -88,8 +94,8 @@ internal class LogBuilder internal constructor(val logLevel: LogLevel) {
         params[USER_ID] = userId
     }
 
-    fun withOrganizationId(orgId: String) {
-        params[ORG_ID] = orgId
+    fun withOrganizationId(orgId: String?) {
+        params[ORG_ID] = orgId ?: "UNKNOWN"
     }
 
     fun withAuthenticationId(authenticationId: String) {
