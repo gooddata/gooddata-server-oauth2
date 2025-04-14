@@ -18,14 +18,12 @@
  */
 package com.gooddata.oauth2.server
 
+import java.net.URI
 import org.springframework.http.HttpMethod
-import org.springframework.http.HttpStatus
-import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.security.web.server.savedrequest.ServerRequestCache
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
-import java.net.URI
 
 /**
  * An implementation of [ServerRequestCache] that saves the requested URI in a cookie.
@@ -51,22 +49,7 @@ class CookieServerRequestCache(private val cookieService: ReactiveCookieService)
         Mono.just(exchange)
             .flatMap { cookieService.decodeCookie(it, SPRING_REDIRECT_URI) }
             .map { URI.create(it) }
+            .doOnNext { cookieService.invalidateCookie(exchange, SPRING_REDIRECT_URI) }
 
-    override fun removeMatchingRequest(exchange: ServerWebExchange): Mono<ServerHttpRequest> {
-        return Mono.just(exchange)
-            .flatMap { webExchange ->
-                if (webExchange.response.statusCode == HttpStatus.UNAUTHORIZED) {
-                    // For 401 responses, always preserve the redirect URI
-                    // If there's an existing one, keep it
-                    // If not, the saveRequest() will set it later
-                    Mono.just(webExchange.request)
-                } else {
-                    // For non-401 responses (like successful authentication),
-                    // we can safely invalidate the cookie as we don't need it anymore
-                    Mono.just(webExchange)
-                        .doOnNext { cookieService.invalidateCookie(it, SPRING_REDIRECT_URI) }
-                        .thenReturn(webExchange.request)
-                }
-            }
-    }
+    override fun removeMatchingRequest(exchange: ServerWebExchange) = Mono.just(exchange.request)
 }
