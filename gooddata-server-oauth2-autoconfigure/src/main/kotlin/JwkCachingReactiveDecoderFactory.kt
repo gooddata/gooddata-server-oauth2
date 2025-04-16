@@ -81,4 +81,4 @@ class JwkCachingReactiveDecoderFactory(
 /**
  * Signalizes that the JWT token is expired = its `exp` time is not valid anymore.
  */
-internal class InternalJwtExpiredException : BadJWTException("JWT has expired.")
+internal class InternalJwtExpiredException(subject: String? = null) : BadJWTException("JWT $subject has expired.")
