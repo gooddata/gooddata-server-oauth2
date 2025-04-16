@@ -37,6 +37,7 @@ import strikt.api.expectThrows
 import strikt.assertions.isEqualTo
 import strikt.assertions.isNull
 
+@SuppressWarnings("LongParameterList")
 class JitProvisioningAuthenticationSuccessHandlerTest {
 
     private val client: AuthenticationStoreClient = mockk()
@@ -102,7 +103,8 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
     @MethodSource("jitOptions")
     fun `should perform JIT provisioning when JIT enabled and user does not exist`(
         case: String,
-        userGroupsClaimName: String,
+        userGroupsScopeEnabled: Boolean,
+        userGroupsClaimName: String?,
         userGroupsInAuthToken: List<String>?,
         userGroupsInOrgSetting: List<String>?,
         expectedUserGroups: List<String>
@@ -116,7 +118,7 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
                 EMAIL to EMAIL,
                 GIVEN_NAME to GIVEN_NAME,
                 FAMILY_NAME to FAMILY_NAME,
-                userGroupsClaimName to userGroupsInAuthToken
+                userGroupsClaimName!! to userGroupsInAuthToken
             )
         } else {
             mapOf(
@@ -139,6 +141,7 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
             Mono.just(
                 JitProvisioningSetting(
                     enabled = true,
+                    userGroupsScopeEnabled = userGroupsScopeEnabled,
                     userGroupsClaimName = userGroupsClaimName,
                     userGroupsDefaults = userGroupsInOrgSetting
                 )
@@ -164,6 +167,7 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
     fun `should test user patching`(
         case: String,
         user: User,
+        userGroupsScopeEnabled: Boolean,
         userGroupsInAuthToken: List<String>?,
         patchCount: Int
     ) {
@@ -201,7 +205,8 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
             Mono.just(
                 JitProvisioningSetting(
                     enabled = true,
-                    userGroupsScopeEnabled = true
+                    userGroupsScopeEnabled = userGroupsScopeEnabled,
+                    userGroupsDefaults = listOf("defaultUserGroup")
                 )
             )
         mockUserByAuthId(client, ORG_ID, SUB, user)
@@ -219,7 +224,7 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         coVerify(exactly = patchCount) { client.patchUser(ORG_ID, any()) }
 
         if (patchCount != 0) {
-            if (userGroupsInAuthToken != null) {
+            if (userGroupsScopeEnabled && userGroupsInAuthToken != null) {
                 expectThat(userSlot.captured.userGroups).isEqualTo(userGroupsInAuthToken)
             } else {
                 expectThat(userSlot.captured.userGroups).isEqualTo(usersCurrentUserGroups)
@@ -238,6 +243,7 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
         fun jitOptions() = Stream.of(
             Arguments.of(
                 "without user groups",
+                true,
                 GD_USER_GROUPS,
                 emptyList<String>(),
                 emptyList<String>(),
@@ -245,6 +251,7 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
             ),
             Arguments.of(
                 "with default user groups",
+                true,
                 GD_USER_GROUPS,
                 null,
                 listOf("defaultUserGroup"),
@@ -252,6 +259,7 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
             ),
             Arguments.of(
                 "with default user groups and user groups in token",
+                true,
                 GD_USER_GROUPS,
                 listOf("adminUserGroup", "secondUserGroup"),
                 listOf("defaultUserGroup"),
@@ -259,10 +267,35 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
             ),
             Arguments.of(
                 "with user groups in token with custom claim name",
+                true,
                 "custom_user_groups_claim_name",
                 listOf("adminUserGroup", "secondUserGroup"),
                 null,
                 listOf("adminUserGroup", "secondUserGroup"),
+            ),
+            Arguments.of(
+                "with default user groups and userGroups scope disabled",
+                false,
+                null,
+                null,
+                listOf("adminUserGroup", "secondUserGroup"),
+                listOf("adminUserGroup", "secondUserGroup"),
+            ),
+            Arguments.of(
+                "with no default user groups, userGroupsScope disabled, but with user groups claims present in token",
+                false,
+                GD_USER_GROUPS,
+                listOf("adminUserGroup", "secondUserGroup"),
+                null,
+                emptyList<String>(),
+            ),
+            Arguments.of(
+                "with default user groups, userGroupsScope disabled, but with user groups claims present in token",
+                false,
+                GD_USER_GROUPS,
+                listOf("adminUserGroup", "secondUserGroup"),
+                listOf("secondUserGroup"),
+                listOf("secondUserGroup"),
             )
         )
 
@@ -278,6 +311,7 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
                     email = EMAIL,
                     userGroups = listOf("defaultUserGroup")
                 ),
+                true,
                 null,
                 1
             ),
@@ -291,6 +325,7 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
                     email = EMAIL,
                     userGroups = listOf("defaultUserGroup")
                 ),
+                true,
                 emptyList<String>(),
                 1
             ),
@@ -304,6 +339,7 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
                     email = EMAIL,
                     userGroups = listOf("defaultUserGroup")
                 ),
+                true,
                 listOf("NewUserGroup"),
                 1
             ),
@@ -317,7 +353,22 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
                     email = EMAIL,
                     userGroups = listOf("defaultUserGroup")
                 ),
+                true,
                 listOf("defaultUserGroup"),
+                0
+            ),
+            Arguments.of(
+                "should not update user when user details are not changed",
+                User(
+                    USER_ID,
+                    null,
+                    firstname = GIVEN_NAME,
+                    lastname = FAMILY_NAME,
+                    email = EMAIL,
+                    userGroups = listOf("defaultUserGroup")
+                ),
+                false,
+                listOf("NewUserGroup"),
                 0
             )
         )
