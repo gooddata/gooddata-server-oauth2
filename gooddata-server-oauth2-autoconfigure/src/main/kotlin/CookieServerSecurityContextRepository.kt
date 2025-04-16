@@ -145,7 +145,8 @@ class CookieServerSecurityContextRepository(
                 .onErrorMap({ it is JwtException || it is BadJWTException }) { exception ->
                     // translate to a cookie decoding exception
                     CookieDecodeException(
-                        "Cannot read ID Token from the session: ${exception.message}.",
+                        "Cannot read ID Token for the principal name='${principal.name}'" +
+                            " from the session: ${exception.message}.",
                         exception.cause,
                     )
                 }
