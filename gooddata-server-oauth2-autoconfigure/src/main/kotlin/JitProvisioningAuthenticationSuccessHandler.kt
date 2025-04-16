@@ -73,19 +73,23 @@ class JitProvisioningAuthenticationSuccessHandler(
         val emailClaim = authenticationToken.getClaim(EMAIL)
 
         val userGroupsClaimName = jitSetting.userGroupsClaimName ?: GD_USER_GROUPS
-        val userGroupsClaim = authenticationToken.getClaimList(userGroupsClaimName) ?: jitSetting.userGroupsDefaults
+        val userGroups =
+            if (jitSetting.userGroupsScopeEnabled) {
+                authenticationToken.getClaimList(userGroupsClaimName) ?: jitSetting.userGroupsDefaults
+            } else {
+                jitSetting.userGroupsDefaults
+            }
+        val shouldApplyUserGroups = (jitSetting.userGroupsScopeEnabled || jitSetting.userGroupsDefaults != null)
 
         return client.getUserByAuthenticationId(organization.id, subClaim)
             .flatMap { user ->
                 logMessage("Checking for user update", "running", organization.id)
-                if (userDetailsChanged(user, firstnameClaim, lastnameClaim, emailClaim, userGroupsClaim)) {
+                if (userDetailsChanged(user, firstnameClaim, lastnameClaim, emailClaim, userGroups)) {
                     logMessage("User details changed, patching", "running", organization.id)
                     user.firstname = firstnameClaim
                     user.lastname = lastnameClaim
                     user.email = emailClaim
-                    if (jitSetting.userGroupsScopeEnabled && userGroupsClaim != null) {
-                        user.userGroups = userGroupsClaim
-                    }
+                    if (shouldApplyUserGroups) user.userGroups = userGroups
                     client.patchUser(organization.id, user)
                 } else {
                     logMessage("User not changed, skipping update", "finished", organization.id)
@@ -99,7 +103,7 @@ class JitProvisioningAuthenticationSuccessHandler(
                     firstnameClaim,
                     lastnameClaim,
                     emailClaim,
-                    userGroupsClaim ?: emptyList()
+                    if (shouldApplyUserGroups) userGroups ?: emptyList() else emptyList()
                 ).doOnSuccess { provisionedUser ->
                     logMessage("User ${provisionedUser.id} created in organization", "finished", organization.id)
                 }
