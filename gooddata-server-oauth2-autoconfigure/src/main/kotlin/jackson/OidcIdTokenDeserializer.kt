@@ -34,6 +34,6 @@ internal class OidcIdTokenDeserializer : JsonDeserializer<OidcIdToken>() {
         val node = codec.readTree<JsonNode>(parser)
 
         val tokenValue = node.findTextValue("tokenValue")
-        return OidcIdToken(tokenValue, null, null, mapOf(IdTokenClaimNames.SUB to null))
+        return OidcIdToken(tokenValue, null, null, mapOf(IdTokenClaimNames.SUB to ""))
     }
 }

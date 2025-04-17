@@ -18,7 +18,6 @@
 package com.gooddata.oauth2.server
 
 import com.gooddata.oauth2.server.OAuthConstants.GD_USER_GROUPS_SCOPE
-import com.gooddata.oauth2.server.oauth2.client.fromOidcConfiguration
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.jwk.JWKSet
 import com.nimbusds.jose.jwk.source.JWKSecurityContextJWKSet
@@ -51,6 +50,7 @@ import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ClientRegistrations
+import org.springframework.security.oauth2.client.registration.ClientRegistrations.fromOidcConfiguration
 import org.springframework.security.oauth2.core.AuthenticationMethod
 import org.springframework.security.oauth2.core.AuthorizationGrantType
 import org.springframework.security.oauth2.core.converter.ClaimConversionService
