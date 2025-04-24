@@ -20,7 +20,6 @@ import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
 import com.gooddata.oauth2.server.OAuthConstants.GD_USER_GROUPS_SCOPE
-import com.gooddata.oauth2.server.oauth2.client.fromOidcConfiguration
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -38,6 +37,7 @@ import org.junit.jupiter.params.provider.MethodSource
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
+import org.springframework.security.oauth2.client.registration.ClientRegistrations.fromOidcConfiguration
 import org.springframework.security.oauth2.core.AuthorizationGrantType
 import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
@@ -153,6 +153,7 @@ internal class AuthenticationUtilsTest {
         }
     }
 
+    @Suppress("MaxLineLength")
     @Test
     fun `should call handleAzureB2CClientRegistration method`() {
         val azureB2CIssuerId = "someAzureB2CIssuerId"
@@ -177,7 +178,9 @@ internal class AuthenticationUtilsTest {
             // that the `handleAzureB2CClientRegistration` method is called when the issuer is an Azure B2C issuer.
             assertEquals(HttpStatus.NOT_FOUND, ex.statusCode)
             assertEquals(
-                "404 Not Found: \"The resource you are looking for has been removed, had its name changed, " +
+                "404 Not Found on GET request for " +
+                    "\"https://tenant.b2clogin.com/tenant.onmicrosoft.com/policy/v2.0/.well-known/openid-configuration\": " +
+                    "\"The resource you are looking for has been removed, had its name changed, " +
                     "or is temporarily unavailable.\"", ex.message
             )
         }
