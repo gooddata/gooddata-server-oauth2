@@ -31,7 +31,7 @@ pluginManagement {
         kotlin("jvm") version kotlinVersion
         kotlin("plugin.spring") version kotlinVersion
 
-        id("com.adarshr.test-logger") version "3.2.0"
+        id("com.adarshr.test-logger") version "4.0.0"
         id("io.gitlab.arturbosch.detekt") version detektVersion
         id("io.spring.dependency-management") version springDependencyManagementVersion
         id("org.datlowe.maven-publish-auth") version "2.0.2"
