@@ -30,4 +30,4 @@ jobs:
           NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
           GITLAB_PACKAGES_UPLOAD_TOKEN: ${{ secrets.GITLAB_PACKAGES_UPLOAD_TOKEN }}
         run: |
-          ./gradlew clean publish -Pversion=$TAG_NAME --info
+          ./gradlew clean publish -Pversion=$TAG_NAME --info --no-configuration-cache
