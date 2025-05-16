@@ -48,7 +48,7 @@ dependencies {
     implementation("com.github.ben-manes.caffeine:caffeine:3.2.0")
     implementation("com.google.crypto.tink:tink:${tinkVersion}")
     implementation("io.github.oshai:kotlin-logging-jvm:${kotlinLoggingVersion}")
-    implementation("org.slf4j:slf4j-api:2.0.16")
+    implementation("org.slf4j:slf4j-api:2.0.17")
     implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
     implementation("org.springframework.security:spring-security-config:$springSecurityVersion")
     implementation("org.springframework.security:spring-security-oauth2-jose:$springSecurityVersion")
