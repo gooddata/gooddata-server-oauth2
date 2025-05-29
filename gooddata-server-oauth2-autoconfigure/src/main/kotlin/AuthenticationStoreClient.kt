@@ -51,6 +51,17 @@ interface AuthenticationStoreClient {
     fun getJitProvisioningSetting(organizationId: String): Mono<JitProvisioningSetting>
 
     /**
+     * Retrieves [JwtJitProvisioningSetting] that corresponds to provided `organizationId`.
+     *
+     * Returns `null` in case no [JwtJitProvisioningSetting] can be found.
+     *
+     * @param organizationId ID of the organization
+     * @return found `JwtJitProvisioningSetting` or `null` in case no [JwtJitProvisioningSetting] is found
+     *
+     */
+    fun getJwtJitProvisioningSetting(organizationId: String): Mono<JwtJitProvisioningSetting>
+
+    /**
      * Retrieves [User] that corresponds to provided `organizationId` and `authenticationId` retrieved from
      * OIDC ID token.
      *
@@ -239,6 +250,21 @@ data class JitProvisioningSetting(
     val enabled: Boolean,
     val userGroupsScopeEnabled: Boolean = false,
     val userGroupsScopeName: String? = null,
+    val userGroupsClaimName: String? = null,
+    val userGroupsDefaults: List<String>? = null,
+)
+
+/**
+ * Represents JWT JIT provisioning setting stored in the persistent storage.
+ *
+ * @property enabled the switch to enable/disable the JWT JIT provisioning
+ * @property userGroupsClaimName the alternate name of the user groups claim
+ * @property userGroupsDefaults the list of default user groups to be used if user groups are not defined in JWT
+ *
+ * @see AuthenticationStoreClient
+ */
+data class JwtJitProvisioningSetting(
+    val enabled: Boolean,
     val userGroupsClaimName: String? = null,
     val userGroupsDefaults: List<String>? = null,
 )
