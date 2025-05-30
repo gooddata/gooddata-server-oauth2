@@ -29,7 +29,7 @@ class HttpProperties(
      * A timeout for receiving some response on a request. (in milliseconds)
      * @see SimpleClientHttpRequestFactory.setReadTimeout
      */
-    @DefaultValue("5000")
+    @DefaultValue("10000")
     val readTimeoutMillis: Int,
 
     /**
