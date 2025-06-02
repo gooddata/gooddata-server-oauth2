@@ -16,6 +16,7 @@
 package com.gooddata.oauth2.server
 
 import com.gooddata.oauth2.server.JitProvisioningAuthenticationSuccessHandler.Claims.GD_USER_GROUPS
+import com.gooddata.oauth2.server.utils.MissingMandatoryClaimsException
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -89,12 +90,13 @@ class JitProvisioningAuthenticationSuccessHandlerTest {
             }
         }
         // then
-        expectThrows<JitProvisioningAuthenticationSuccessHandler.MissingMandatoryClaimsException> {
+        expectThrows<MissingMandatoryClaimsException> {
             handler.onAuthenticationSuccess(exchange, authentication)
                 .block()
         }.and {
             get { message }.isEqualTo(
-                "401 UNAUTHORIZED \"Authorization failed. Missing mandatory claims: [given_name, family_name, email]\""
+                "401 UNAUTHORIZED \"Authorization failed. " +
+                    "Missing mandatory claims: [given_name, family_name, email, sub]\""
             )
         }
     }
