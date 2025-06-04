@@ -133,7 +133,8 @@ class JwtAuthenticationProcessor(
             claims.firstname,
             claims.lastname,
             claims.email,
-            claims.userGroups ?: emptyList()
+            claims.userGroups ?: emptyList(),
+            claims.sub
         ).doOnNext {
             logMessage("JIT provisioning finished", "finished", organization.id)
         }
