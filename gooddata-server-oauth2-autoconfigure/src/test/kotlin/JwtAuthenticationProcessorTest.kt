@@ -191,7 +191,8 @@ class JwtAuthenticationProcessorTest {
                 scenario.expectedFirstName ?: GIVEN_NAME,
                 scenario.expectedLastName ?: LAST_NAME,
                 EMAIL,
-                scenario.expectedGroups
+                scenario.expectedGroups,
+                USER_ID
             )
         } returns Mono.just(User(id = USER_ID, name = USERNAME))
 
@@ -206,7 +207,8 @@ class JwtAuthenticationProcessorTest {
                 scenario.expectedFirstName ?: GIVEN_NAME,
                 scenario.expectedLastName ?: LAST_NAME,
                 EMAIL,
-                scenario.expectedGroups
+                scenario.expectedGroups,
+                USER_ID
             )
         }
     }

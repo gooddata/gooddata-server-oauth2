@@ -91,8 +91,7 @@ interface AuthenticationStoreClient {
      *
      * @param organizationId ID of the organization that the user belongs to
      * @param userId id of the user to be searched
-     * @return `User` corresponding to userId
-     * TODO should an exception be thrown if the user is not found?
+     * @return `User` corresponding to userId or empty [Mono] if no user is found
      */
     fun getUserById(organizationId: String, userId: String): Mono<User>
 
@@ -104,6 +103,7 @@ interface AuthenticationStoreClient {
      * @param lastName last name of the user
      * @param email email of the user
      * @param userGroups list of user groups where the user belongs to
+     * @param userId optional specification of a user id
      * @return created [User]
      */
     @SuppressWarnings("LongParameterList")
@@ -113,7 +113,8 @@ interface AuthenticationStoreClient {
         firstName: String,
         lastName: String,
         email: String,
-        userGroups: List<String>
+        userGroups: List<String>,
+        userId: String? = null
     ): Mono<User>
 
     /**

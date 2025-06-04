@@ -21,6 +21,7 @@ import com.nimbusds.jose.jwk.JWKSet
 import com.nimbusds.jose.proc.BadJWSException
 import com.nimbusds.jwt.SignedJWT
 import io.github.oshai.kotlinlogging.KotlinLogging
+import java.text.ParseException
 import org.springframework.security.authentication.ReactiveAuthenticationManager
 import org.springframework.security.authentication.ReactiveAuthenticationManagerResolver
 import org.springframework.security.core.Authentication
@@ -32,7 +33,6 @@ import org.springframework.security.oauth2.server.resource.authentication.Bearer
 import org.springframework.security.oauth2.server.resource.authentication.JwtReactiveAuthenticationManager
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
-import java.text.ParseException
 
 /**
  * [ReactiveAuthenticationManagerResolver] that is able to authenticate bearer tokens.
@@ -222,15 +222,17 @@ private class JwtAuthenticationManager(
     private fun getJwkSet(organizationId: String): Mono<JWKSet> = client.getJwks(organizationId).map(::JWKSet)
 
     private fun logFinishedJwtAuthentication(organizationId: String, token: Authentication): Mono<Void> {
-        return client.getUserById(organizationId, token.name).flatMap { user ->
-            auditClient.recordLoginSuccess(
-                orgId = organizationId,
-                userId = user.id,
-                source = sourceIp,
-                sessionContextType = AuthMethod.JWT,
-                sessionContextIdentifier = token.name
-            )
-        }
+        return client.getUserById(organizationId, token.name)
+            .switchIfEmpty(Mono.just(User("<unauthorized user>")))
+            .flatMap { user ->
+                auditClient.recordLoginSuccess(
+                    orgId = organizationId,
+                    userId = user.id,
+                    source = sourceIp,
+                    sessionContextType = AuthMethod.JWT,
+                    sessionContextIdentifier = token.name
+                )
+            }
     }
 
     companion object {
