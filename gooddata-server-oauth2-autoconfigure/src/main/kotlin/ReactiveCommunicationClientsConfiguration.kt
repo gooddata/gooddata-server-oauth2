@@ -17,6 +17,7 @@ package com.gooddata.oauth2.server
 
 import io.netty.channel.ChannelOption
 import java.time.Duration
+import org.slf4j.LoggerFactory
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -37,9 +38,11 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser
 import org.springframework.security.oauth2.core.user.OAuth2User
 import org.springframework.web.client.RestTemplate
 import org.springframework.web.reactive.function.client.WebClient
+import org.springframework.web.reactive.function.client.WebClientRequestException
 import reactor.netty.http.client.HttpClient
 import reactor.netty.resources.ConnectionProvider
 import reactor.netty.resources.ConnectionProvider.DEFAULT_POOL_ACQUIRE_TIMEOUT
+import reactor.util.retry.Retry
 
 private const val DEFAULT_MAX_CONNECTIONS = 500
 private const val CUSTOM_CONNECTION_PROVIDER_NAME = "gdc-connection-provider"
@@ -58,6 +61,16 @@ class ReactiveCommunicationClientsConfiguration(private val httpProperties: Http
             .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, httpProperties.connectTimeoutMillis)
         return WebClient.builder()
             .clientConnector(ReactorClientHttpConnector(httpClient))
+            .filter { request, next ->
+                next.exchange(request)
+                    .retryWhen(
+                        Retry.backoff(MAX_RETRY_ATTEMPTS, Duration.ofSeconds(RETRY_BACKOFF_SECONDS))
+                            .filter { throwable -> throwable is WebClientRequestException }
+                            .doBeforeRetry { retrySignal ->
+                                log.warn("Retrying request after error: {}", retrySignal.failure().message)
+                            }
+                    )
+            }
             .build()
     }
 
@@ -124,4 +137,10 @@ class ReactiveCommunicationClientsConfiguration(private val httpProperties: Http
             setWebClient(webClient)
             setBodyExtractor(SafeOAuth2AccessTokenResponseBodyExtractor())
         }
+
+    companion object {
+        private val log = LoggerFactory.getLogger(ReactiveCommunicationClientsConfiguration::class.java)
+        private const val MAX_RETRY_ATTEMPTS = 3L
+        private const val RETRY_BACKOFF_SECONDS = 1L
+    }
 }
