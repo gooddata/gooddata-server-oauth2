@@ -13,95 +13,59 @@ import org.springframework.web.cors.reactive.CorsConfigurationSource
 import org.springframework.web.server.ServerWebExchange
 import strikt.api.expectThat
 import strikt.assertions.isEqualTo
-import strikt.assertions.isNotNull
-import strikt.assertions.isSameInstanceAs
 import java.net.URI
 
 class CompositeCorsConfigurationSourceTest {
 
     private val corsConfigurationSource = mockk<CorsConfigurationSource>()
 
-    private val organizationCorsConfigurationSource = mockk<OrganizationCorsConfigurationSource>()
+    private val organizationCorsConfigurationSource = OrganizationCorsConfigurationSource(GLOBAL_ALLOWED_HOST)
 
     private val exchange = mockk<ServerWebExchange>()
 
     private val compositeCorsConfigurationSource = CompositeCorsConfigurationSource(
         corsConfigurationSource,
-        organizationCorsConfigurationSource,
-        ALLOWED_HOST
+        organizationCorsConfigurationSource
     )
 
     @Test
-    fun `getCorsConfiguration returns AllowedHost for null exchange request uri host`() {
+    fun `WHEN allowedOrigins is null THEN cors configuration must allow the global redirect uri`() {
         every { corsConfigurationSource.getCorsConfiguration(exchange) } returns null
-        every { organizationCorsConfigurationSource.getOrganizationCorsConfiguration(exchange) } returns null
-
-        val request = mockk<ServerHttpRequest>()
-        every { request.uri } returns URI("http", null, "/path", null)
-        every { exchange.request } returns request
-
-        expectAllowedHosts()
-    }
-
-    @Test
-    fun `getCorsConfiguration returns AllowedHost when no configuration found in sources`() {
-        every { corsConfigurationSource.getCorsConfiguration(exchange) } returns null
-        every { organizationCorsConfigurationSource.getOrganizationCorsConfiguration(exchange) } returns null
+        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(
+            id = ORGANIZATION_HOST,
+            allowedOrigins = null
+        )
         val request = mockk<ServerHttpRequest>()
         every { request.uri } returns URI("http", ORGANIZATION_HOST, "/path", null)
         every { exchange.request } returns request
 
-        expectAllowedHosts()
+        expectAllowedHosts(GLOBAL_ALLOWED_HOST)
     }
 
     @Test
-    fun `getCorsConfiguration returns configuration found in organization sources`() {
+    fun `WHEN allowedOrigins is not null THEN cors configuration must contain only org allowed origins`() {
         every { corsConfigurationSource.getCorsConfiguration(exchange) } returns null
-
+        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns Organization(
+            id = ORGANIZATION_HOST,
+            allowedOrigins = listOf(ALLOWED_HOST)
+        )
         val request = mockk<ServerHttpRequest>()
         every { request.uri } returns URI("http", ORGANIZATION_HOST, "/path", null)
         every { exchange.request } returns request
 
-        val organizationCorsConfiguration = CorsConfiguration()
-
-        every {
-            organizationCorsConfigurationSource.getOrganizationCorsConfiguration(exchange)
-        } returns organizationCorsConfiguration
-
-        expectThat(compositeCorsConfigurationSource.getCorsConfiguration(exchange))
-            .isSameInstanceAs(organizationCorsConfiguration)
+        expectAllowedHosts(ALLOWED_HOST)
     }
 
-    @Test
-    fun `getCorsConfiguration returns configuration found in custom sources`() {
-        every { corsConfigurationSource.getCorsConfiguration(exchange) } returns null
-
-        val request = mockk<ServerHttpRequest>()
-        every { request.uri } returns URI("http", ORGANIZATION_HOST, "/path", null)
-        every { exchange.request } returns request
-
-        val organizationCorsConfiguration = CorsConfiguration()
-        every {
-            organizationCorsConfigurationSource.getOrganizationCorsConfiguration(exchange)
-        } returns organizationCorsConfiguration
-
-        val corsConfiguration = CorsConfiguration()
-        every {
-            corsConfigurationSource.getCorsConfiguration(exchange)
-        } returns corsConfiguration
-
-        expectThat(compositeCorsConfigurationSource.getCorsConfiguration(exchange)).isSameInstanceAs(corsConfiguration)
-    }
-
-    private fun expectAllowedHosts() {
-        expectThat(compositeCorsConfigurationSource.getCorsConfiguration(exchange)).isNotNull().and {
-            get { allowedOrigins }.isEqualTo(listOf(ALLOWED_HOST))
+    private fun expectAllowedHosts(host: String) {
+        expectThat(compositeCorsConfigurationSource.getCorsConfiguration(exchange)) {
+            get { allowedOrigins }.isEqualTo(listOf(host))
             get { allowedMethods }.isEqualTo(listOf(CorsConfiguration.ALL))
             get { allowedHeaders }.isEqualTo(listOf(CorsConfiguration.ALL))
         }
     }
 
     companion object {
+        const val GLOBAL_ALLOWED_HOST = "someglobalhost"
         const val ALLOWED_HOST = "somehost"
         const val ORGANIZATION_HOST = "orghost"
     }

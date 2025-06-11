@@ -16,7 +16,6 @@
 
 package com.gooddata.oauth2.server
 
-import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.reactive.CorsConfigurationSource
 import org.springframework.web.server.ServerWebExchange
 
@@ -30,15 +29,9 @@ import org.springframework.web.server.ServerWebExchange
 class CompositeCorsConfigurationSource(
     private val corsConfigurationSource: CorsConfigurationSource,
     private val organizationCorsConfigurationSource: OrganizationCorsConfigurationSource,
-    private val allowRedirect: String
 ) : CorsConfigurationSource {
 
-    override fun getCorsConfiguration(exchange: ServerWebExchange): CorsConfiguration? =
+    override fun getCorsConfiguration(exchange: ServerWebExchange) =
         corsConfigurationSource.getCorsConfiguration(exchange)
-            ?: getOrganizationConfiguration(exchange) ?: allowRedirect.toCorsConfiguration()
-
-    private fun getOrganizationConfiguration(
-        exchange: ServerWebExchange
-    ): CorsConfiguration? =
-        organizationCorsConfigurationSource.getOrganizationCorsConfiguration(exchange)
+            ?: organizationCorsConfigurationSource.getOrganizationCorsConfiguration(exchange)
 }

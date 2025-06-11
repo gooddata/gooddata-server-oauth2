@@ -38,10 +38,15 @@ import java.net.URI
 
 @Suppress("ReactiveStreamsUnusedPublisher")
 internal class AppLoginRedirectProcessorTest {
-    private val exchange = mockk<ServerWebExchange>()
-    private val processor = AppLoginRedirectProcessor(
-        AppLoginProperties(URI.create(GLOBAL_ALLOWED_URI)),
-    )
+    private val exchange = mockk<ServerWebExchange> {
+        every { attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns ORGANIZATION
+    }
+    private val processor = AppLoginRedirectProcessor(CompositeCorsConfigurationSource(
+        mockk {
+            every { getCorsConfiguration(any()) } returns null // no global CORS configuration
+        },
+        OrganizationCorsConfigurationSource(GLOBAL_ALLOWED_URI),
+    ), URI(GLOBAL_ALLOWED_URI))
     private val processFun = mockk<(String) -> Mono<Void>> {
         every { this@mockk.invoke(any()) } returns Mono.empty()
     }
@@ -57,7 +62,6 @@ internal class AppLoginRedirectProcessorTest {
             every { path } returns REQUEST_PATH
             every { queryParams } returns MultiValueMapAdapter(mapOf(AppLoginUri.REDIRECT_TO to listOf("/some/path")))
         }
-        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns ORGANIZATION
 
         processor.process(exchange, processFun, defaultFun).block()
         verify { processFun("/some/path") }
@@ -88,7 +92,6 @@ internal class AppLoginRedirectProcessorTest {
                 mapOf(AppLoginUri.REDIRECT_TO to listOf("http://local/some/path"))
             )
         }
-        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns ORGANIZATION
 
         expectException(
             { processor.process(exchange, processFun, defaultFun).orgContextWrite(ORGANIZATION).block() },
@@ -109,7 +112,6 @@ internal class AppLoginRedirectProcessorTest {
             every { queryParams } returns
                 MultiValueMapAdapter(mapOf(AppLoginUri.REDIRECT_TO to listOf("$host/some/path")))
         }
-        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns ORGANIZATION
 
         processor.process(exchange, processFun, defaultFun).orgContextWrite(ORGANIZATION).block()
         verify { processFun("$host/some/path") }
@@ -127,7 +129,6 @@ internal class AppLoginRedirectProcessorTest {
                 mapOf(AppLoginUri.REDIRECT_TO to listOf("$host/some/../path"))
             )
         }
-        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns ORGANIZATION
 
         processor.process(exchange, processFun, defaultFun).orgContextWrite(ORGANIZATION).block()
         verify { processFun("$host/path") }
@@ -144,7 +145,6 @@ internal class AppLoginRedirectProcessorTest {
                 mapOf(AppLoginUri.REDIRECT_TO to listOf("http://local/some/../path"))
             )
         }
-        every { exchange.attributes[OrganizationWebFilter.ORGANIZATION_CACHE_KEY] } returns ORGANIZATION
 
         expectException(
             { processor.process(exchange, processFun, defaultFun).orgContextWrite(ORGANIZATION).block() },

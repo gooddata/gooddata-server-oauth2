@@ -16,36 +16,33 @@
 
 package com.gooddata.oauth2.server
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.http.HttpHeaders
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.server.ServerWebExchange
 
 /**
  * CORS configuration source which provides configuration based organization configuration .
- * @param[authenticationStoreClient] client for retrieving organization based identity objects from persistent storage
  */
-class OrganizationCorsConfigurationSource(private val authenticationStoreClient: AuthenticationStoreClient) {
-
-    private val logger = KotlinLogging.logger {}
+class OrganizationCorsConfigurationSource(val allowGlobalRedirect: String) {
 
     @Suppress("TooGenericExceptionCaught")
-    fun getOrganizationCorsConfiguration(exchange: ServerWebExchange) =
-        exchange.getOrganizationFromAttributes().allowedOrigins?.toCorsConfiguration()
+    fun getOrganizationCorsConfiguration(exchange: ServerWebExchange) = toCorsConfiguration(
+        exchange.getOrganizationFromAttributes().allowedOrigins ?: listOf(allowGlobalRedirect)
+    )
 }
 
 /**
  * Convert allowed origins list to CORS configuration allowing all methods, all headers and credentials.
  * @receiver allowed origins hosts
  */
-private fun List<String>.toCorsConfiguration() = CorsConfiguration().apply {
+private fun toCorsConfiguration(allowedOriginsList: List<String>) = CorsConfiguration().apply {
     allowCredentials = true
     allowedMethods = listOf(CorsConfiguration.ALL)
     allowedHeaders = listOf(CorsConfiguration.ALL)
     exposedHeaders = listOf(HttpHeaders.CONTENT_DISPOSITION)
-    val (originPatterns, origins) = this@toCorsConfiguration.partition(String::isWildcardOrigin)
-    allowedOrigins = origins.takeIf(List<String>::isNotEmpty)
-    allowedOriginPatterns = originPatterns.takeIf(List<String>::isNotEmpty)
+    val (originsAsPatterns, originsAsValues) = allowedOriginsList.partition(String::isWildcardOrigin)
+    allowedOrigins = originsAsValues.takeIf(List<String>::isNotEmpty)
+    allowedOriginPatterns = originsAsPatterns.takeIf(List<String>::isNotEmpty)
 }
 
 /**
@@ -53,9 +50,3 @@ private fun List<String>.toCorsConfiguration() = CorsConfiguration().apply {
  * @receiver allowed origin host
  */
 private fun String.isWildcardOrigin() = contains('*')
-
-/**
- * Convert allowed origin host to CORS configuration allowing all methods, all headers and credentials.
- * @receiver allowed origin host
- */
-fun String.toCorsConfiguration() = listOf(this).toCorsConfiguration()

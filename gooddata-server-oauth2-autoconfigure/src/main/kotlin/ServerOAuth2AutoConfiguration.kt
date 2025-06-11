@@ -168,21 +168,18 @@ class ServerOAuth2AutoConfiguration {
     fun corsConfigurationSource(
         organizationCorsConfigurationSource: OrganizationCorsConfigurationSource,
         globalCorsConfigurations: CorsConfigurations?,
-        appLoginProperties: AppLoginProperties,
     ): CompositeCorsConfigurationSource = CompositeCorsConfigurationSource(
         UrlBasedCorsConfigurationSource().apply {
             globalCorsConfigurations?.configurations?.forEach { (pattern, config) ->
                 registerCorsConfiguration(pattern, config)
             }
         },
-        organizationCorsConfigurationSource,
-        appLoginProperties.allowRedirect.toString()
+        organizationCorsConfigurationSource
     )
 
     @Bean
-    fun organizationCorsConfigurationSource(
-        authenticationStoreClient: AuthenticationStoreClient
-    ) = OrganizationCorsConfigurationSource(authenticationStoreClient)
+    fun organizationCorsConfigurationSource(appProperties: AppLoginProperties) =
+        OrganizationCorsConfigurationSource(appProperties.allowRedirect.toString())
 
     /**
      * By default, Spring Security fills the `state` query parameter value of the authorization request call
@@ -244,7 +241,10 @@ class ServerOAuth2AutoConfiguration {
         @Value("\${spring.security.oauth2.config.provider.auth0.customDomain:#{null}}") auth0CustomDomain: String?,
         @Value("\${spring.security.oauth2.config.provider.cognito.customDomain:#{null}}") cognitoCustomDomain: String?,
     ): SecurityWebFilterChain {
-        val appLoginRedirectProcessor = AppLoginRedirectProcessor(appLoginProperties)
+        val appLoginRedirectProcessor = AppLoginRedirectProcessor(
+            compositeCorsConfigurationSource,
+            appLoginProperties.allowRedirect
+        )
         val serverRequestCache = DelegatingServerRequestCache(
             CookieServerRequestCache(cookieService),
             AppLoginCookieRequestCacheWriter(cookieService),
