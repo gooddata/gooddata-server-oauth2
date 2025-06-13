@@ -22,11 +22,11 @@ import org.springframework.security.web.server.DefaultServerRedirectStrategy
 import org.springframework.security.web.server.util.matcher.AndServerWebExchangeMatcher
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers
+import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.server.ResponseStatusException
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilter
 import org.springframework.web.server.WebFilterChain
-import org.springframework.web.util.UriComponentsBuilder
 import reactor.core.publisher.Mono
 import java.net.URI
 
@@ -59,7 +59,8 @@ class AppLoginWebFilter(private val appLoginRedirectProcessor: AppLoginRedirectP
  * conditions, the processing is skipped and the default fallback is used.
  */
 class AppLoginRedirectProcessor(
-    private val properties: AppLoginProperties,
+    private val corsConfigurationSource: CompositeCorsConfigurationSource,
+    private val allowGlobalRedirect: URI,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -75,8 +76,9 @@ class AppLoginRedirectProcessor(
      * it fails with an exception.
      */
     private val appLoginRedirectToMatcher = ServerWebExchangeMatcher { serverWebExchange ->
+        val cors = corsConfigurationSource.getCorsConfiguration(serverWebExchange)
         serverWebExchange.redirectToOrError()
-            .filterWhen { redirectTo -> canRedirect(redirectTo) }
+            .filter { redirectTo -> canRedirect(redirectTo, cors) }
             .flatMap { redirectTo ->
                 ServerWebExchangeMatcher.MatchResult.match(
                     mapOf(AppLoginUri.REDIRECT_TO to redirectTo.toASCIIString())
@@ -139,41 +141,33 @@ class AppLoginRedirectProcessor(
         }
     }
 
-    private fun canRedirect(redirectTo: URI): Mono<Boolean> {
-        val uri = redirectTo.normalizeToRedirectToPattern()
-        return Mono.just(true)
-            .filter { uri.isAllowedGlobally() || redirectTo.isLocal() }
-            .switchIfEmpty(uri.isAllowedForOrganization())
-            .doOnNext { canRedirect ->
-                if (!canRedirect) {
-                    logger.trace { "URI \"$uri\" can't be redirected" }
-                }
-            }
-    }
-
-    private fun URI.normalizeToRedirectToPattern() =
-        UriComponentsBuilder.fromUri(this)
-            .replacePath(null)
-            .replaceQuery(null)
-            .fragment(null)
-            .build().toUri()
-
-    private fun URI.isAllowedForOrganization(): Mono<Boolean> =
-        getOrganizationFromContext().flatMap { organization ->
-            organization.isUriAllowed(this)
+    fun canRedirect(redirectTo: URI, cors: CorsConfiguration): Boolean {
+        val originLikeValue = cutOffPathQueryFragment(redirectTo)
+        if (originLikeValue.isAllowedGlobally() || redirectTo.isLocal() || cors.match(originLikeValue)) {
+            return true
         }
 
-    private fun URI.isAllowedGlobally() = this == properties.allowRedirect
+        logger.trace { "URI \"$redirectTo\" can't be redirected" }
+        return false
+    }
 
-    private fun URI.isLocal() = normalizeToRedirectToPattern() == EMPTY_URI && path.startsWith("/")
+    private fun CorsConfiguration.match(uri: String) = this.checkOrigin(uri) != null
 
-    private fun Organization.isUriAllowed(uri: URI): Mono<Boolean> =
-        Mono.justOrEmpty(this.allowedOrigins?.map(::URI))
-            .map { allowedOrigins -> allowedOrigins?.any { uri == it.normalizeToRedirectToPattern() } ?: false }
-            .defaultIfEmpty(false)
+    private fun String.isAllowedGlobally() = this == allowGlobalRedirect.toString()
 
-    companion object {
-        private val EMPTY_URI = URI.create("")
+    private fun URI.isLocal(): Boolean {
+        if (this.scheme == null && this.host == null) {
+            return this.path != null && this.path.startsWith("/")
+        }
+
+        return false
+    }
+
+    private fun cutOffPathQueryFragment(uri: URI) = buildString {
+        append("${uri.scheme}://${uri.host}")
+        if (uri.port != -1) {
+            append(":${uri.port}")
+        }
     }
 }
 

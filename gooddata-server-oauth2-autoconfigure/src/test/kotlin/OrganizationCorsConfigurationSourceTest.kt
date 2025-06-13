@@ -11,13 +11,12 @@ import org.junit.jupiter.api.Test
 import org.springframework.web.server.ServerWebExchange
 import strikt.api.expectThat
 import strikt.assertions.isEqualTo
-import strikt.assertions.isNotNull
 
 class OrganizationCorsConfigurationSourceTest {
 
-    private val authenticationStoreClient = mockk<AuthenticationStoreClient>()
-
-    private val organizationCorsConfigurationSource = OrganizationCorsConfigurationSource(authenticationStoreClient)
+    private val organizationCorsConfigurationSource = OrganizationCorsConfigurationSource(
+        AppLoginProperties.GLOBAL_REDIRECT_DEFAULT
+    )
 
     @Test
     fun `getOrganizationCorsConfiguration correctly separates allowed origins and allowed origin patterns`() {
@@ -29,7 +28,7 @@ class OrganizationCorsConfigurationSourceTest {
             )
         )
 
-        expectThat(organizationCorsConfigurationSource.getOrganizationCorsConfiguration(exchange)).isNotNull().and {
+        expectThat(organizationCorsConfigurationSource.getOrganizationCorsConfiguration(exchange)) {
             get { allowedOrigins }.isEqualTo(listOf(ALLOWED_HOST))
             get { allowedOriginPatterns }.isEqualTo(listOf(ALLOWED_HOST_WILDCARD))
         }

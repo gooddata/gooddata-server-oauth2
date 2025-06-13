@@ -21,6 +21,7 @@ import java.net.URI
 
 @ConfigurationProperties(prefix = "spring.security.oauth2.client.applogin")
 class AppLoginProperties(
+
     /**
      * Defines which hostnames are allowed to be used in `redirectTo` param on `/appLogin` resource. When empty value is
      * used it means that only relative URIs are allowed in `redirectTo`. If hostname is set to some schema+host+port
@@ -28,6 +29,10 @@ class AppLoginProperties(
      *
      * Defaults to empty string.
      */
-    @DefaultValue("")
+    @DefaultValue(GLOBAL_REDIRECT_DEFAULT)
     val allowRedirect: URI,
-)
+) {
+    companion object {
+        const val GLOBAL_REDIRECT_DEFAULT = ""
+    }
+}
