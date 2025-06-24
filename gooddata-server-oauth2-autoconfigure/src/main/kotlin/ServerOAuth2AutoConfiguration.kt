@@ -17,6 +17,7 @@ package com.gooddata.oauth2.server
 
 import com.gooddata.oauth2.server.oauth2.client.CustomAttrsAwareOauth2AuthorizationRequestResolver
 import java.util.Base64
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -27,6 +28,8 @@ import org.springframework.boot.autoconfigure.security.oauth2.client.reactive.Re
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
+import org.springframework.context.annotation.Primary
+import org.springframework.core.annotation.Order
 import org.springframework.http.HttpMethod
 import org.springframework.security.authentication.ReactiveAuthenticationManager
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity
@@ -65,6 +68,7 @@ import org.springframework.util.ClassUtils
 import org.springframework.web.client.RestTemplate
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource
 import org.springframework.web.reactive.config.EnableWebFlux
+import reactor.core.publisher.Mono
 
 @AutoConfiguration
 @EnableConfigurationProperties(
@@ -122,6 +126,41 @@ class ServerOAuth2AutoConfiguration {
             clientRegistrationCache,
             authenticationStoreClient.`object`
         )
+
+    @Bean
+    //TODO: Could it be combined with the above bean?
+    fun hostBasedClientRegistrationRepository(
+        client: ObjectProvider<AuthenticationStoreClient>,
+        properties: HostBasedClientRegistrationRepositoryProperties,
+        clientRegistrationCache: ClientRegistrationCache,
+        authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>
+    ): HostBasedReactiveClientRegistrationRepository =
+        HostBasedReactiveClientRegistrationRepository(
+            properties,
+            clientRegistrationCache,
+            authenticationStoreClient.`object`
+        )
+
+    @Bean("alternativeClientRegistrationRepository")
+    fun alternativeClientRegistrationRepository(
+        authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>,
+        clientRegistrationCache: ClientRegistrationCache,
+    ): AlternativeReactiveClientRegistrationRepository {
+        return AlternativeReactiveClientRegistrationRepository(
+            clientRegistrationCache,
+            authenticationStoreClient.`object`
+        )
+    }
+
+    @Bean
+    @Primary
+    fun compositeClientRegistrationRepository(
+        hostBasedClientRegistrationRepository: HostBasedReactiveClientRegistrationRepository,
+        alternativeClientRegistrationRepository: AlternativeReactiveClientRegistrationRepository,
+    ): ReactiveClientRegistrationRepository = CompositeReactiveClientRegistrationRepository(
+        hostBasedClientRegistrationRepository,
+        alternativeClientRegistrationRepository
+    )
 
     @ConditionalOnMissingBean(ClientRegistrationCache::class)
     @Bean
@@ -218,6 +257,7 @@ class ServerOAuth2AutoConfiguration {
     ) = CustomAttrsAwareOauth2AuthorizationRequestResolver(urlSafeStateAuthorizationRequestResolver, cookieService)
 
     @Bean
+    @Order(2)
     @Suppress("LongParameterList", "LongMethod")
     fun springSecurityFilterChain(
         serverHttpSecurity: ServerHttpSecurity,
@@ -278,10 +318,18 @@ class ServerOAuth2AutoConfiguration {
             )
         )
 
+        // Wrap the auth success handler with the alternative authentication handler
+        val alternativeAwareAuthSuccessHandler = AlternativeAuthenticationSuccessHandler(
+            authSuccessHandler
+        )
+
         return serverHttpSecurity.securityContextRepository(serverSecurityContextRepository).configure {
             securityMatcher { serverWebExchange ->
-                NegatedServerWebExchangeMatcher(
+                val requestPath = serverWebExchange.request.uri.path
+                val matches = NegatedServerWebExchangeMatcher(
                     OrServerWebExchangeMatcher(
+                        PathPatternParserServerWebExchangeMatcher("/api/v1/actions/organization/*/**"),
+                        PathPatternParserServerWebExchangeMatcher("/external-login/**"),
                         PathPatternParserServerWebExchangeMatcher("/actuator"),
                         PathPatternParserServerWebExchangeMatcher("/actuator/**"),
                         PathPatternParserServerWebExchangeMatcher("/login"),
@@ -290,6 +338,11 @@ class ServerOAuth2AutoConfiguration {
                         PathPatternParserServerWebExchangeMatcher(API_VERSION, HttpMethod.GET),
                     )
                 ).matches(serverWebExchange)
+
+                matches.flatMap {
+                    logger.info("DEBUG: 🛡️ Main Security Chain - Path: {} | Matches: {}", requestPath, it.isMatch)
+                    Mono.just(it)
+                }
             }
             cors {
                 this@cors.configurationSource = compositeCorsConfigurationSource
@@ -315,7 +368,7 @@ class ServerOAuth2AutoConfiguration {
                 authenticationFailureHandler = ServerOAuth2FailureHandler(auditClient.`object`)
                 authenticationManager = loginAuthManager
                 authorizationRequestResolver = federationAwareAuthorizationRequestResolver
-                authenticationSuccessHandler = authSuccessHandler
+                authenticationSuccessHandler = alternativeAwareAuthSuccessHandler
             }
             oauth2Client { }
             exceptionHandling {
@@ -427,6 +480,7 @@ class ServerOAuth2AutoConfiguration {
          * @see ServerOAuth2AutoConfiguration.urlSafeStateAuthorizationRequestResolver
          */
         private const val URL_SAFE_STATE_KEY_BYTES = 33
+        val logger = LoggerFactory.getLogger(ServerOAuth2AutoConfiguration::class.java)
     }
 }
 

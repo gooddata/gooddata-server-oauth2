@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 GoodData Corporation
+ * Copyright 2025 GoodData Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,31 +22,38 @@ import reactor.core.publisher.Mono
 
 /**
  * [ReactiveClientRegistrationRepository] implementation that loads [ClientRegistration] from persistent storage.
- * Client registrations are identified by request's hostname.
+ * Client registrations are identified by request's hostname and id of the configuration.
  */
-class HostBasedReactiveClientRegistrationRepository(
-    private val properties: HostBasedClientRegistrationRepositoryProperties,
+class AlternativeReactiveClientRegistrationRepository(
     private val clientRegistrationCache: ClientRegistrationCache,
     private val client: AuthenticationStoreClient
 ) : ReactiveClientRegistrationRepository {
 
     override fun findByRegistrationId(registrationId: String): Mono<ClientRegistration> =
         getOrganizationFromContext().flatMap { organization ->
-            logger.info("DEBUG: 🛡️ HostBasedReactiveClientRegistrationRepository - findByRegistrationId")
-            client.getJitProvisioningSetting(organization.id)
-                .defaultIfEmpty(JitProvisioningSetting(enabled = false))
-                .map { jitProvisioningSetting ->
-                    buildClientRegistration(
+            logger.info("DEBUG: 🛡️ AlternativeReactiveClientRegistrationRepository - findByRegistrationId: {}", registrationId)
+
+            // Extract idpId from registration ID (format: "test-{idpId}")
+            val idpId = if (registrationId.startsWith("test-")) {
+                registrationId.removePrefix("test-")
+            } else {
+                // Fallback: use the registration ID as IDP ID
+                registrationId
+            }
+
+            logger.info("DEBUG: 🛡️ AlternativeReactiveClientRegistrationRepository - Using IDP ID: {}", idpId)
+
+            client.getIdpById(organization.id, idpId)
+                .map { identityProvider ->
+                    buildAlternativeClientRegistration(
                         registrationId = registrationId,
-                        organization = organization,
-                        jitProvisioningSetting = jitProvisioningSetting,
-                        properties = properties,
+                        identityProvider = identityProvider,
                         clientRegistrationCache = clientRegistrationCache,
                     )
                 }
         }
 
     companion object {
-        val logger = LoggerFactory.getLogger(HostBasedReactiveClientRegistrationRepository::class.java)
+        val logger = LoggerFactory.getLogger(AlternativeReactiveClientRegistrationRepository::class.java)
     }
 }

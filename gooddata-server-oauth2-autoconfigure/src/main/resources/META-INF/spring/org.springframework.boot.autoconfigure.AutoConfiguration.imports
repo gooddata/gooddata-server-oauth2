@@ -1,1 +1,2 @@
 com.gooddata.oauth2.server.ServerOAuth2AutoConfiguration
+com.gooddata.oauth2.server.AlternativeServerOAuth2AutoConfiguration

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 GoodData Corporation
+ * Copyright 2025 GoodData Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,12 +31,12 @@ import org.slf4j.LoggerFactory
  * redirects based on request's `Host` header as individual Auth2 providers are not defined statically during
  * Spring Context bootstrap.
  */
-class HostBasedServerAuthenticationEntryPoint(
+class AlternativeServerAuthenticationEntryPoint(
     private val requestCache: ServerRequestCache
 ) : ServerAuthenticationEntryPoint {
 
     companion object {
-        private val logger = LoggerFactory.getLogger(HostBasedServerAuthenticationEntryPoint::class.java)
+        private val logger = LoggerFactory.getLogger(AlternativeServerAuthenticationEntryPoint::class.java)
     }
 
     private val redirectStrategy = DefaultServerRedirectStrategy()
@@ -44,21 +44,32 @@ class HostBasedServerAuthenticationEntryPoint(
 
     override fun commence(exchange: ServerWebExchange, e: AuthenticationException?): Mono<Void> {
         val requestPath = exchange.request.uri.path
-        val hostname = exchange.request.uri.host
-        logger.info("DEBUG: 🏠 Host-Based Authentication Entry Point - Path: {} | Host: {} | Exception: {}", requestPath, hostname, e?.message)
+        logger.info("DEBUG: 🚀 Alternative Authentication Entry Point - Path: {} | Exception: {}", requestPath, e?.message)
 
+        // TODO IS the Ajax call processing needed?
         return if (exchange.isAjaxCall()) {
             val uri = URI.create(AppLoginUri.PATH)
-            logger.info("DEBUG: 🏠 Host-Based Entry Point - Redirecting AJAX to: {}", uri)
+            logger.info("DEBUG: 🚀 Alternative Entry Point - Redirecting AJAX to: {}", uri)
             xmlHttpRequestServerRedirectStrategy.sendRedirect(exchange, uri)
         } else {
-            val uri = URI.create("/oauth2/authorization/${exchange.request.uri.host}")
-            logger.info("DEBUG: 🏠 Host-Based Entry Point - Redirecting to: {} | Hostname: {}", uri, hostname)
+            // Extract idpId from the request (could be from path, query param, or header)
+            val idpId = extractIdpId(exchange) ?: "defaultIdp"
+            // Use the same registration ID pattern that the alternative repository expects
+            // TODO: COULD WE RELY ON A DIFFERENT MECHANISM TO DIFFERENTIATE AMONG THE ALTERNATIVE VS STANDARD auth flows?
+            val registrationId = "test-$idpId"
+            val uri = URI.create("/oauth2/authorization/test-${exchange.request.uri.host}")
+            logger.info("DEBUG: 🚀 Alternative Entry Point - Redirecting to: {} | IDP ID: {} | Registration ID: {}", uri, idpId, registrationId)
             requestCache
                 .saveRequest(exchange)
                 .then(redirectStrategy.sendRedirect(exchange, uri))
         }
     }
 
-    private fun ServerWebExchange.isAjaxCall() = this.request.headers["X-Requested-With"]?.first() == "XMLHttpRequest"
+    private fun extractIdpId(exchange: ServerWebExchange): String? {
+        // Extract from query parameter
+        return exchange.request.queryParams["idp_id"]?.firstOrNull()?.let { return it }
+    }
+
+    private fun ServerWebExchange.isAjaxCall() =
+        this.request.headers["X-Requested-With"]?.first() == "XMLHttpRequest"
 }
