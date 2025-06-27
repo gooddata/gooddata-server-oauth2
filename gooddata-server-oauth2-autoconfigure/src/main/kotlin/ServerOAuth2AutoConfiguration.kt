@@ -15,6 +15,7 @@
  */
 package com.gooddata.oauth2.server
 
+import com.gooddata.oauth2.server.TestEndpointDedicatedServerAuthenticationEntryPoint.Companion.TEST_ENDPOINT_URL
 import com.gooddata.oauth2.server.oauth2.client.CustomAttrsAwareOauth2AuthorizationRequestResolver
 import java.util.Base64
 import org.springframework.beans.factory.ObjectProvider
@@ -27,6 +28,8 @@ import org.springframework.boot.autoconfigure.security.oauth2.client.reactive.Re
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
+import org.springframework.context.annotation.Primary
+import org.springframework.core.annotation.Order
 import org.springframework.http.HttpMethod
 import org.springframework.security.authentication.ReactiveAuthenticationManager
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity
@@ -111,17 +114,37 @@ class ServerOAuth2AutoConfiguration {
         CookieServerOAuth2AuthorizedClientRepository(clientRegistrationRepository, cookieService)
 
     @Bean
-    fun clientRegistrationRepository(
+    fun hostBasedReactiveClientRegistrationRepository(
         client: ObjectProvider<AuthenticationStoreClient>,
         properties: HostBasedClientRegistrationRepositoryProperties,
         clientRegistrationCache: ClientRegistrationCache,
         authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>
-    ): ReactiveClientRegistrationRepository =
-        HostBasedReactiveClientRegistrationRepository(
-            properties,
+    ) = HostBasedReactiveClientRegistrationRepository(
+        properties,
+        clientRegistrationCache,
+        authenticationStoreClient.`object`
+    )
+
+    @Bean
+    fun urlBasedReactiveClientRegistrationRepository(
+        authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>,
+        clientRegistrationCache: ClientRegistrationCache,
+    ): UrlBasedReactiveClientRegistrationRepository {
+        return UrlBasedReactiveClientRegistrationRepository(
             clientRegistrationCache,
             authenticationStoreClient.`object`
         )
+    }
+
+    @Bean
+    @Primary
+    fun compositeClientRegistrationRepository(
+        hostBasedReactiveClientRegistrationRepository: HostBasedReactiveClientRegistrationRepository,
+        urlBasedReactiveClientRegistrationRepository: UrlBasedReactiveClientRegistrationRepository,
+    ): ReactiveClientRegistrationRepository = CompositeReactiveClientRegistrationRepository(
+        hostBasedReactiveClientRegistrationRepository,
+        urlBasedReactiveClientRegistrationRepository
+    )
 
     @ConditionalOnMissingBean(ClientRegistrationCache::class)
     @Bean
@@ -218,6 +241,73 @@ class ServerOAuth2AutoConfiguration {
     ) = CustomAttrsAwareOauth2AuthorizationRequestResolver(urlSafeStateAuthorizationRequestResolver, cookieService)
 
     @Bean
+    @Order(1) // Higher priority than main security chain
+    fun testEndpointDedicatedSecurityFilterChain(
+        serverHttpSecurity: ServerHttpSecurity,
+        serverSecurityContextRepository: ServerSecurityContextRepository,
+        authorizedClientRepository: ServerOAuth2AuthorizedClientRepository,
+        cookieService: ReactiveCookieService,
+        authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>,
+        auditClient: ObjectProvider<AuthenticationAuditClient>,
+        userContextProvider: ObjectProvider<ReactorUserContextProvider>,
+        loginAuthManager: ReactiveAuthenticationManager,
+        compositeCorsConfigurationSource: CompositeCorsConfigurationSource,
+        appLoginProperties: AppLoginProperties,
+        federationAwareAuthorizationRequestResolver: ServerOAuth2AuthorizationRequestResolver,
+    ): SecurityWebFilterChain {
+
+        val appLoginRedirectProcessor = AppLoginRedirectProcessor(
+            compositeCorsConfigurationSource,
+            appLoginProperties.allowRedirect
+        )
+
+        val serverRequestCache = DelegatingServerRequestCache(
+            CookieServerRequestCache(cookieService),
+            AppLoginCookieRequestCacheWriter(cookieService),
+            appLoginRedirectProcessor,
+        )
+
+        val serverAuthenticationEntryPoint = TestEndpointDedicatedServerAuthenticationEntryPoint(serverRequestCache)
+
+        return serverHttpSecurity.securityContextRepository(serverSecurityContextRepository).configure {
+            securityMatcher { serverWebExchange ->
+                // Match the actual API pattern that needs alternative authentication
+                PathPatternParserServerWebExchangeMatcher(TEST_ENDPOINT_URL).matches(serverWebExchange)
+
+            }
+            exceptionHandling {
+                authenticationEntryPoint = serverAuthenticationEntryPoint
+            }
+            authorizeExchange {
+                authorize(anyExchange, authenticated)
+            }
+            addFilterAt(
+                OrganizationWebFilter(
+                    authenticationStoreClient.`object`
+                ),
+                SecurityWebFiltersOrder.FIRST
+            )
+            // Add the UserContextWebFilter to set up AuthContext after authentication
+            addFilterAfter(
+                OidcBasedUseContextWebFilter(
+                    OidcAuthenticationProcessor(
+                        authenticationStoreClient.`object`,
+                        serverAuthenticationEntryPoint,
+                        DelegatingServerLogoutHandler(
+                            // Create a minimal logout handler for the alternative chain
+                            SecurityContextRepositoryLogoutHandler(serverSecurityContextRepository)
+                        ),
+                        userContextProvider.`object`,
+                        authorizedClientRepository,
+                    ),
+                ),
+                SecurityWebFiltersOrder.LOGOUT
+            )
+        }
+    }
+
+    @Bean
+    @Order(2)
     @Suppress("LongParameterList", "LongMethod")
     fun springSecurityFilterChain(
         serverHttpSecurity: ServerHttpSecurity,
@@ -282,6 +372,7 @@ class ServerOAuth2AutoConfiguration {
             securityMatcher { serverWebExchange ->
                 NegatedServerWebExchangeMatcher(
                     OrServerWebExchangeMatcher(
+                        PathPatternParserServerWebExchangeMatcher(TEST_ENDPOINT_URL),
                         PathPatternParserServerWebExchangeMatcher("/actuator"),
                         PathPatternParserServerWebExchangeMatcher("/actuator/**"),
                         PathPatternParserServerWebExchangeMatcher("/login"),

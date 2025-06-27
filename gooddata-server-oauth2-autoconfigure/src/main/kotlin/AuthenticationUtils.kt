@@ -104,8 +104,7 @@ private val typeReference: ParameterizedTypeReference<Map<String, Any>> = object
  * @param registrationId registration ID to be used
  * @param organization organization object retrieved from [AuthenticationStoreClient]
  * @param properties static properties for being able to configure pre-configured DEX issuer
- * @param clientRegistrationCache the cache where non-DEX client registrations are saved for improving
- * performance
+ * @param clientRegistrationCache the cache where non-DEX client registrations are saved for improving performance
  * @return A [ClientRegistration]
  */
 @SuppressWarnings("TooGenericExceptionCaught")
@@ -116,11 +115,55 @@ fun buildClientRegistration(
     properties: HostBasedClientRegistrationRepositoryProperties,
     clientRegistrationCache: ClientRegistrationCache,
 ): ClientRegistration {
-    val issuerLocation = organization.oauthIssuerLocation
-        // fallback to DEX client registration if issuer location is not defined
-        ?: return dexClientRegistration(registrationId, properties, organization, jitProvisioningSetting)
+    val identityProvider = organization.getIdpSpec()
 
-    // fetch the cached settings obtained from the well-known endpoint for the particular issuerLocation
+    val issuerLocation = identityProvider.oauthIssuerLocation
+        // fallback to DEX client registration if issuer location is not defined
+        ?: return dexClientRegistration(registrationId, properties, identityProvider, jitProvisioningSetting)
+
+    return buildClientRegistration(
+        registrationId = registrationId,
+        identityProvider = identityProvider,
+        jitProvisioningSetting = jitProvisioningSetting,
+        clientRegistrationCache = clientRegistrationCache,
+        issuerLocation = issuerLocation
+    )
+}
+
+/**
+ * Builds a client registration based on [IdentityProvider] details.
+ *
+ * In the case that the issuer location is an Azure B2C provider, the metadata is retrieved via a separate handler
+ * that performs validation on the endpoints instead of the issuer since Azure B2C openid-configuration does not
+ * return a matching issuer value.
+ *
+ * @param registrationId registration ID to be used
+ * @param identityProvider identity provider object retrieved from [AuthenticationStoreClient]
+ * @param clientRegistrationCache the cache where client registrations are saved for improving performance
+ * @return A [ClientRegistration]
+ */
+@SuppressWarnings("TooGenericExceptionCaught")
+fun buildClientRegistration(
+    registrationId: String,
+    identityProvider: IdentityProvider,
+    jitProvisioningSetting: JitProvisioningSetting,
+    clientRegistrationCache: ClientRegistrationCache,
+): ClientRegistration = buildClientRegistration(
+    registrationId = registrationId,
+    identityProvider = identityProvider,
+    jitProvisioningSetting = jitProvisioningSetting,
+    clientRegistrationCache = clientRegistrationCache,
+    issuerLocation = identityProvider.oauthIssuerLocation!!
+)
+
+private fun buildClientRegistration(
+    registrationId: String,
+    identityProvider: IdentityProvider,
+    jitProvisioningSetting: JitProvisioningSetting,
+    clientRegistrationCache: ClientRegistrationCache,
+    issuerLocation: String
+): ClientRegistration {
+    // Fetch the cached settings obtained from the well-known endpoint for the particular issuerLocation
     // this saves HTTP requests to well known endpoints everytime the API call is authorized
     val cachedRegistration = clientRegistrationCache.get(issuerLocation) {
         try {
@@ -133,12 +176,12 @@ fun buildClientRegistration(
             handleRuntimeException(ex, issuerLocation)
         }
     }
-    // only partial registration is stored in the cache, so we need to set up additional properties needed
+    // Only partial registration is stored in the cache, so we need to set up additional properties needed
     // for a proper configuration of the authentication flow
     return ClientRegistration.withClientRegistration(cachedRegistration)
         .registrationId(registrationId)
-        .withRedirectUri(organization.oauthIssuerId)
-        .buildWithIssuerConfig(organization, jitProvisioningSetting)
+        .withRedirectUri(identityProvider.oauthIssuerId)
+        .buildWithIssuerConfig(identityProvider, jitProvisioningSetting)
 }
 
 /**
@@ -167,12 +210,12 @@ private fun ClientRegistration.Builder.buildWithDummyValues(): ClientRegistratio
 private fun dexClientRegistration(
     registrationId: String,
     properties: HostBasedClientRegistrationRepositoryProperties,
-    organization: Organization,
+    identityProvider: IdentityProvider,
     jitProvisioningSetting: JitProvisioningSetting
 ): ClientRegistration = ClientRegistration
     .withRegistrationId(registrationId)
     .withDexConfig(properties)
-    .buildWithIssuerConfig(organization, jitProvisioningSetting)
+    .buildWithIssuerConfig(identityProvider, jitProvisioningSetting)
 
 /**
  * Handles client registration for Azure B2C by validating issuer metadata and building the registration.
@@ -429,22 +472,22 @@ private fun ClientRegistration.Builder.withRedirectUri(oauthIssuerId: String?) =
  * @return this builder
  */
 internal fun ClientRegistration.Builder.buildWithIssuerConfig(
-    organization: Organization,
+    identityProvider: IdentityProvider,
     jitProvisioningSetting: JitProvisioningSetting,
 ): ClientRegistration {
-    if (organization.oauthClientId == null || organization.oauthClientSecret == null) {
+    if (identityProvider.oauthClientId == null || identityProvider.oauthClientSecret == null) {
         throw ResponseStatusException(
             HttpStatus.UNAUTHORIZED,
-            "Authorization failed for given issuer ${organization.oauthIssuerLocation}." +
+            "Authorization failed for given issuer ${identityProvider.oauthIssuerLocation}." +
                 " Invalid configuration, missing mandatory attribute client id and/or client secret."
         )
     }
-    val withIssuerConfigBuilder = clientId(organization.oauthClientId)
-        .clientSecret(organization.oauthClientSecret)
+    val withIssuerConfigBuilder = clientId(identityProvider.oauthClientId)
+        .clientSecret(identityProvider.oauthClientSecret)
         .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
         .userNameAttributeName("name")
     val supportedScopes = withIssuerConfigBuilder.build().resolveSupportedScopes()
-    return withIssuerConfigBuilder.withScopes(supportedScopes, organization, jitProvisioningSetting).build()
+    return withIssuerConfigBuilder.withScopes(supportedScopes, identityProvider, jitProvisioningSetting).build()
 }
 
 private fun ClientRegistration.resolveSupportedScopes() =
@@ -454,7 +497,7 @@ private fun ClientRegistration.resolveSupportedScopes() =
 
 private fun ClientRegistration.Builder.withScopes(
     supportedScopes: Scope?,
-    organization: Organization,
+    identityProvider: IdentityProvider,
     jitProvisioningSetting: JitProvisioningSetting,
 ): ClientRegistration.Builder {
     // in the future, we could check mandatory scopes against the supported ones
@@ -468,11 +511,11 @@ private fun ClientRegistration.Builder.withScopes(
     } else {
         listOf()
     }
-    val oauthCustomScopes = organization.oauthCustomScopes ?: listOf()
-    val azureB2CScope = if (organization.oauthIssuerLocation != null &&
-        organization.oauthIssuerLocation.toUri().isAzureB2C()
+    val oauthCustomScopes = identityProvider.oauthCustomScopes ?: listOf()
+    val azureB2CScope = if (identityProvider.oauthIssuerLocation != null &&
+        identityProvider.oauthIssuerLocation.toUri().isAzureB2C()
     ) {
-        listOf(organization.oauthClientId)
+        listOf(identityProvider.oauthClientId)
     } else {
         listOf()
     }

@@ -41,6 +41,17 @@ interface AuthenticationStoreClient {
     fun getOrganizationByHostname(hostname: String): Mono<Organization>
 
     /**
+     * Retrieves [IdentityProvider] of a given organization. [ResponseStatusException]
+     * with [HttpStatus.NOT_FOUND] status code is thrown in case no [IdentityProvider] can be found.
+     *
+     * @param id of the organization
+     * @param idpId of the identity provider
+     * @return `IdentityProvider` corresponding to `idpId` or mono containing
+     * [ResponseStatusException] in case `IdentityProvider` is not found
+     */
+    fun getIdpById(organizationId: String, idpId: String): Mono<IdentityProvider>
+
+    /**
      * Retrieves [JitProvisioningSetting] that corresponds to provided `organizationId`.
      *
      * Returns `null` in case no [JitProvisioningSetting] can be found.
@@ -214,6 +225,32 @@ data class Organization(
     val oauthSubjectIdClaim: String? = null,
     val oauthCustomAuthAttributes: Map<String, String>? = null,
     val oauthCustomScopes: List<String>? = null,
+)
+
+/**
+ * Represents the single identity provider stored in the persistent storage and having specific OAuth settings.
+ *
+ * @property id the ID of this organization within the persistent storage
+ * @property oauthIssuerLocation the location URL of the OAuth issuer
+ * @property oauthClientId the identifier of the application registered in the OAuth issuer
+ * @property oauthClientSecret the secret of the application registered in the OAuth issuer
+ */
+data class IdentityProvider(
+    val id: String,
+    val oauthIssuerLocation: String? = null,
+    val oauthClientId: String? = null,
+    val oauthClientSecret: String? = null,
+    val oauthCustomScopes: List<String>? = null,
+    val oauthIssuerId: String? = null,
+)
+
+fun Organization.getIdpSpec() = IdentityProvider(
+    id = "defaultId",
+    oauthIssuerLocation = oauthIssuerLocation,
+    oauthClientId = oauthClientId,
+    oauthClientSecret = oauthClientSecret,
+    oauthCustomScopes = oauthCustomScopes,
+    oauthIssuerId = oauthIssuerId
 )
 
 /**
