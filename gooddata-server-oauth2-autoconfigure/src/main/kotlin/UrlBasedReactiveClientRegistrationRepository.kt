@@ -24,6 +24,7 @@ import reactor.core.publisher.Mono
  * [ReactiveClientRegistrationRepository] implementation that loads [ClientRegistration] from persistent storage.
  * Client registrations are identified by test endpoint path variable (encoded within the registration id).
  */
+// TODO - COOKIE BASED
 class UrlBasedReactiveClientRegistrationRepository(
     private val clientRegistrationCache: ClientRegistrationCache,
     private val client: AuthenticationStoreClient,
@@ -33,7 +34,8 @@ class UrlBasedReactiveClientRegistrationRepository(
         getOrganizationFromContext().flatMap { organization ->
 
             // Extract idpId from registration ID (format: "#test-{idpId}")
-            val idpId = if (registrationId.startsWith(TEST_ENDPOINT_REGISTRATION_ID_PREFIX)) {
+            val idpId = if (!registrationId.startsWith(TEST_ENDPOINT_REGISTRATION_ID_PREFIX)) {
+                //TODO MIGHT NOT NEED TO REMOVE PREFIX
                 registrationId.removePrefix(TEST_ENDPOINT_REGISTRATION_ID_PREFIX)
             } else {
                 return@flatMap Mono.error(
@@ -42,7 +44,6 @@ class UrlBasedReactiveClientRegistrationRepository(
                     )
                 )
             }
-
             client.getIdpById(organization.id, idpId)
                 .flatMap { identityProvider ->
                     client.getJitProvisioningSetting(organization.id)

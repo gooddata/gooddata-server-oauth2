@@ -53,6 +53,8 @@ class TestEndpointDedicatedServerAuthenticationEntryPoint(
 
         val registrationId = "$TEST_ENDPOINT_REGISTRATION_ID_PREFIX$idpId"
         val uri = URI.create("/oauth2/authorization/$registrationId")
+        //TODO: REPLACE WITH redirectStrategy.sendRedirect(exchange, uri)
+        // Add cookie to exchange (via testRequestCache or sth)
         return requestCache
             .saveRequest(exchange)
             .then(redirectStrategy.sendRedirect(exchange, uri))

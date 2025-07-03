@@ -15,8 +15,10 @@
  */
 package com.gooddata.oauth2.server
 
+import com.gooddata.oauth2.server.TestEndpointDedicatedServerAuthenticationEntryPoint.Companion.TEST_ENDPOINT_REGISTRATION_ID_PREFIX
 import com.gooddata.oauth2.server.TestEndpointDedicatedServerAuthenticationEntryPoint.Companion.TEST_ENDPOINT_URL
 import com.gooddata.oauth2.server.oauth2.client.CustomAttrsAwareOauth2AuthorizationRequestResolver
+import java.net.URI
 import java.util.Base64
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Value
@@ -246,34 +248,17 @@ class ServerOAuth2AutoConfiguration {
         serverHttpSecurity: ServerHttpSecurity,
         serverSecurityContextRepository: ServerSecurityContextRepository,
         authorizedClientRepository: ServerOAuth2AuthorizedClientRepository,
-        cookieService: ReactiveCookieService,
         authenticationStoreClient: ObjectProvider<AuthenticationStoreClient>,
-        auditClient: ObjectProvider<AuthenticationAuditClient>,
+        auditClient: ObjectProvider<AuthenticationAuditClient>, // TODO MAYBE FOR AUDIT LOGGING OTHERWISE REMOVE
         userContextProvider: ObjectProvider<ReactorUserContextProvider>,
-        loginAuthManager: ReactiveAuthenticationManager,
-        compositeCorsConfigurationSource: CompositeCorsConfigurationSource,
-        appLoginProperties: AppLoginProperties,
-        federationAwareAuthorizationRequestResolver: ServerOAuth2AuthorizationRequestResolver,
     ): SecurityWebFilterChain {
 
-        val appLoginRedirectProcessor = AppLoginRedirectProcessor(
-            compositeCorsConfigurationSource,
-            appLoginProperties.allowRedirect
-        )
-
-        val serverRequestCache = DelegatingServerRequestCache(
-            CookieServerRequestCache(cookieService),
-            AppLoginCookieRequestCacheWriter(cookieService),
-            appLoginRedirectProcessor,
-        )
-
-        val serverAuthenticationEntryPoint = TestEndpointDedicatedServerAuthenticationEntryPoint(serverRequestCache)
+        val serverAuthenticationEntryPoint = TestEndpointDedicatedServerAuthenticationEntryPoint()
 
         return serverHttpSecurity.securityContextRepository(serverSecurityContextRepository).configure {
             securityMatcher { serverWebExchange ->
                 // Match the actual API pattern that needs alternative authentication
                 PathPatternParserServerWebExchangeMatcher(TEST_ENDPOINT_URL).matches(serverWebExchange)
-
             }
             exceptionHandling {
                 authenticationEntryPoint = serverAuthenticationEntryPoint
@@ -287,22 +272,27 @@ class ServerOAuth2AutoConfiguration {
                 ),
                 SecurityWebFiltersOrder.FIRST
             )
+            //TODO DOUBLE CHECK WHAT FILTER CHAIN PROCESSES THE RESPONSE
+
+
+
             // Add the UserContextWebFilter to set up AuthContext after authentication
-            addFilterAfter(
-                OidcBasedUseContextWebFilter(
-                    OidcAuthenticationProcessor(
-                        authenticationStoreClient.`object`,
-                        serverAuthenticationEntryPoint,
-                        DelegatingServerLogoutHandler(
-                            // Create a minimal logout handler for the alternative chain
-                            SecurityContextRepositoryLogoutHandler(serverSecurityContextRepository)
-                        ),
-                        userContextProvider.`object`,
-                        authorizedClientRepository,
-                    ),
-                ),
-                SecurityWebFiltersOrder.LOGOUT
-            )
+            // TODO SHOULD WORK WITHOUT THIS WEB FILTER
+//            addFilterAfter(
+//                OidcBasedUseContextWebFilter(
+//                    OidcAuthenticationProcessor(
+//                        authenticationStoreClient.`object`,
+//                        serverAuthenticationEntryPoint,
+//                        DelegatingServerLogoutHandler(
+//                            // Create a minimal logout handler for the alternative chain
+//                            SecurityContextRepositoryLogoutHandler(serverSecurityContextRepository)
+//                        ),
+//                        userContextProvider.`object`,
+//                        authorizedClientRepository,
+//                    ),
+//                ),
+//                SecurityWebFiltersOrder.LOGOUT
+//            )
         }
     }
 
@@ -468,6 +458,16 @@ class ServerOAuth2AutoConfiguration {
                 ),
                 SecurityWebFiltersOrder.FIRST
             )
+            /*
+            addFilter - filter that stores the idp id into the context (if the specific test endpoint url is hit)
+             */
+            // Add filter that adds to context the registration id / idp
+//            addFilterAt(
+//                // Redirect filter to /custom auth path  - replacement for the first filter chain
+//                // val registrationId = "$TEST_ENDPOINT_REGISTRATION_ID_PREFIX$idpId"
+//                // val uri = URI.create("/oauth2/authorization/$registrationId")
+//                SecurityWebFiltersOrder.FIRST
+//            )
         }
     }
 

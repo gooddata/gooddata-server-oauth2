@@ -30,6 +30,7 @@ class HostBasedReactiveClientRegistrationRepository(
 ) : ReactiveClientRegistrationRepository {
 
     override fun findByRegistrationId(registrationId: String): Mono<ClientRegistration> =
+        // if idp in context build client registration based on idp definition in idp entity from md
         getOrganizationFromContext().flatMap { organization ->
             client.getJitProvisioningSetting(organization.id)
                 .defaultIfEmpty(JitProvisioningSetting(enabled = false))

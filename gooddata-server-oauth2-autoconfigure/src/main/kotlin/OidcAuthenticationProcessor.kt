@@ -66,6 +66,10 @@ class OidcAuthenticationProcessor(
             ).map { Optional.of(it) }.defaultIfEmpty(Optional.empty<OAuth2AuthorizedClient>())
 
         val userContextMono = getUserContextForAuthenticationToken(authenticationToken)
+
+        /*
+        *  If the special cookie exists CREATE OWN AuthenticationProcessor extract principal from token, stop the chain
+        */
         return Mono.zip(authorizedClientMono, userContextMono).flatMap { tuple ->
             val authorizedClient = tuple.t1.getOrNull()
             val userContext = tuple.t2
@@ -87,6 +91,7 @@ class OidcAuthenticationProcessor(
                     authenticationToken.getClaim(userContext.organization.oauthSubjectIdClaim),
                     authorizedClient?.accessToken?.tokenValue, // Handle null authorizedClient
                 ) {
+                    //TOdo instead - RETURN EMPTY MONO + WRITE TO EXCHANGE TOKEN DETAILS
                     chain.filter(exchange)
                 }
             }
