@@ -45,7 +45,7 @@ dependencies {
     api("org.springframework:spring-web")
 
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
-    implementation("com.github.ben-manes.caffeine:caffeine:3.2.0")
+    implementation("com.github.ben-manes.caffeine:caffeine:3.2.2")
     implementation("com.google.crypto.tink:tink:${tinkVersion}")
     implementation("io.github.oshai:kotlin-logging-jvm:${kotlinLoggingVersion}")
     implementation("org.slf4j:slf4j-api:2.0.17")
