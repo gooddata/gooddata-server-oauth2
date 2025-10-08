@@ -74,6 +74,32 @@ root@a45628275f4a:/# ./tinkey create-keyset --key-template AES256_GCM
 }
 ```
 
+### Call Context Authentication
+
+In addition to OIDC/OAuth2 and Bearer token authentication, the library supports **call context authentication** 
+for service-to-service communication. This mechanism is designed for scenarios where authentication has already 
+been performed by an upstream service (e.g., an API gateway).
+
+Key characteristics:
+* Authentication information is passed via a custom HTTP header (configurable by the application)
+* No re-authentication or metadata lookups are performed (trusts upstream validation)
+* Takes precedence over Bearer token authentication when the call context header is present
+* Requires implementing [CallContextHeaderProcessor](gooddata-server-oauth2-autoconfigure/src/main/kotlin/CallContextHeaderProcessor.kt)
+  interface to:
+  - Define the custom header name via `getHeaderName()` 
+  - Parse the application-specific header format via `parseCallContextHeader()`
+
+#### Security Considerations
+
+**Critical**: This authentication mode bypasses normal security checks and trusts the upstream service completely.
+Implementations must ensure:
+
+* **Gateway-level protection**: The API gateway **must** strip/discard the call context header from all external 
+  requests. This is the primary security control.
+* **Network segmentation**: Services using this feature should not be directly accessible from untrusted networks.
+  Deploy behind a properly configured API gateway or service mesh.
+* **Audit logging**: All call context authentications should be logged for security monitoring and incident response.
+
 ### HTTP endpoints
 
 * **any resource** behind authentication

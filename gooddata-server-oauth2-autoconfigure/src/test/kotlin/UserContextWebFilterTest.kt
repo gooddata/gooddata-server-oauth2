@@ -31,10 +31,12 @@ internal class UserContextWebFilterTest {
     private val oidcAuthenticationProcessor: OidcAuthenticationProcessor = mockk()
     private val jwtAuthenticationProcessor: JwtAuthenticationProcessor = mockk()
     private val userContextAuthenticationProcessor: UserContextAuthenticationProcessor = mockk()
+    private val callContextAuthenticationProcessor: CallContextAuthenticationProcessor = mockk()
     private val filter = UserContextWebFilter(
         oidcAuthenticationProcessor,
         jwtAuthenticationProcessor,
-        userContextAuthenticationProcessor
+        userContextAuthenticationProcessor,
+        callContextAuthenticationProcessor
     )
 
     @Test
@@ -116,6 +118,59 @@ internal class UserContextWebFilterTest {
     }
 
     @Test
+    fun `callContext authentication triggered`() {
+        val authenticationToken = mockk<CallContextAuthenticationToken>()
+        val context = SecurityContextImpl(authenticationToken)
+        val webFilterChain = mockk<WebFilterChain>()
+
+        every {
+            callContextAuthenticationProcessor.authenticate(
+                authenticationToken,
+                any(),
+                webFilterChain
+            )
+        } returns Mono.empty()
+
+        filter
+            .filter(mockk(), webFilterChain)
+            .contextWrite { it.put(SecurityContext::class.java, Mono.just(context)) }
+            .block()
+
+        verify(exactly = 1) {
+            callContextAuthenticationProcessor.authenticate(
+                authenticationToken,
+                any(),
+                webFilterChain
+            )
+        }
+    }
+
+    @Test
+    fun `callContext authentication with null processor logs warning and continues`() {
+        val authenticationToken = mockk<CallContextAuthenticationToken>()
+        val context = SecurityContextImpl(authenticationToken)
+        val webFilterChain = mockk<WebFilterChain> {
+            every { filter(any()) } returns Mono.empty()
+        }
+        val filterWithoutCallContextProcessor = UserContextWebFilter(
+            oidcAuthenticationProcessor,
+            jwtAuthenticationProcessor,
+            userContextAuthenticationProcessor,
+            null // No CallContext processor
+        )
+
+        filterWithoutCallContextProcessor
+            .filter(mockk(), webFilterChain)
+            .contextWrite { it.put(SecurityContext::class.java, Mono.just(context)) }
+            .block()
+
+        verify(exactly = 1) { webFilterChain.filter(any()) }
+        verify(exactly = 0) {
+            callContextAuthenticationProcessor.authenticate(any(), any(), any())
+        }
+    }
+
+    @Test
     fun `unauthenticated resource trigger`() {
         val webFilterChain = mockk<WebFilterChain> {
             every { filter(any()) } returns Mono.empty()
@@ -123,7 +178,8 @@ internal class UserContextWebFilterTest {
         val filter = UserContextWebFilter(
             oidcAuthenticationProcessor,
             jwtAuthenticationProcessor,
-            userContextAuthenticationProcessor
+            userContextAuthenticationProcessor,
+            callContextAuthenticationProcessor
         )
 
         filter
