@@ -218,6 +218,29 @@ class ServerOAuth2AutoConfiguration {
     ) = CustomAttrsAwareOauth2AuthorizationRequestResolver(urlSafeStateAuthorizationRequestResolver, cookieService)
 
     @Bean
+    @ConditionalOnMissingBean
+    fun callContextAuthenticationProcessor(
+        headerProcessor: ObjectProvider<CallContextHeaderProcessor>,
+        userContextProvider: ObjectProvider<ReactorUserContextProvider>,
+    ): CallContextAuthenticationProcessor? {
+        val processor = headerProcessor.ifAvailable
+        val provider = userContextProvider.ifAvailable
+        return if (processor != null && provider != null) {
+            CallContextAuthenticationProcessor(processor, provider)
+        } else {
+            null
+        }
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    fun callContextAuthenticationWebFilter(
+        headerProcessor: ObjectProvider<CallContextHeaderProcessor>
+    ): CallContextAuthenticationWebFilter {
+        return CallContextAuthenticationWebFilter(headerProcessor.ifAvailable)
+    }
+
+    @Bean
     @Suppress("LongParameterList", "LongMethod")
     fun springSecurityFilterChain(
         serverHttpSecurity: ServerHttpSecurity,
@@ -235,6 +258,8 @@ class ServerOAuth2AutoConfiguration {
         jwtDecoderFactory: ObjectProvider<ReactiveJwtDecoderFactory<ClientRegistration>>,
         loginAuthManager: ReactiveAuthenticationManager,
         federationAwareAuthorizationRequestResolver: ServerOAuth2AuthorizationRequestResolver,
+        callContextAuthenticationWebFilter: ObjectProvider<CallContextAuthenticationWebFilter>,
+        callContextAuthenticationProcessor: ObjectProvider<CallContextAuthenticationProcessor>,
         // TODO these properties serve as a temporary hack.
         //  So for now, we will keep this configuration property here.
         //  Can be moved elsewhere or even removed in the following library release.
@@ -333,6 +358,11 @@ class ServerOAuth2AutoConfiguration {
                 requiresLogout = pathMatchers(HttpMethod.GET, "/logout")
             }
             addFilterBefore(PostLogoutNotAllowedWebFilter(), SecurityWebFiltersOrder.LOGOUT)
+            // Add CallContext authentication filter BEFORE other authentication filters
+            // This ensures CallContext takes precedence when present
+            callContextAuthenticationWebFilter.ifAvailable?.let { filter ->
+                addFilterBefore(filter, SecurityWebFiltersOrder.AUTHENTICATION)
+            }
             addFilterAfter(
                 UserContextWebFilter(
                     OidcAuthenticationProcessor(
@@ -347,7 +377,8 @@ class ServerOAuth2AutoConfiguration {
                         logoutHandler,
                         userContextProvider.`object`
                     ),
-                    UserContextAuthenticationProcessor(userContextProvider.`object`)
+                    UserContextAuthenticationProcessor(userContextProvider.`object`),
+                    callContextAuthenticationProcessor.ifAvailable
                 ),
                 SecurityWebFiltersOrder.LOGOUT
             )

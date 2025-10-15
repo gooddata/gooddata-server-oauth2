@@ -46,11 +46,15 @@ import reactor.core.publisher.Mono
  *
  * Similarly in case [JwtAuthenticationToken] is used the [JwtAuthenticationProcessor] retrieves [Organization] by
  * request uri host. And authenticates the user based on `Jwks` configured for the given organization.
+ *
+ * In case [CallContextAuthenticationToken] is used the [CallContextAuthenticationProcessor] processes the CallContext
+ * header that was already validated by an upstream service.
  */
 class UserContextWebFilter(
     private val oidcAuthenticationProcessor: OidcAuthenticationProcessor,
     private val jwtAuthenticationProcessor: JwtAuthenticationProcessor,
-    private val userContextAuthenticationProcessor: UserContextAuthenticationProcessor
+    private val userContextAuthenticationProcessor: UserContextAuthenticationProcessor,
+    private val callContextAuthenticationProcessor: CallContextAuthenticationProcessor?
 ) : WebFilter {
 
     private val logger = KotlinLogging.logger {}
@@ -81,6 +85,14 @@ class UserContextWebFilter(
         is OAuth2AuthenticationToken -> oidcAuthenticationProcessor.authenticate(this, exchange, chain)
         is JwtAuthenticationToken -> jwtAuthenticationProcessor.authenticate(this, exchange, chain)
         is UserContextAuthenticationToken -> userContextAuthenticationProcessor.authenticate(this, exchange, chain)
+        is CallContextAuthenticationToken -> {
+            if (callContextAuthenticationProcessor != null) {
+                callContextAuthenticationProcessor.authenticate(this, exchange, chain)
+            } else {
+                logger.warn { "CallContextAuthenticationToken present but no processor configured" }
+                chain.filter(exchange)
+            }
+        }
         else -> {
             logger.warn { "Security context contains unexpected authentication ${this::class}" }
             chain.filter(exchange)
