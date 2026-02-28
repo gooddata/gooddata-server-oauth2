@@ -15,14 +15,14 @@ jobs:
       - uses: gooddata/github-actions-public/codeartifact/get-token@master
       - uses: actions/checkout@v6
       - name: cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           key: kotlin-build
           path: .gradle
       - run: |
           ./gradlew clean build compileTestKotlin -x test --info
       - name: Archive build outputs
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: build-artifact
           path: '**/build/**/*'
@@ -38,14 +38,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           key: kotlin-build
           path: .gradle
       - run: |
           ./gradlew test --info
       - name: Archive test outputs
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: test-artifact
           path: '**/build/test-results/**/TEST-*.xml'
