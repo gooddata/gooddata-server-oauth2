@@ -41,8 +41,14 @@ class BearerTokenReactiveAuthenticationManagerResolver(
     private val client: AuthenticationStoreClient,
     private val auditClient: AuthenticationAuditClient,
 ) : ReactiveAuthenticationManagerResolver<ServerWebExchange> {
-    override fun resolve(exchange: ServerWebExchange): Mono<ReactiveAuthenticationManager> =
-        Mono.just(exchange).map {
+    override fun resolve(exchange: ServerWebExchange): Mono<ReactiveAuthenticationManager> {
+        val callContextHeader = exchange.request.headers.getFirst("gd-call-context")
+        if (callContextHeader != null && callContextHeader.contains("\"authMethod\":\"JWT\"")) {
+            // Gateway has already validated this JWT via call context — skip re-validation
+            return Mono.just(ReactiveAuthenticationManager { Mono.empty() })
+        }
+
+        return Mono.just(exchange).map {
             val sourceIp = exchange.request.remoteAddress?.address?.hostAddress
                 ?: exchange.request.remoteAddress?.hostName
 
@@ -51,6 +57,7 @@ class BearerTokenReactiveAuthenticationManagerResolver(
                 PersistentApiTokenAuthenticationManager(client, auditClient, sourceIp)
             )
         }
+    }
 }
 
 /**

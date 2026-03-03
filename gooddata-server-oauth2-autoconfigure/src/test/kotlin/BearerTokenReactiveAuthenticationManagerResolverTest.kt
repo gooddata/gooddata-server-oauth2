@@ -52,6 +52,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
     private val exchange: ServerWebExchange = mockk {
         every { request.uri.host } returns HOST
         every { request.remoteAddress } returns InetSocketAddress("127.0.0.1", 8080)
+        every { request.headers.getFirst("gd-call-context") } returns null
     }
 
     @Test
@@ -59,6 +60,7 @@ internal class BearerTokenReactiveAuthenticationManagerResolverTest {
         val mockExchange: ServerWebExchange = mockk {
             every { request.uri.host } returns HOST
             every { request.remoteAddress } returns InetSocketAddress("127.0.0.1", 8080)
+            every { request.headers.getFirst("gd-call-context") } returns null
         }
 
         val resolver = BearerTokenReactiveAuthenticationManagerResolver(client, auditClient)
