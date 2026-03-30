@@ -87,7 +87,7 @@ class CallContextAuthenticationProcessor(
             val userContextData = UserContextData(
                 organizationId = authDetails.organizationId,
                 userId = authDetails.userId,
-                userName = null,
+                userName = authDetails.userName,
                 tokenId = authDetails.tokenId,
                 authMethod = authMethod,
                 accessToken = null
