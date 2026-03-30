@@ -54,5 +54,6 @@ data class CallContextAuth(
     val organizationId: String,
     val userId: String,
     val authMethod: String,
-    val tokenId: String? = null
+    val tokenId: String? = null,
+    val userName: String? = null,
 )

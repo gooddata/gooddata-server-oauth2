@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Test
 import org.springframework.security.oauth2.server.resource.BearerTokenAuthenticationToken
 import org.springframework.web.server.ServerWebExchange
 import strikt.api.expectThat
-import strikt.assertions.isA
 import strikt.assertions.isNull
 import strikt.assertions.isNotNull
 import java.net.InetSocketAddress
