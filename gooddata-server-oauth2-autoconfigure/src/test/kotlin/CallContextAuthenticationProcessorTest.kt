@@ -129,6 +129,36 @@ class CallContextAuthenticationProcessorTest {
     }
 
     @Test
+    fun `propagates userName from CallContextAuth to user context`() {
+        val authToken = CallContextAuthenticationToken("base64-encoded-header")
+        val authDetails = CallContextAuth(
+            organizationId = "org123",
+            userId = "user456",
+            authMethod = "OIDC",
+            tokenId = "token789",
+            userName = "John Smith"
+        )
+
+        every { headerProcessor.parseCallContextHeader("base64-encoded-header") } returns authDetails
+        coEvery {
+            userContextProvider.getContextView(any(), any(), any(), any(), any(), any())
+        } returns Context.empty()
+
+        processor.authenticate(authToken, webExchange, webFilterChain).block()
+
+        coVerify(exactly = 1) {
+            userContextProvider.getContextView(
+                organizationId = "org123",
+                userId = "user456",
+                userName = "John Smith",
+                tokenId = "token789",
+                authMethod = AuthMethod.OIDC,
+                accessToken = null
+            )
+        }
+    }
+
+    @Test
     fun `null call context throws exception`() {
         val authToken = CallContextAuthenticationToken("header-value")
 
