@@ -1,0 +1,24 @@
+gooddata-server-oauth2-autoconfigure/src/test/kotlin/ReactiveCommunicationClientsConfigurationTest.kt
+  s_7d98e7a36ff1d5::t_a0fd635ecf1967 1-25,27,29-45,47-49,51-59,65-71,73-74,76-101
+  s_7d98e7a36ff1d5::t_f83aa9d2e6663d 46,50,60-62,64,72,75
+  s_7d98e7a36ff1d5::t_b69948e10a6f7a 63
+  s_7d98e7a36ff1d5::t_d0ca0e0288dd42 26,28
+gooddata-server-oauth2-autoconfigure/src/main/kotlin/ReactiveCommunicationClientsConfiguration.kt
+  s_7d98e7a36ff1d5::t_25c4508c4cd21d 62-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "90e060c227b44b148071f12847ca3e137b715559",
+  "prompts": {},
+  "sessions": {
+    "s_7d98e7a36ff1d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "eaa450ff-25e1-463a-a5b6-ffda4eb7bfb8",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Chris Bonilla <christopher.bonilla@gooddata.com>"
+    }
+  }
+}
