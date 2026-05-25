@@ -59,6 +59,11 @@ class ReactiveCommunicationClientsConfiguration(private val httpProperties: Http
         val httpClient = HttpClient.create(connectionProvider())
             .responseTimeout(Duration.ofMillis(httpProperties.readTimeoutMillis.toLong()))
             .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, httpProperties.connectTimeoutMillis)
+            // Honour standard JVM proxy system properties (https.proxyHost, http.proxyHost,
+            // http.nonProxyHosts, etc.). Without this, the Reactor Netty client used for
+            // OIDC token, userinfo, and refresh-token calls silently bypasses any proxy that
+            // the JDK-based RestTemplate paths in this library already respect.
+            .proxyWithSystemProperties()
         return WebClient.builder()
             .clientConnector(ReactorClientHttpConnector(httpClient))
             .filter { request, next ->
